@@ -49,6 +49,10 @@ class ScriptedProvider:
         """Return the case's hand-built bias critique, or None."""
         return self._case.bias_critique
 
+    def detect_traps(self, system_map):
+        """Return the case's hand-built trap diagnosis, or None."""
+        return self._case.trap_detection
+
     def parse(self, raw: str) -> IngestionResult:
         # Stage-0 ingestion is not part of a CaseSpec; a scripted case starts from an
         # already-chosen theme. Return empty streams (the ThemeObject does not embed them).

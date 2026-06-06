@@ -23,8 +23,10 @@ falsifiers.
   intuit leverage points but "push in the wrong direction."
 - **Engine grounding (this repo):** consumes `engine/schema.py:SystemMap` and its
   `FeedbackLoop` (`id`, `type ∈ {reinforcing, balancing}`, `path: list[str]`, `delay`,
-  `closes_via`), `Delay` (`between`, `length`, `why_it_matters`), `Stock`/`Flow`. Wired
-  conceptually BETWEEN the `SYSTEM_MAP` stage and the scenario engine (`engine/workflow.py`).
+  `closes_via`), `Delay` (`between`, `length`, `why_it_matters`), `Stock`/`Flow`. NOW WIRED as
+  the live **TRAP stage** (`engine/workflow.py`, after `SYSTEM_MAP`/`CRITIQUE`, before pricing):
+  emits `engine/schema.py:TrapDetection` via the `Provider.detect_traps(system_map)` seam
+  (`ScriptedProvider` from the case; `LLMProvider` later), recorded on the `ThemeObject`.
   Its `scenario_implications` feed `Scenario.implied_axis_value`; its `invalidation_evidence`
   feed `Falsifier`; its crowding verdict is consistent with the pre-screen's
   `−attention_score` term (`schema.py:CandidateTheme.pre_screen_score = evidence − attention`)

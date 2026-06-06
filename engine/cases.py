@@ -36,6 +36,7 @@ from .schema import (
     SystemMap,
     ThemeObject,
     Thesis,
+    TrapDetection,
 )
 
 
@@ -247,6 +248,7 @@ class CaseSpec(BaseModel):
     causal: Optional[CausalPayload] = None   # EXPAND_CAUSAL payload (optional)
     system_map: Optional[SystemMap] = None        # SYSTEM_MAP stage payload (optional)
     bias_critique: Optional[BiasCritique] = None  # CRITIQUE stage payload (optional)
+    trap_detection: Optional[TrapDetection] = None  # TRAP stage payload (optional)
     policy: Union[Literal["default"], PolicyConfig] = "default"
     oracle: Oracle
 

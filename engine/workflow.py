@@ -68,6 +68,8 @@ def run_workflow(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObject,
     # Both optional; they record structure/judgment on the ThemeObject and do not gate it.
     system_map = provider.build_system_map(thesis, causal_chain)
     bias_critique = provider.critique_mental_model(ctx.statement, causal_chain)
+    # TRAP stage: consumes the system map's loop map; diagnoses loop dominance / traps.
+    trap_detection = provider.detect_traps(system_map)
 
     normal_fv = provider.normal_fair_value(axis)
     scenarios = provider.propose_scenarios(thesis, axis)
@@ -113,6 +115,7 @@ def run_workflow(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObject,
         shared_factor=shared_factor,
         system_map=system_map,
         bias_critique=bias_critique,
+        trap_detection=trap_detection,
     )
     return theme, _render_memo(theme, best, pricing)
 

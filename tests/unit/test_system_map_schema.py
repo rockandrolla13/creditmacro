@@ -85,3 +85,5 @@ def test_theme_object_new_fields_optional_default_none():
     from engine.example import theme
     assert theme.system_map is None
     assert theme.bias_critique is None
+    assert theme.trap_detection is None
+    assert theme.iceberg_classification is None  # the theme's own Stage-0 classification

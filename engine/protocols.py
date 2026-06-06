@@ -28,6 +28,7 @@ from .schema import (
     SystemMap,
     ThemeObject,
     Thesis,
+    TrapDetection,
 )
 from .stage0 import IngestionResult
 
@@ -98,6 +99,11 @@ class Provider(ScenarioSource, ExpressionSource, RiskSource, Protocol):
         self, statement: str, causal_chain: Optional[CausalChain]
     ) -> Optional[BiasCritique]:
         """Adversarial review of the theme's mental model. None when not supplied."""
+        ...
+
+    def detect_traps(self, system_map: Optional[SystemMap]) -> Optional[TrapDetection]:
+        """Diagnose loops/leverage/traps from the system map's loop map. None when not
+        supplied (does not re-derive loops)."""
         ...
 
     def extract_drivers(self, statement: str) -> Thesis: ...

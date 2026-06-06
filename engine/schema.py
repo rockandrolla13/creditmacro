@@ -280,6 +280,38 @@ class BiasCritique(BaseModel):
     rationale: str = ""
 
 
+# ── Feedback, Leverage Point & System Trap Detector (Meadows) ─────────────────
+
+class LeveragePoint(BaseModel):
+    """Where a small change most alters system behaviour. observable=True if an
+    investor can watch it; False if it is structural (a deeper Meadows leverage point)."""
+    description: str
+    observable: bool = True
+
+
+class TrapDetection(BaseModel):
+    """Diagnosis of why a theme may accelerate, reverse, overshoot, crowd, or fail.
+    CONSUMES the SystemMap's loop map (does not re-derive loops). Records, does not gate.
+
+    Meadows: a reinforcing loop always eventually meets a balancing loop (limits to
+    growth); delays in a balancing loop cause overshoot (crowded trades reverse
+    violently); high attention × reinforcing-loop dominance ⇒ likely already priced."""
+    feedback_loop_map: list[FeedbackLoop] = []   # reused from the SystemMap
+    dominant_loop_now: str
+    dominant_loop_evidence: str = ""
+    possible_loop_shift: str                     # the R<->B reversal condition / point
+    system_traps: list[str] = []
+    leverage_points: list[LeveragePoint] = []
+    early_warning_indicators: list[str] = []
+    scenario_implications: list[str] = []
+    expression_risk_implications: list[str] = []
+    invalidation_evidence: list[str] = []
+    pm_questions: list[str] = []
+    decision: Literal[
+        "promote_to_scenario_pricing", "watchlist", "reject", "needs_more_data"
+    ]
+
+
 # ── Engine 2 output: scenarios + pricing (Q4–Q7) ─────────────────────────────
 
 class Scenario(BaseModel):
@@ -462,6 +494,9 @@ class ThemeObject(BaseModel):
     shared_factor: Optional[str] = None
     system_map: Optional[SystemMap] = None       # Meadows system structure (embeds the chain)
     bias_critique: Optional[BiasCritique] = None  # adversarial pre-promotion review
+    trap_detection: Optional[TrapDetection] = None  # feedback/leverage/trap diagnosis
+    # Stage 0: the iceberg classification of the candidate this theme was promoted from.
+    iceberg_classification: Optional[IcebergClassification] = None
 
     @model_validator(mode="after")
     def discipline_gates(self) -> "ThemeObject":
