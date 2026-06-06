@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from .engines import compute_omega
 from .schema import (
     Axis,
+    BiasCritique,
     CausalChain,
     CausalNode,
     EdgeContribution,  # noqa: F401  (re-exported for back-compat)
@@ -32,6 +33,7 @@ from .schema import (
     Risk,
     Scenario,
     Sizing,
+    SystemMap,
     ThemeObject,
     Thesis,
 )
@@ -243,6 +245,8 @@ class CaseSpec(BaseModel):
     thesis_sign: Literal[-1, 1]
     edge_mc: bool = False     # run Monte-Carlo edge (SNR/std) in run_pricing
     causal: Optional[CausalPayload] = None   # EXPAND_CAUSAL payload (optional)
+    system_map: Optional[SystemMap] = None        # SYSTEM_MAP stage payload (optional)
+    bias_critique: Optional[BiasCritique] = None  # CRITIQUE stage payload (optional)
     policy: Union[Literal["default"], PolicyConfig] = "default"
     oracle: Oracle
 

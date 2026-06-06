@@ -1,18 +1,22 @@
 # Skill — SYSTEM STRUCTURE MAPPER
 
-**Type:** structure-mapping skill. Runs BEFORE the Causal Theme Compiler: it maps the WHOLE
-system (boundary, stocks, flows, loops, delays) so the compiler can then distil ONE depth-first
-causal chain with operational axes from it. **Does NOT recommend a trade** — it builds the map
-later agents price.
+**Type:** structure-mapping skill. Runs AFTER the Causal Theme Compiler and BEFORE the scenario
+engine: it CONSUMES the existing causal chain and EMBEDS it in a system (reusing the chain's
+nodes as elements and its edges as interconnections), adding the stocks, flows, loops, and
+delays a single depth-first chain misses. It does NOT re-derive the chain. **Does NOT price or
+trade** — it builds the system map later agents price.
 
 ## Provenance (method reference, not reproduced content)
 - **Meadows, *Thinking in Systems: A Primer*** — a system = elements + interconnections +
   function/purpose; stocks vs flows; reinforcing vs balancing loops; delays; "systems surprise
-  us" through structure, loop dominance shifts, and policy resistance; the system's real goal
+  us" through structure, loop-dominance shifts, and policy resistance; the system's real goal
   can differ from its stated goal. Source-derived (method, not summary).
-- **Engine grounding (this repo):** the map's tradeable nodes must terminate in *operational
-  axes* (named computable spreads/ratios — the Causal Theme Compiler / `CausalNode` contract),
-  and any reflexive link becomes a `feedback=True` edge downstream. Not a source; the consumer.
+- **Engine grounding (this repo):** wired as the **SYSTEM_MAP stage** in `engine/workflow.py`
+  (after `EXPAND_CAUSAL`). `engine/schema.py:SystemMap` reuses `CausalNode` for `elements` and
+  `CausalEdge` for `interconnections`; `Stock`/`Flow` are DISTINCT types; `FeedbackLoop.type` is
+  `reinforcing|balancing`; reflexive links carry `feedback=True` consistent with the chain. The
+  `Provider.build_system_map(thesis, causal_chain)` seam supplies it. Tradeable element nodes
+  still terminate in operational axes. Not a source; the consumer.
 
 ---
 
@@ -25,16 +29,18 @@ interconnections, function, stocks, flows, feedback loops, delays, external shoc
 responses, observable variables, and the data to track it over time — so downstream agents can
 extract priceable causal chains and anticipate how the system will surprise.
 
-**when_to_use:** When a theme spans MULTIPLE issuers/instruments/intermediaries and "what
-connects to what" is non-obvious; before causal compilation; whenever a PM says "ecosystem,"
-"complex," "new market," or "everything is connected."
+**when_to_use:** Immediately AFTER the Causal Theme Compiler (it needs the chain), BEFORE the
+scenario engine; whenever a theme spans MULTIPLE issuers/instruments/intermediaries and "what
+connects to what" is non-obvious; whenever a PM says "ecosystem," "complex," "new market," or
+"everything is connected."
 
 **input_schema:**
 ```
 {
   "theme_id": str,
   "statement": str,                 # the theme to map
-  "named_entities": [str],          # issuers/instruments/intermediaries mentioned
+  "causal_chain": CausalChain,      # the compiler's output — CONSUMED, not re-derived
+  "named_entities": [str],          # extra issuers/instruments/intermediaries beyond the chain
   "horizon": str|null
 }
 ```
@@ -55,7 +61,8 @@ connects to what" is non-obvious; before causal compilation; whenever a PM says 
   "internal_responses": [str],
   "observable_variables": [str],
   "behavior_over_time_charts": [ {"series": str, "expected_shape": str} ],
-  "surprise_modes": [str]
+  "surprise_modes": [str],
+  "shared_factor": str               # the latent factor the system loads on (for the portfolio layer)
 }
 ```
 
@@ -66,14 +73,18 @@ connects to what" is non-obvious; before causal compilation; whenever a PM says 
 - The boundary is a CHOICE, not a fact (Meadows): state the rationale and what it excludes.
 
 **element_identification_rules:**
-- List the things that *hold a stock or carry a flow* (issuers, instruments, indices, vehicles,
-  intermediaries, the underlying real asset). Tag each `type`.
+- **REUSE the causal chain's nodes as elements** first; only ADD elements the chain omitted
+  (indices, ETFs, intermediaries, the underlying real asset) — do not re-derive the chain.
+- List the things that *hold a stock or carry a flow*. Tag each `type`.
 - An "element" is not a number; it is a node that can accumulate (a stock) or transmit (a flow).
 
 **interconnection_rules:**
+- **REUSE the chain's edges as interconnections**; then ADD the ones a single depth-first chain
+  cannot express — cross-links and CLOSED LOOPS (a chain is a spine; a system has cycles).
 - Every interconnection is either a **flow of capital/physical thing** or an **information/price
   link** (a spread relationship, an index rule, ownership). Attach an `observable` where one exists.
-- Information links (rules, narratives, prices) are the usual sites of leverage AND of surprise.
+- A reflexive link (outcome → its own driver) is flagged `feedback=True`, consistent with the
+  chain's feedback edges, and must appear in a `feedback_loops` entry.
 
 **stock_flow_template:**
 ```
@@ -105,6 +116,13 @@ reveals which loop is winning — plot these, not point estimates.
 
 **market_data_requirements:** the concrete series (with source/frequency) needed to instantiate
 each stock, flow, interconnection, and BOT chart; flag any that are non-identifiable today.
+
+**surprise_modes:** the ways the system will blindside investors — almost always WHERE THE
+DELAYS BITE (a flow that hasn't yet moved its stock, a price that hasn't caught the structural
+change) or where loop dominance flips (a balancing loop overshoots into a reinforcing one).
+
+**shared_factor:** the single latent factor the whole system loads on (for the portfolio layer),
+so correlated themes are not booked as independent bets. Carried onto the ThemeObject.
 
 ---
 
@@ -187,7 +205,13 @@ HY HPC refi-wall schedule; dealer inventory / bid-offer (liquidity).
 - GPU resale-price index and data-center utilisation (the real-asset stocks).
 - HY HPC refi-wall by year (the balancing-loop trigger).
 
+### shared_factor (for the portfolio layer)
+**One AI-funding / AI-capex-credit factor.** Hyperscaler IG, data-center project bonds, and HY
+HPC all load on it — so the three "legs" are NOT independent bets. Carried onto the ThemeObject
+so the portfolio layer does not double-count diversification (this is the same fact behind
+surprise mode #2).
+
 ---
-**Standing reminder:** this skill builds the system map only. It names structure, loops, delays,
-and observables — it does NOT price, size, or recommend a trade. The Causal Theme Compiler and
-pricing agents consume this map next.
+**Standing reminder:** this skill consumes the causal chain and builds the system map only. It
+names structure, loops, delays, observables, and the shared factor — it does NOT price, size, or
+recommend a trade. The scenario / pricing agents consume this map next.

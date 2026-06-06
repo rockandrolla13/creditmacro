@@ -172,6 +172,74 @@ class CausalChain(BaseModel):
         return self
 
 
+# ── System Structure Mapper (Meadows) — embeds the causal chain in a system ───
+
+class Stock(BaseModel):
+    """A LEVEL measurable at an instant (outstanding debt, index weight, AUM)."""
+    name: str
+    unit: str
+    observable: Optional[str] = None
+
+
+class Flow(BaseModel):
+    """A RATE over time that changes a stock (issuance, fund flows, defaults).
+    Distinct type from Stock — misclassifying level vs rate is the common error."""
+    name: str
+    changes_stock: str          # which Stock.name this flow moves
+    unit_per_time: str
+    observable: Optional[str] = None
+
+
+class FeedbackLoop(BaseModel):
+    """Reinforcing (amplifies) or balancing (stabilises). Reflexive links are marked
+    feedback on the underlying CausalEdge."""
+    id: str
+    type: Literal["reinforcing", "balancing"]
+    path: list[str]             # node-id sequence the loop traverses
+    delay: Optional[str] = None
+    closes_via: str = ""        # what closes the loop back on itself
+
+
+class Delay(BaseModel):
+    """A lag between a flow and its stock, or a driver and its price response — where
+    the system surprises investors."""
+    between: str
+    length: str
+    why_it_matters: str = ""
+
+
+class SystemMap(BaseModel):
+    """Theme embedded in a system (Meadows). Reuses the causal chain's nodes/edges as
+    elements/interconnections; adds stocks, flows, loops, delays, shocks, observables."""
+    boundary_inside: list[str]
+    boundary_outside: list[str]
+    boundary_rationale: str = ""
+    function_purpose: str
+    elements: list[CausalNode] = []            # reuse the chain's nodes
+    interconnections: list[CausalEdge] = []     # reuse the chain's edges (+ ones a chain misses)
+    stocks: list[Stock] = []
+    flows: list[Flow] = []
+    feedback_loops: list[FeedbackLoop] = []
+    delays: list[Delay] = []
+    external_shocks: list[str] = []
+    internal_responses: list[str] = []
+    observable_variables: list[str] = []
+    surprise_modes: list[str] = []
+
+
+# ── Mental Model & Bias Critic — adversarial pre-promotion review ─────────────
+
+class BiasCritique(BaseModel):
+    """Records the critic's reading of the thinking behind a theme."""
+    dominant_mental_model: str
+    alternative_models: list[str] = []
+    assumptions_treated_as_facts: list[str] = []
+    lenses_examined: list[str] = []
+    disconfirming_evidence: list[str] = []
+    decision: Literal["accept_model", "challenge_model", "reject_model"]
+    rationale: str = ""
+
+
 # ── Engine 2 output: scenarios + pricing (Q4–Q7) ─────────────────────────────
 
 class Scenario(BaseModel):
@@ -352,6 +420,8 @@ class ThemeObject(BaseModel):
     main_theme: Optional[CausalNode] = None
     causal_chain: Optional[CausalChain] = None
     shared_factor: Optional[str] = None
+    system_map: Optional[SystemMap] = None       # Meadows system structure (embeds the chain)
+    bias_critique: Optional[BiasCritique] = None  # adversarial pre-promotion review
 
     @model_validator(mode="after")
     def discipline_gates(self) -> "ThemeObject":

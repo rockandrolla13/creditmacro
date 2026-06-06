@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from .schema import (
     Axis,
+    BiasCritique,
     CausalChain,
     CausalNode,
     Expression,
@@ -24,6 +25,7 @@ from .schema import (
     Risk,
     Scenario,
     Sizing,
+    SystemMap,
     ThemeObject,
     Thesis,
 )
@@ -83,6 +85,19 @@ class Provider(ScenarioSource, ExpressionSource, RiskSource, Protocol):
     ) -> tuple[Optional[CausalNode], Optional[CausalChain], Optional[str]]:
         """Compile research text into ONE causal chain (main_theme, chain, shared_factor).
         Returns (None, None, None) when the provider carries no causal payload."""
+        ...
+
+    def build_system_map(
+        self, thesis: Thesis, causal_chain: Optional[CausalChain]
+    ) -> Optional[SystemMap]:
+        """Embed the causal chain in a Meadows system map (stocks/flows/loops/delays).
+        Returns None when the provider carries no system map."""
+        ...
+
+    def critique_mental_model(
+        self, statement: str, causal_chain: Optional[CausalChain]
+    ) -> Optional[BiasCritique]:
+        """Adversarial review of the theme's mental model. None when not supplied."""
         ...
 
     def extract_drivers(self, statement: str) -> Thesis: ...

@@ -41,6 +41,14 @@ class ScriptedProvider:
             return None, None, None
         return c.main_theme, c.causal_chain, c.shared_factor
 
+    def build_system_map(self, thesis, causal_chain):
+        """Return the case's hand-built system map, or None."""
+        return self._case.system_map
+
+    def critique_mental_model(self, statement, causal_chain):
+        """Return the case's hand-built bias critique, or None."""
+        return self._case.bias_critique
+
     def parse(self, raw: str) -> IngestionResult:
         # Stage-0 ingestion is not part of a CaseSpec; a scripted case starts from an
         # already-chosen theme. Return empty streams (the ThemeObject does not embed them).

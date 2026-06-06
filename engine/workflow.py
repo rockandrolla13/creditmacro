@@ -64,6 +64,11 @@ def run_workflow(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObject,
     else:
         axis = provider.define_axis(thesis)
 
+    # SYSTEM_MAP stage (embeds the causal chain) and CRITIQUE stage (adversarial review).
+    # Both optional; they record structure/judgment on the ThemeObject and do not gate it.
+    system_map = provider.build_system_map(thesis, causal_chain)
+    bias_critique = provider.critique_mental_model(ctx.statement, causal_chain)
+
     normal_fv = provider.normal_fair_value(axis)
     scenarios = provider.propose_scenarios(thesis, axis)
 
@@ -106,6 +111,8 @@ def run_workflow(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObject,
         main_theme=main_theme,
         causal_chain=causal_chain,
         shared_factor=shared_factor,
+        system_map=system_map,
+        bias_critique=bias_critique,
     )
     return theme, _render_memo(theme, best, pricing)
 

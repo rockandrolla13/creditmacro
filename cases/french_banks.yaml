@@ -1,6 +1,6 @@
 # French-banks case — reconstructed from the Alaph deck (acceptance oracle).
 # axis = FR-banks-basket senior CDS - France sovereign CDS; prior=historical.
-# base/|worst| PnL = 95/50 = 1.9x (deck fact, line 639). Carries a causal payload.
+# base/|worst| PnL = 95/50 = 1.9x. Carries causal chain + system_map + bias_critique.
 theme_sentence: Declining sovereign support widens French-bank vs France credit risk
 horizon: 2Y
 author: engine.fixtures (French-banks reconstruction)
@@ -237,3 +237,138 @@ causal:
       inferred: true
       feedback: true
   shared_factor: European sovereign-bank doom-loop / sovereign-support factor
+system_map:
+  boundary_inside:
+  - n_support
+  - n_exposure
+  - n_diff
+  - EU bank index
+  - credit ETFs
+  boundary_outside:
+  - policy rates
+  - euro-area growth
+  - ECB backstop regime
+  boundary_rationale: loops close where sovereign-support policy feeds the bank-vs-sovereign
+    differential
+  function_purpose: fund / backstop the banking system via implicit sovereign support
+  elements:
+  - id: n_support
+    statement: Declining sovereign support for banks
+    kind: cause
+    axis: null
+    axis_operational: false
+  - id: n_exposure
+    statement: Bank peripheral-sovereign exposure + downgrade pressure
+    kind: cause
+    axis: null
+    axis_operational: false
+  - id: n_diff
+    statement: French-banks senior CDS vs France sovereign differential widens
+    kind: theme
+    axis:
+      definition: French-banks-basket senior CDS − French sovereign CDS, bps. Basket
+        = equal-weighted 5Y senior CDS on BNP Paribas, Societe Generale, Credit Agricole;
+        sovereign = 5Y France CDS, traded beta-neutral.
+      measurement: 5Y on-the-run senior CDS mid, daily close; trade index = basket
+        spread − beta·sovereign spread.
+      current_value: 40.0
+      history:
+        mean: 70.0
+        vol: 30.0
+        percentile: 10.0
+        regime_tags:
+        - European sovereign crisis 2010-2011
+      regime: null
+    axis_operational: true
+  interconnections:
+  - from_id: n_support
+    to_id: n_exposure
+    mechanism: support withdrawal raises banks' standalone risk
+    inferred: false
+    feedback: false
+  - from_id: n_exposure
+    to_id: n_diff
+    mechanism: bank CDS re-prices wider vs sovereign as risk shifts to banks
+    inferred: true
+    feedback: false
+  - from_id: n_diff
+    to_id: n_support
+    mechanism: 'reflexive: a wide differential pressures the state to intervene, reversing
+      it'
+    inferred: true
+    feedback: true
+  stocks:
+  - name: sovereign support capacity
+    unit: EUR bn
+    observable: estimated state fiscal headroom
+  - name: banks' peripheral-sovereign holdings
+    unit: EUR bn
+    observable: EBA disclosures
+  flows:
+  - name: state-aid commitments
+    changes_stock: sovereign support capacity
+    unit_per_time: EUR bn/qtr
+    observable: announced backstops
+  - name: bank deleveraging
+    changes_stock: banks' peripheral-sovereign holdings
+    unit_per_time: EUR bn/qtr
+    observable: balance-sheet run-off
+  feedback_loops:
+  - id: B1
+    type: balancing
+    path:
+    - n_diff
+    - n_support
+    delay: months
+    closes_via: a wide differential pressures the state to intervene, tightening it
+  - id: R1
+    type: reinforcing
+    path:
+    - n_support
+    - n_exposure
+    - n_diff
+    delay: quarters
+    closes_via: withdrawn support raises bank risk, widening the differential, eroding
+      confidence
+  delays:
+  - between: support-policy shift and CDS re-pricing
+    length: quarters
+    why_it_matters: the differential lags the structural change — the surprise window
+  external_shocks:
+  - a Dexia-style bailout
+  - sovereign downgrade
+  - euro-area growth shock
+  internal_responses:
+  - the differential widens as risk shifts to banks
+  - or snaps tighter on a bailout
+  observable_variables:
+  - FR-banks basket senior CDS − France sovereign CDS (bps)
+  - German/UK bank-vs-sovereign differentials (cross-section)
+  surprise_modes:
+  - a sudden full bailout snaps the differential tighter (B1 dominates)
+  - support withdrawal cascades faster than spreads price (R1, delayed)
+bias_critique:
+  dominant_mental_model: the sovereign always backstops systemic banks (support is
+    permanent)
+  alternative_models:
+  - sovereign support is being withdrawn (the thesis)
+  - the differential is a fair risk premium, not a mispricing
+  - 'mean-reversion: the differential snaps back to its historical low'
+  assumptions_treated_as_facts:
+  - the ~40bps differential is anchored near its historical low
+  - French banks are more liquid than Spanish/Italian peers
+  lenses_examined:
+  - fundamental
+  - technical/flow
+  - liquidity
+  - positioning
+  - cross-asset
+  - time-horizon
+  - failure-mode
+  disconfirming_evidence:
+  - differential compresses below 20bps for two consecutive months
+  - fresh EU state-aid backstops exceed EUR 50bn
+  decision: accept_model
+  rationale: declining-support thesis survives >=5 lenses; edge is net of the standing
+    risk-premium confounder and cross-checked vs Germany/UK; the reflexive bailout
+    loop is the main risk, captured as B1
