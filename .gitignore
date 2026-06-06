@@ -1,0 +1,11 @@
+# Source PDFs (large; copyrighted / confidential — never commit)
+*.pdf
+# Extracted markdowns (include STRICTLY CONFIDENTIAL Citi / Alaph material)
+markdowns/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ipynb_checkpoints/
+.DS_Store

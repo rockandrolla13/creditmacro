@@ -1,0 +1,171 @@
+# French-banks case — reconstructed from the Alaph deck (acceptance oracle).
+# axis = FR-banks-basket senior CDS - France sovereign CDS; prior=historical.
+# base/|worst| PnL = 95/50 = 1.9x (deck fact, line 639).
+theme_sentence: Declining sovereign support widens French-bank vs France credit risk
+horizon: 2Y
+author: engine.fixtures (French-banks reconstruction)
+thesis:
+  drivers:
+  - name: Sovereign support withdrawal
+    sign: +
+    proxy_observable: EU state-aid / bail-in policy stance (qualitative index)
+    current_level: null
+    mechanism: Reduced willingness to backstop banks raises bank risk premium vs sovereign.
+    edge_elasticity: null
+  - name: Bank peripheral-sovereign exposure
+    sign: +
+    proxy_observable: French banks' GIIPS sovereign holdings (EBA, EUR bn)
+    current_level: null
+    mechanism: Peripheral exposure + downgrade pressure widens bank CDS vs France.
+    edge_elasticity: null
+  - name: Basel 3 deleveraging
+    sign: +
+    proxy_observable: French banks core tier-1 shortfall to Basel-3 (EUR bn)
+    current_level: null
+    mechanism: Forced deleveraging/funding-term extension pressures bank credit.
+    edge_elasticity: null
+  causal_chain:
+  - from_node: Sovereign support withdrawal
+    to_node: French bank senior CDS
+  - from_node: Bank peripheral-sovereign exposure
+    to_node: French bank senior CDS
+  - from_node: French bank senior CDS
+    to_node: FR banks − France differential
+  direction_of_view: French-banks − France senior CDS differential WIDENS from ~40bps
+  driver_diversification_multiplier: null
+axis:
+  definition: French-banks-basket senior CDS − French sovereign CDS, bps. Basket =
+    equal-weighted 5Y senior CDS on BNP Paribas, Societe Generale, Credit Agricole;
+    sovereign = 5Y France CDS, traded beta-neutral.
+  measurement: 5Y on-the-run senior CDS mid, daily close; trade index = basket spread
+    − beta·sovereign spread.
+  current_value: 40.0
+  history:
+    mean: 70.0
+    vol: 30.0
+    percentile: 10.0
+    regime_tags:
+    - European sovereign crisis 2010-2011
+  regime: null
+prior: historical
+scenarios:
+- name: Worst / no support
+  p_s: 0.2
+  driver_path: sovereign support path
+  implied_axis_value: 190.0
+  pnl_per_unit: 150.0
+  sigma_g_s: 12.0
+  hist_freq: 0.08
+  regime_conditional_p_s: null
+- name: Enhanced EFSF
+  p_s: 0.3
+  driver_path: sovereign support path
+  implied_axis_value: 90.0
+  pnl_per_unit: 95.0
+  sigma_g_s: 8.0
+  hist_freq: 0.25
+  regime_conditional_p_s: null
+- name: No material change
+  p_s: 0.25
+  driver_path: sovereign support path
+  implied_axis_value: 50.0
+  pnl_per_unit: 30.0
+  sigma_g_s: 6.0
+  hist_freq: 0.32
+  regime_conditional_p_s: null
+- name: Best / recovery
+  p_s: 0.15
+  driver_path: sovereign support path
+  implied_axis_value: 20.0
+  pnl_per_unit: -20.0
+  sigma_g_s: 6.0
+  hist_freq: 0.2
+  regime_conditional_p_s: null
+- name: Dexia / full bailout
+  p_s: 0.1
+  driver_path: sovereign support path
+  implied_axis_value: -10.0
+  pnl_per_unit: -50.0
+  sigma_g_s: 10.0
+  hist_freq: 0.15
+  regime_conditional_p_s: null
+x_mkt: 40.0
+normal_fv: 70.0
+expressions:
+- id: expr_frbanks_sov
+  strategy_family: French banks senior CDS vs France sovereign (beta-neutral)
+  long_leg: 'Buy 5Y senior CDS protection: equal-weighted BNP/SocGen/CredAg basket'
+  short_leg: Sell 5Y France sovereign CDS protection (beta-neutral)
+  hedge_ratio: 1.0
+  scenario_pnl:
+  - scenario_name: Worst / no support
+    pnl: 150.0
+  - scenario_name: Enhanced EFSF
+    pnl: 95.0
+  - scenario_name: No material change
+    pnl: 30.0
+  - scenario_name: Best / recovery
+    pnl: -20.0
+  - scenario_name: Dexia / full bailout
+    pnl: -50.0
+  purity: 0.75
+  convexity: 0.05
+  carry: -3.0
+  liquidity: 0.7
+  crowding: 0.3
+  round_trip_cost_bps: 1.0
+  score: null
+  gate_fail_reason: null
+  oos_stability: null
+  factor_betas: null
+capital: 0.0
+sizing:
+  conviction: 3
+  sizing_factor: 0.2
+  target_pnl: 500000.0
+  position: $25mm French-banks senior CDS vs France sovereign (beta-neutral)
+  vol_target_bps: 30.0
+  realized_vol_bps: 28.0
+  vol_scalar: 1.071
+  round_trip_cost_bps: 1.0
+  expected_roundtrips: 1.0
+  net_target_pnl: 497500.0
+risk:
+  stop_loss:
+    level: 20.0
+    rationale: Differential compressing below 20bps falsifies the support-withdrawal
+      thesis.
+  falsifiers:
+  - observable: French-banks − France senior CDS differential (bps)
+    threshold: 20.0
+    kill_rule: If the differential falls below 20bps, sovereign support is re-pricing
+      IN; thesis dead.
+  - observable: EU bank state-aid commitments (EUR bn, rolling)
+    threshold: 50.0
+    kill_rule: If fresh state-aid backstops exceed EUR 50bn, the no-support driver
+      is invalid.
+  invalidation_horizon: 2Y
+  max_loss: -250000.0
+pm_gate:
+  open_questions:
+  - Confirm the live differential vs the 40bps entry; rerun the q solver if it has
+    moved.
+  - Confirm basket liquidity supports $25mm beta-neutral sizing.
+  - Is the 20% no-support tail probability defensible vs the 8% historical frequency?
+    (this is where the edge comes from)
+provenance:
+  evidence:
+  - Alaph Long Presentation July 2014 — French-banks case (markdowns/Alaph Long Presentation
+    Version July 2014.md, pp.26-27)
+  confidence: 0.5
+  last_updated: '2026-06-06T01:03:17.709030+00:00'
+thesis_sign: 1
+edge_mc: false
+policy: default
+oracle:
+  kind: acceptance
+  base_worst_ratio:
+    target: 1.9
+    tol: 0.25
+  edge_sign: thesis_aligned
+  attribution_top: Worst / no support

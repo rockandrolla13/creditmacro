@@ -1,0 +1,207 @@
+# AI-issuance case — generated from engine.example (golden master).
+# oracle.kind=exact, prior=uniform. Hand-edit with care: the exact
+# oracle pins the regression numbers.
+theme_sentence: AI issuance will steepen IG credit curves
+horizon: 6–12 months
+author: engine.example (prototype)
+thesis:
+  drivers:
+  - name: AI supply surge
+    sign: +
+    proxy_observable: Bloomberg BICS Tech sector net IG issuance, 30Y tenor, YTD ($bn)
+    current_level: 185.0
+    mechanism: Surge in 30Y AI-issuer IG supply pressure-tests duration demand, requiring
+      spread concessions at the long end.
+    edge_elasticity: null
+  - name: Duration demand mismatch
+    sign: +
+    proxy_observable: LDI inflows to 20Y+ IG ($bn/month, EPFR)
+    current_level: null
+    mechanism: LDI and insurance demand concentrated at 10–20Y, leaving 30Y paper
+      price-sensitive; supply/demand gap widens 5s30s slope.
+    edge_elasticity: null
+  - name: Mean reversion from compressed slope
+    sign: +
+    proxy_observable: IG AI-issuer 5s30s OAS slope (bps, Bloomberg)
+    current_level: 52.0
+    mechanism: Current 52bps is 1.5σ below 3Y mean of 75bps; historical base rate
+      of 15bps re-steepening within 6m is 70%.
+    edge_elasticity: null
+  causal_chain:
+  - from_node: AI supply surge
+    to_node: 30Y IG OAS
+  - from_node: Duration demand mismatch
+    to_node: 30Y IG OAS
+  - from_node: 30Y IG OAS
+    to_node: 5s30s OAS slope
+  - from_node: Mean reversion from compressed slope
+    to_node: 5s30s OAS slope
+  direction_of_view: 5s30s OAS slope widens (steepens) from 52bps toward 70–95bps
+  driver_diversification_multiplier: null
+axis:
+  definition: 'IG AI-issuer 5s30s OAS slope = OAS(30Y basket) − OAS(5Y basket), measured
+    in bps. Universe: top-25 IG issuers by AI capex intensity per Bloomberg BICS Tech,
+    min $1bn outstanding, OAS <= 300bps (exclude distressed).'
+  measurement: 'Bloomberg: BVAL OAS for each name; 5Y tenor = 4.5–5.5Y maturity bucket;
+    30Y tenor = 27–33Y maturity bucket; basket is par-weighted by outstanding notional.
+    Daily close, 16:00 EST.'
+  current_value: 52.0
+  history:
+    mean: 75.0
+    vol: 15.0
+    percentile: 18.0
+    regime_tags:
+    - post-GFC spread compression
+    - 2022 rate shock recovery
+  regime: null
+prior: uniform
+scenarios:
+- name: AI Surge
+  p_s: 0.4
+  driver_path: All three drivers co-realise; 30Y issuance accelerates above $200bn
+    YTD.
+  implied_axis_value: 95.0
+  pnl_per_unit: 40.0
+  regime_conditional_p_s: null
+- name: Base — Gradual Re-steepen
+  p_s: 0.35
+  driver_path: Supply continues but demand absorbs moderately; slope normalises slowly.
+  implied_axis_value: 75.0
+  pnl_per_unit: 20.0
+  regime_conditional_p_s: null
+- name: Risk-Off — Flight to Quality
+  p_s: 0.15
+  driver_path: Credit sell-off flattens curve as investors rotate to 5Y; AI supply
+    pauses.
+  implied_axis_value: 45.0
+  pnl_per_unit: -10.0
+  regime_conditional_p_s: null
+- name: Capex Pause — AI Overhang
+  p_s: 0.1
+  driver_path: AI capex disappoints; IG AI issuers defer 30Y deals; slope flat.
+  implied_axis_value: 40.0
+  pnl_per_unit: -15.0
+  regime_conditional_p_s: null
+x_mkt: 55.0
+normal_fv: 65.0
+expressions:
+- id: expr_cds_5s30s
+  strategy_family: 5s30s IG CDS curve steepener
+  long_leg: CDX.IG 30Y (or on-the-run 30Y AI-issuer CDS basket)
+  short_leg: CDX.IG 5Y (or on-the-run 5Y AI-issuer CDS basket)
+  hedge_ratio: 1.0
+  scenario_pnl:
+  - scenario_name: AI Surge
+    pnl: 40.0
+  - scenario_name: Base — Gradual Re-steepen
+    pnl: 20.0
+  - scenario_name: Risk-Off — Flight to Quality
+    pnl: -10.0
+  - scenario_name: Capex Pause — AI Overhang
+    pnl: -15.0
+  purity: 0.82
+  convexity: 0.15
+  carry: 2.0
+  liquidity: 0.75
+  crowding: 0.4
+  round_trip_cost_bps: 1.0
+  score: null
+  gate_fail_reason: null
+  oos_stability: null
+  factor_betas: null
+- id: expr_etf_basis
+  strategy_family: IG ETF 5s30s basis (LQD vs VCLT)
+  long_leg: VCLT (long-duration IG ETF)
+  short_leg: LQD (intermediate IG ETF)
+  hedge_ratio: 0.85
+  scenario_pnl:
+  - scenario_name: AI Surge
+    pnl: 22.0
+  - scenario_name: Base — Gradual Re-steepen
+    pnl: 11.0
+  - scenario_name: Risk-Off — Flight to Quality
+    pnl: -5.5
+  - scenario_name: Capex Pause — AI Overhang
+    pnl: -8.25
+  purity: 0.48
+  convexity: 0.05
+  carry: 0.5
+  liquidity: 0.32
+  crowding: 0.55
+  round_trip_cost_bps: 3.0
+  score: null
+  gate_fail_reason: null
+  oos_stability: null
+  factor_betas: null
+capital: 0.0
+sizing:
+  conviction: 3
+  sizing_factor: 0.2
+  target_pnl: 750000.0
+  position: $15mm 5s30s CDS curve steepener (5Y short / 30Y long, DV01-neutral)
+  vol_target_bps: 15.0
+  realized_vol_bps: 12.0
+  vol_scalar: 1.25
+  round_trip_cost_bps: 1.0
+  expected_roundtrips: 2.0
+  net_target_pnl: 747000.0
+risk:
+  stop_loss:
+    level: 45.0
+    rationale: Axis at 45bps = 2.3Y low; structural re-steepening thesis is falsified
+      if slope compresses through this level.
+  falsifiers:
+  - observable: Bloomberg BICS Tech sector net IG issuance, 30Y tenor, YTD ($bn)
+    threshold: 150.0
+    kill_rule: If 30Y AI-issuer YTD supply falls below $150bn, the supply-surge driver
+      is invalid; thesis is dead.
+  - observable: LDI inflows to 20Y+ IG (EPFR, $bn/month)
+    threshold: 8.0
+    kill_rule: If LDI inflows to 20Y+ IG exceed $8bn/month for two consecutive months,
+      demand mismatch driver is invalid; exit.
+  - observable: IG AI-issuer 5s30s OAS slope (bps, Bloomberg)
+    threshold: 45.0
+    kill_rule: If 5s30s OAS slope falls below 45bps, all three drivers have failed
+      to manifest; stop and reassess.
+  invalidation_horizon: 12 months
+  max_loss: -281250.0
+pm_gate:
+  open_questions:
+  - 'Q13-1: What is the live Bloomberg value of the 5s30s OAS slope as of today? (X_mkt=55bps
+    is a placeholder; if live value differs, rerun max-entropy solver.)'
+  - 'Q13-2: Is the CDX.IG 30Y tenor liquid enough for the proposed $15mm notional?
+    Confirm bid-offer < 1bps on the long leg before sizing.'
+  - 'Q13-3: Confirm no existing book exposure to the 5s30s curve — if position overlaps
+    with existing CDS books, the capital=0 assumption is wrong and the score must
+    be recomputed.'
+  - 'Q13-4: The LDI inflow data (falsifier 2) is currently unwired. Confirm EPFR feed
+    is available; if not, replace falsifier observable.'
+  - 'Q13-5: The ρ² = 0.82 purity score is a placeholder. Run historical regression
+    of 5s30s CDS P&L on axis moves over 2021–2024 before treating the score as final.'
+  - 'Q13-6: TAARSS attention_strength = 1.2 (crowding signal). This is above our discretionary
+    comfort threshold. PM must decide whether to accept the crowding discount or wait
+    for positioning to ease.'
+provenance:
+  evidence:
+  - Citi Credit Weekly 2024-11-08 (markdowns/citi_credit_weekly_2024-11-08.md)
+  - Alaph v1.2 (markdowns/Alaph v1.2.md)
+  - Xantimum v0.9 (markdowns/Xantimum v0.9.md)
+  - TAARSS / DB Flow Whisperer (markdowns/TAARSS__DB_Flow_Whisperer.md)
+  confidence: 0.65
+  last_updated: '2026-06-05T23:55:31.121740+00:00'
+thesis_sign: 1
+policy: default
+oracle:
+  kind: exact
+  scenario_fv: 75.0
+  q:
+  - 0.125512
+  - 0.184417
+  - 0.328452
+  - 0.361619
+  edge: 20.0
+  omega: 7.666666666666667
+  score: 3.918220233274124
+  gated_out:
+  - expr_etf_basis
+  tol: 1.0e-06
