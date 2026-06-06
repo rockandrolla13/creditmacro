@@ -1,6 +1,6 @@
 # French-banks case — reconstructed from the Alaph deck (acceptance oracle).
 # axis = FR-banks-basket senior CDS - France sovereign CDS; prior=historical.
-# base/|worst| PnL = 95/50 = 1.9x (deck fact, line 639).
+# base/|worst| PnL = 95/50 = 1.9x (deck fact, line 639). Carries a causal payload.
 theme_sentence: Declining sovereign support widens French-bank vs France credit risk
 horizon: 2Y
 author: engine.fixtures (French-banks reconstruction)
@@ -169,3 +169,71 @@ oracle:
     tol: 0.25
   edge_sign: thesis_aligned
   attribution_top: Worst / no support
+causal:
+  main_theme:
+    id: n_diff
+    statement: French-banks senior CDS vs France sovereign differential widens
+    kind: theme
+    axis:
+      definition: French-banks-basket senior CDS − French sovereign CDS, bps. Basket
+        = equal-weighted 5Y senior CDS on BNP Paribas, Societe Generale, Credit Agricole;
+        sovereign = 5Y France CDS, traded beta-neutral.
+      measurement: 5Y on-the-run senior CDS mid, daily close; trade index = basket
+        spread − beta·sovereign spread.
+      current_value: 40.0
+      history:
+        mean: 70.0
+        vol: 30.0
+        percentile: 10.0
+        regime_tags:
+        - European sovereign crisis 2010-2011
+      regime: null
+    axis_operational: true
+  causal_chain:
+    nodes:
+    - id: n_support
+      statement: Declining sovereign support for banks
+      kind: cause
+      axis: null
+      axis_operational: false
+    - id: n_exposure
+      statement: Bank peripheral-sovereign exposure + downgrade pressure
+      kind: cause
+      axis: null
+      axis_operational: false
+    - id: n_diff
+      statement: French-banks senior CDS vs France sovereign differential widens
+      kind: theme
+      axis:
+        definition: French-banks-basket senior CDS − French sovereign CDS, bps. Basket
+          = equal-weighted 5Y senior CDS on BNP Paribas, Societe Generale, Credit
+          Agricole; sovereign = 5Y France CDS, traded beta-neutral.
+        measurement: 5Y on-the-run senior CDS mid, daily close; trade index = basket
+          spread − beta·sovereign spread.
+        current_value: 40.0
+        history:
+          mean: 70.0
+          vol: 30.0
+          percentile: 10.0
+          regime_tags:
+          - European sovereign crisis 2010-2011
+        regime: null
+      axis_operational: true
+    edges:
+    - from_id: n_support
+      to_id: n_exposure
+      mechanism: support withdrawal raises banks' standalone risk
+      inferred: false
+      feedback: false
+    - from_id: n_exposure
+      to_id: n_diff
+      mechanism: bank CDS re-prices wider vs sovereign as risk shifts to banks
+      inferred: true
+      feedback: false
+    - from_id: n_diff
+      to_id: n_support
+      mechanism: 'reflexive: a wide differential pressures the state to intervene,
+        reversing it'
+      inferred: true
+      feedback: true
+  shared_factor: European sovereign-bank doom-loop / sovereign-support factor

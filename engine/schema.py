@@ -114,6 +114,64 @@ class Axis(BaseModel):
     regime: Optional[Literal["easing", "neutral", "tightening", "crisis"]] = None
 
 
+# ── Causal Theme Compiler — ONE causal chain whose theme nodes carry axes ─────
+
+class CausalNode(BaseModel):
+    """One node in the single depth-first causal chain.
+
+    kind=="theme" is a TRADEABLE node and MUST terminate in an operational axis
+    (a named, computable spread/ratio). A node with no axis is a mechanism link
+    (a valid dead end) — never invent an axis to extend the chain.
+    """
+    id: str
+    statement: str
+    kind: Literal["cause", "theme", "consequence"]
+    axis: Optional[Axis] = None
+    axis_operational: bool = False
+
+    @model_validator(mode="after")
+    def _axis_rules(self) -> "CausalNode":
+        if self.axis_operational and self.axis is None:
+            raise ValueError(
+                f"CausalNode '{self.id}': axis_operational=True requires an axis."
+            )
+        if self.kind == "theme" and not (self.axis is not None and self.axis_operational):
+            raise ValueError(
+                f"CausalNode '{self.id}': a kind='theme' node must carry an OPERATIONAL "
+                "axis (axis set and axis_operational=True). A dead end must be kind "
+                "'cause'/'consequence' with axis=None — do not invent an axis."
+            )
+        return self
+
+
+class CausalEdge(BaseModel):
+    """A single hop. inferred=True if the agent derived it; False if stated in a
+    source. feedback=True marks a reflexive link (outcome feeds back on the driver)."""
+    from_id: str
+    to_id: str
+    mechanism: str
+    inferred: bool
+    feedback: bool = False
+
+
+class CausalChain(BaseModel):
+    """One main theme, one chain, depth-first (no tree). Edges must reference nodes."""
+    nodes: list[CausalNode]
+    edges: list[CausalEdge]
+
+    @model_validator(mode="after")
+    def _edges_reference_nodes(self) -> "CausalChain":
+        ids = {n.id for n in self.nodes}
+        if len(ids) != len(self.nodes):
+            raise ValueError("CausalChain node ids must be unique.")
+        for e in self.edges:
+            if e.from_id not in ids or e.to_id not in ids:
+                raise ValueError(
+                    f"CausalChain edge {e.from_id}->{e.to_id} references a missing node."
+                )
+        return self
+
+
 # ── Engine 2 output: scenarios + pricing (Q4–Q7) ─────────────────────────────
 
 class Scenario(BaseModel):
@@ -285,6 +343,15 @@ class ThemeObject(BaseModel):
     risk: Risk                 # Engine 4
     pm_gate: PMGate            # Q13 — agent boundary
     provenance: Provenance
+
+    # Causal Theme Compiler (optional; additive). main_theme.axis is the priced axis.
+    # Other skill outputs map to EXISTING fields (no new ones): the standing credit-
+    # risk-premium confounder → pricing.edge_basis ("gross_of_risk_premium");
+    # assumptions + testable implications → risk.falsifiers;
+    # non_identifiability → pm_gate.open_questions.
+    main_theme: Optional[CausalNode] = None
+    causal_chain: Optional[CausalChain] = None
+    shared_factor: Optional[str] = None
 
     @model_validator(mode="after")
     def discipline_gates(self) -> "ThemeObject":

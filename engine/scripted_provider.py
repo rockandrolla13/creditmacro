@@ -34,6 +34,13 @@ class ScriptedProvider:
             provenance=c.provenance,
         )
 
+    def expand_causal(self, research_text: str, parsed_theme: str):
+        """Return the case's hand-built causal payload, or (None, None, None)."""
+        c = self._case.causal
+        if c is None:
+            return None, None, None
+        return c.main_theme, c.causal_chain, c.shared_factor
+
     def parse(self, raw: str) -> IngestionResult:
         # Stage-0 ingestion is not part of a CaseSpec; a scripted case starts from an
         # already-chosen theme. Return empty streams (the ThemeObject does not embed them).

@@ -16,13 +16,15 @@ provider behaviour (that is scripted_provider.py).
 """
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
 from .engines import compute_omega
 from .schema import (
     Axis,
+    CausalChain,
+    CausalNode,
     EdgeContribution,  # noqa: F401  (re-exported for back-compat)
     Expression,
     PMGate,
@@ -205,6 +207,14 @@ Oracle = Annotated[
 # ── CaseSpec — all the data to build a ThemeObject except the COMPUTED parts ──
 # (pricing q/edge and expression scores are computed by the workflow, not stored).
 
+class CausalPayload(BaseModel):
+    """Hand-built EXPAND_CAUSAL output a case can carry, returned verbatim by the
+    ScriptedProvider (the live LLMProvider produces the same shape from the prompt)."""
+    main_theme: CausalNode
+    causal_chain: CausalChain
+    shared_factor: str
+
+
 class CaseSpec(BaseModel):
     """One self-contained case. The ScriptedProvider returns slices of this; the
     runner computes pricing + scores and asserts against the oracle."""
@@ -232,6 +242,7 @@ class CaseSpec(BaseModel):
 
     thesis_sign: Literal[-1, 1]
     edge_mc: bool = False     # run Monte-Carlo edge (SNR/std) in run_pricing
+    causal: Optional[CausalPayload] = None   # EXPAND_CAUSAL payload (optional)
     policy: Union[Literal["default"], PolicyConfig] = "default"
     oracle: Oracle
 

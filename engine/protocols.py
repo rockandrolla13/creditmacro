@@ -10,12 +10,14 @@ replaces the previous bare 3-tuple return of size_and_risk (AR-ABS-002).
 """
 from __future__ import annotations
 
-from typing import Literal, Protocol, runtime_checkable
+from typing import Literal, Optional, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
 from .schema import (
     Axis,
+    CausalChain,
+    CausalNode,
     Expression,
     PMGate,
     Provenance,
@@ -75,6 +77,13 @@ class Provider(ScenarioSource, ExpressionSource, RiskSource, Protocol):
     def context(self) -> RunContext: ...
 
     def parse(self, raw: str) -> IngestionResult: ...
+
+    def expand_causal(
+        self, research_text: str, parsed_theme: str
+    ) -> tuple[Optional[CausalNode], Optional[CausalChain], Optional[str]]:
+        """Compile research text into ONE causal chain (main_theme, chain, shared_factor).
+        Returns (None, None, None) when the provider carries no causal payload."""
+        ...
 
     def extract_drivers(self, statement: str) -> Thesis: ...
 

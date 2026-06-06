@@ -53,7 +53,17 @@ def run_workflow(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObject,
     ctx = provider.context()
 
     thesis = provider.extract_drivers(ctx.statement)
-    axis = provider.define_axis(thesis)
+
+    # EXPAND_CAUSAL stage (after parse/extract, before axis). When the provider yields a
+    # causal chain, its main theme's operational axis feeds the pricing path; otherwise
+    # fall back to the axis-definer. A malformed chain MUST fail here.
+    main_theme, causal_chain, shared_factor = provider.expand_causal(ctx.statement, ctx.statement)
+    if main_theme is not None:
+        _validate_causal_chain(main_theme, causal_chain)
+        axis = main_theme.axis
+    else:
+        axis = provider.define_axis(thesis)
+
     normal_fv = provider.normal_fair_value(axis)
     scenarios = provider.propose_scenarios(thesis, axis)
 
@@ -93,8 +103,22 @@ def run_workflow(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObject,
         risk=bundle.risk,
         pm_gate=bundle.pm_gate,
         provenance=ctx.provenance,
+        main_theme=main_theme,
+        causal_chain=causal_chain,
+        shared_factor=shared_factor,
     )
     return theme, _render_memo(theme, best, pricing)
+
+
+def _validate_causal_chain(main_theme, causal_chain) -> None:
+    """Boundary-validate the EXPAND_CAUSAL output (node-level rules are enforced by the
+    schema; this asserts the cross-object invariants the stage depends on)."""
+    if causal_chain is None:
+        raise ValueError("EXPAND_CAUSAL: main_theme present but causal_chain is None")
+    if not (main_theme.kind == "theme" and main_theme.axis_operational and main_theme.axis is not None):
+        raise ValueError("EXPAND_CAUSAL: main_theme must be a kind='theme' node with an operational axis")
+    if main_theme.id not in {n.id for n in causal_chain.nodes}:
+        raise ValueError("EXPAND_CAUSAL: main_theme must be one of the chain's nodes")
 
 
 def _render_memo(theme: ThemeObject, best: Expression, pricing) -> str:
