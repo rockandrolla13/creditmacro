@@ -1,7 +1,14 @@
 """expand_causal seam: the generic skill-card prompt, ScriptedProvider returning a
-hand-built chain from the CaseSpec, and the LLMProvider stub carrying the prompt."""
+hand-built chain from the CaseSpec, and the LIVE LLMProvider (Anthropic Messages API)
+that parses + validates the model's JSON into the engine schema.
+
+The live tests inject a FAKE client (no network, no API key) whose messages.create
+returns a stubbed response object shaped like the real SDK (content blocks with .text),
+so the production parse+validate path is fully exercised offline.
+"""
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -27,6 +34,83 @@ def _payload():
     )
     return CausalPayload(main_theme=main, causal_chain=chain, shared_factor="latent factor")
 
+
+# ── a VALID causal JSON object (one cause node, one operational theme node, one edge) ──
+
+def _valid_causal_obj() -> dict:
+    return {
+        "main_theme": {
+            "id": "n_theme",
+            "statement": "hyperscaler IG curve steepens",
+            "kind": "theme",
+            "axis": {
+                "definition": "hyperscaler IG OAS - duration-matched IG index OAS, bps",
+                "measurement": "daily close, bps, Bloomberg",
+                "current_value": 12.0,
+                "history": {"mean": 8.0, "vol": 5.0, "percentile": 75.0,
+                            "regime_tags": ["expansion"]},
+            },
+            "axis_operational": True,
+        },
+        "causal_chain": {
+            "nodes": [
+                {"id": "n_cause", "statement": "AI capex surge drives bond supply",
+                 "kind": "cause", "axis": None, "axis_operational": False},
+                {
+                    "id": "n_theme",
+                    "statement": "hyperscaler IG curve steepens",
+                    "kind": "theme",
+                    "axis": {
+                        "definition": "hyperscaler IG OAS - duration-matched IG index OAS, bps",
+                        "measurement": "daily close, bps, Bloomberg",
+                        "current_value": 12.0,
+                        "history": {"mean": 8.0, "vol": 5.0, "percentile": 75.0,
+                                    "regime_tags": ["expansion"]},
+                    },
+                    "axis_operational": True,
+                },
+            ],
+            "edges": [
+                {"from_id": "n_cause", "to_id": "n_theme",
+                 "mechanism": "supply pushes spreads wider at the long end",
+                 "inferred": True, "feedback": False},
+            ],
+        },
+        "shared_factor": "AI-capex credit risk premium",
+    }
+
+
+class _FakeContentBlock:
+    """Mirrors a real SDK text content block: .type == 'text', .text holds the string."""
+    def __init__(self, text: str) -> None:
+        self.type = "text"
+        self.text = text
+
+
+class _FakeResponse:
+    """Mirrors anthropic Message: .content is a list of content blocks."""
+    def __init__(self, text: str) -> None:
+        self.content = [_FakeContentBlock(text)]
+
+
+class _FakeMessages:
+    def __init__(self, text: str, calls: list) -> None:
+        self._text = text
+        self._calls = calls
+
+    def create(self, **kwargs):
+        self._calls.append(kwargs)
+        return _FakeResponse(self._text)
+
+
+class _FakeClient:
+    """Injected stand-in for anthropic.Anthropic() — exposes client.messages.create."""
+    def __init__(self, text: str) -> None:
+        self.calls: list = []
+        self.messages = _FakeMessages(text, self.calls)
+
+
+# ── ScriptedProvider contract (unchanged) ────────────────────────────────────
 
 def test_scripted_provider_returns_payload_when_present():
     case = load_case(CASES / "french_banks.yaml").model_copy(update={"causal": _payload()})
@@ -63,10 +147,79 @@ def test_prompt_enforces_domain_agnostic_hard_rules():
     assert "main_theme" in p and "causal_chain" in p
 
 
-def test_llm_provider_carries_prompt_and_stubs_live_call():
+# ── LIVE LLMProvider — construction needs NO api key (lazy client) ────────────
+
+def test_llm_provider_constructs_without_api_key(monkeypatch):
+    """Constructing must never build a client or need a key — the client is lazy."""
     from engine.llm_provider import LLMProvider
 
-    prov = LLMProvider()
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    prov = LLMProvider()  # must not raise even with no key in the environment
     assert prov.system_prompt is CAUSAL_EXPANDER_PROMPT
-    with pytest.raises(NotImplementedError):
-        prov.expand_causal("some research text", "a theme")
+
+
+# ── LIVE LLMProvider — parse + validate via an injected fake client ───────────
+
+def test_expand_causal_happy_path_parses_and_validates():
+    from engine.llm_provider import LLMProvider
+
+    fake = _FakeClient(json.dumps(_valid_causal_obj()))
+    prov = LLMProvider(client=fake)
+    main, chain, factor = prov.expand_causal("AI issuance steepens IG curves", "AI theme")
+
+    assert isinstance(main, CausalNode)
+    assert main.kind == "theme"
+    assert main.axis_operational is True and main.axis is not None
+    assert isinstance(chain, CausalChain) and len(chain.nodes) == 2
+    assert factor == "AI-capex credit risk premium"
+    # main_theme id is present among the chain nodes
+    assert main.id in {n.id for n in chain.nodes}
+
+    # the SDK was called with system=CAUSAL_EXPANDER_PROMPT and a user message
+    assert len(fake.calls) == 1
+    call = fake.calls[0]
+    assert call["system"] is CAUSAL_EXPANDER_PROMPT
+    assert call["messages"][0]["role"] == "user"
+    assert "AI issuance steepens IG curves" in call["messages"][0]["content"]
+
+
+def test_expand_causal_robust_to_fences_and_prose():
+    from engine.llm_provider import LLMProvider
+
+    wrapped = (
+        "Sure! Here is the causal object you asked for:\n\n"
+        "```json\n" + json.dumps(_valid_causal_obj()) + "\n```\n"
+        "Let me know if you need anything else."
+    )
+    prov = LLMProvider(client=_FakeClient(wrapped))
+    main, chain, factor = prov.expand_causal("text", "theme")
+    assert isinstance(main, CausalNode) and main.kind == "theme"
+    assert isinstance(chain, CausalChain)
+    assert factor == "AI-capex credit risk premium"
+
+
+def test_expand_causal_raises_valueerror_on_non_json():
+    from engine.llm_provider import LLMProvider
+
+    prov = LLMProvider(client=_FakeClient("I cannot help with that request."))
+    with pytest.raises(ValueError):
+        prov.expand_causal("text", "theme")
+
+
+def test_expand_causal_rejects_theme_node_without_axis():
+    """Bad LLM output (a theme node with axis=null) must NOT enter the engine —
+    pydantic validation catches it and we raise."""
+    from engine.llm_provider import LLMProvider
+
+    bad = _valid_causal_obj()
+    # break the theme node: declare kind=theme but null axis
+    for node in bad["causal_chain"]["nodes"]:
+        if node["id"] == "n_theme":
+            node["axis"] = None
+            node["axis_operational"] = False
+    bad["main_theme"]["axis"] = None
+    bad["main_theme"]["axis_operational"] = False
+
+    prov = LLMProvider(client=_FakeClient(json.dumps(bad)))
+    with pytest.raises(ValueError):
+        prov.expand_causal("text", "theme")
