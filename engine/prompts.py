@@ -58,3 +58,60 @@ where
 Record assumptions and testable implications as falsifiers for the risk stage, and
 non_identifiability items as questions for the PM stage — do not add fields here.
 """
+
+
+# ── DISCOVERY seams (live; method-memory only; no trades / sizing / probabilities) ──
+
+DEFINE_AXIS_PROMPT = """\
+You select the best OPERATIONAL AXIS for a causal object. An operational axis is a NAMED,
+COMPUTABLE spread or ratio (e.g. "IG 5s30s OAS slope = OAS(30Y) − OAS(5Y), bps") — never a
+trade. PREFER the source-derived axis candidates supplied below (from parse_research_text);
+refine wording but keep the source series. If NO clean axis exists, set axis=null and
+recommend_watchlist=true with a reason and data_needed_next — do NOT fabricate a series.
+Do NOT output exact bonds, curve points, hedge ratios, sizes, or execution.
+Emit ONLY this JSON:
+{ "axis": <Axis>|null, "confidence": number(0..1), "reason": str,
+  "data_needed_next": str, "recommend_watchlist": bool, "source_derived": bool }
+Axis = {"definition": str, "measurement": str, "current_value": number,
+        "history": {"mean": number, "vol": number, "percentile": number, "regime_tags":[str]},
+        "axis_shape": "level"|"curve"|"basis"|"relative_value"|"cross_asset"|"volatility",
+        "axis_direction": "higher"|"lower"|"steeper"|"flatter"|"wider"|"tighter"|"dispersion_up"|"dispersion_down"}
+"""
+
+SYSTEM_MAP_PROMPT = """\
+Embed the causal object in a Meadows SYSTEM MAP using METHOD knowledge only. Distinguish a
+STOCK (a level: outstanding credit, index/benchmark ownership, AUM) from a FLOW (a rate: new
+issuance, ETF/mutual-fund demand, defaults) — misclassifying these is the common error. Every
+feedback loop is REINFORCING or BALANCING; name what closes it. Mark DELAYS (e.g. index
+inclusion / benchmark adoption). No trades, no sizing, no probabilities.
+Emit ONLY this JSON (engine.schema.SystemMap shape):
+{ "boundary_inside":[str], "boundary_outside":[str], "boundary_rationale": str,
+  "function_purpose": str, "stocks":[{"name":str,"unit":str,"observable":str|null}],
+  "flows":[{"name":str,"changes_stock":str,"unit_per_time":str,"observable":str|null}],
+  "feedback_loops":[{"id":str,"type":"reinforcing"|"balancing","path":[str],"delay":str|null,"closes_via":str}],
+  "delays":[{"between":str,"length":str,"why_it_matters":str}],
+  "external_shocks":[str], "internal_responses":[str], "observable_variables":[str], "surprise_modes":[str] }
+"""
+
+DIAGNOSE_LOOPS_PROMPT = """\
+Given the system map's loop map, diagnose QUALITATIVELY (no ODEs, no simulation): which loop
+dominates now, the R<->B reversal condition, system traps (esp. "success-to-the-successful" /
+momentum / crowding), early-warning indicators, and a decision. Flag crowding/momentum risk
+explicitly where a reinforcing performance→inflows→tightening loop is present.
+Emit ONLY this JSON (engine.schema.LoopDiagnosis shape):
+{ "feedback_loop_map":[...], "dominant_loop_now": str, "dominant_loop_evidence": str,
+  "possible_loop_shift": str, "system_traps":[str], "leverage_points":[{"description":str,"observable":bool}],
+  "early_warning_indicators":[str], "invalidation_evidence":[str], "pm_questions":[str],
+  "decision": "promote_to_scenario_pricing"|"watchlist"|"reject"|"needs_more_data" }
+"""
+
+CRITIQUE_PROMPT = """\
+Critique the mental model behind the theme: the dominant model, alternative models / confounders
+(e.g. a spread basis explained by rating/duration/liquidity; outperformance that is momentum or
+crowding; index inclusion that does not translate into tradeable liquidity; a relationship that
+is non-stationary), assumptions treated as facts, and disconfirming evidence (falsifiers).
+Emit ONLY this JSON (engine.schema.BiasCritique shape):
+{ "dominant_mental_model": str, "alternative_models":[str], "assumptions_treated_as_facts":[str],
+  "lenses_examined":[str], "disconfirming_evidence":[str],
+  "decision": "accept_model"|"challenge_model"|"reject_model", "rationale": str }
+"""

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from .causal import (
     Axis,
+    AxisCandidate,
     AxisHistory,
     CausalChain,
     CausalChainStep,

@@ -53,6 +53,18 @@ class Axis(BaseModel):
                 "dispersion_up", "dispersion_down"]
     ] = None
 
+class AxisCandidate(BaseModel):
+    """The richer output of the define_axis discovery seam (additive; the seam still
+    RETURNS an Axis per the Provider contract). When `axis is None` / `recommend_watchlist`,
+    no clean operational axis exists — route to watchlist_only, do not fabricate a series."""
+    axis: Optional[Axis] = None
+    confidence: float = 0.0
+    reason: str = ""
+    data_needed_next: str = ""
+    recommend_watchlist: bool = False
+    source_derived: bool = False             # True ⇒ taken from parse_research_text candidates
+
+
 # ── Causal Theme Compiler — ONE causal chain whose theme nodes carry axes ─────
 
 class CausalNode(BaseModel):
