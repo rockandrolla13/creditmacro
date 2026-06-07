@@ -10,3 +10,5 @@ __pycache__/
 .ipynb_checkpoints/
 .DS_Store
 .playwright-mcp/
+raw/
+wiki/.fresh_reasoning_snapshot.json

@@ -1,8 +1,18 @@
 # Wiki Conventions
 
 The wiki is the **persistent memory layer** for the investment-research agent. It is the
-generated/maintained layer over the **immutable** raw sources in `markdowns/`. Never modify
-raw source files.
+generated/maintained layer over the **immutable** raw sources in `raw/` (original PDFs in
+`raw/pdfs/`, page-aware markdown in `raw/normalized-md/`, page assets/tables in
+`raw/assets/` and `raw/tables/`, conversion manifests in `raw/manifests/`). Never modify
+raw source files. (The legacy `markdowns/` corpus is being migrated into `raw/normalized-md/`;
+`raw/` is private/gitignored — only the wiki is tracked memory.)
+
+The source compiler (`tools/convert_pdf_to_markdown.py`, `tools/create_source_card.py`,
+`tools/extract_method_skills.py`) produces normalized md → source cards → evidence atoms
+→ method cards / engine specs. It reuses the firewall in `engine/memory` + `engine/firewall`
+(it never forks them) and writes cards in the frontmatter convention below. Wiki pages carry
+PARAPHRASE + citation only — never reproduced source text (`tools/leak_check.py` enforces a
+≤25-word verbatim cap against `raw/normalized-md`).
 
 Target workflow (discovery half only):
 
@@ -101,7 +111,7 @@ history; never the reverse.
 source_type: book | paper | report | deck | memo | transcript | market_data | other
 source_date:
 author_or_publisher:
-raw_source_path:        # path into markdowns/ (immutable)
+raw_source_path:        # path into raw/ (immutable; e.g. raw/normalized-md/<slug>.md)
 ingestion_status: draft | ingested | linted
 ---
 ```

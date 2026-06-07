@@ -5,7 +5,7 @@ title: cash_cds_basis
 slug: cash_cds_basis
 aliases: []
 tags: [strategy-family]
-sources: []
+sources: [jpm-ai-capex-funding-2026-05-11]
 status: active
 created: 2026-06-06
 updated: 2026-06-06
@@ -29,6 +29,11 @@ This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema
 family with a decomposed confidence; detailed legs/sizing/hedges are downstream.
 
 ## Sources
-_None yet._
+- [[jpm-ai-capex-funding-2026-05-11]] — AI-capex credit ecosystem (CASE)
+
+## Case priors
+- **JPM AI capex (2026-05-11) — secondary/conditional.** JPM is cash-only data; this family
+  applies only where liquid single-name CDS exists on the legs. Likely [[watchlist_only]] until
+  CDS liquidity is confirmed. Not a primary prior for this source.
 
 ## Notes

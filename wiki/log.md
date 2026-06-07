@@ -18,3 +18,22 @@ Entry format:
 - Created wiki structure (sources/, entities/, concepts/, themes/, scenarios/, strategy-families/, models/).
 - Seeded the 14 strategy-family pages from the engine taxonomy (engine/schema.py + engine/discovery.py).
 - No source pages exist yet, so no lint batch has run. Add source summaries under `wiki/sources/` then run "lint the wiki".
+
+## [2026-06-07] source ingested | first CASE fixture — JPM AI Capex Funding (2026-05-11)
+- **Source ingested:** [[jpm-ai-capex-funding-2026-05-11]] (access_class=**case**, report). Raw PDF
+  private in `raw/pdfs/`; page-aware md in `raw/normalized-md/` (14 pages); paraphrase-only card.
+- **Pages created (12):** 1 source; 4 themes ([[ai-capex-funding-credit-ecosystem]],
+  [[hyperscaler-project-bond-basis]], [[hy-hpc-crowding-and-supply]],
+  [[data-center-index-inclusion-technicals]]); 7 concepts ([[data-center-credit]],
+  [[high-performance-computing-credit]], [[hyperscaler-project-bond-basis-mechanics]],
+  [[index-inclusion-technical]], [[limited-syndication]], [[144a-for-life]], [[related-obligation-rv]]);
+  + [[memory-map]] + 3 new family taxonomy pages.
+- **Pages updated:** [[long_short]], [[cash_cds_basis]], [[outright]], [[watchlist_only]] (case priors);
+  index.md (sources/concepts/themes/families); created [[index_index_rv]] [[etf_basket_rv]] [[curve]].
+- **Evidence atoms created:** 15 (`jpm-2026-05-11-001 … 015`) in `wiki/evidence/evidence_atoms.jsonl`,
+  each with `page:N` provenance.
+- **Strategy-family priors updated:** ranked long_short > index_index_rv > etf_basket_rv > curve(2ndary) > outright(conditional); watchlist for HPC.
+- **Unresolved issues:** hyperscaler-vs-project differentials unverified-clean (duration/rating); which
+  index defines the live DC technical; HPC likely crowded (watchlist); memory-map not yet in skip-set.
+- **No-trade confirmation:** no exact bonds, curve points, hedge ratios, sizes, or execution emitted.
+  Discovery memory only — families, not trades.

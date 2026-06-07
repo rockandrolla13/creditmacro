@@ -5,7 +5,7 @@ title: watchlist_only
 slug: watchlist_only
 aliases: []
 tags: [strategy-family]
-sources: []
+sources: [jpm-ai-capex-funding-2026-05-11]
 status: active
 created: 2026-06-06
 updated: 2026-06-06
@@ -29,6 +29,11 @@ This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema
 family with a decomposed confidence; detailed legs/sizing/hedges are downstream.
 
 ## Sources
-_None yet._
+- [[jpm-ai-capex-funding-2026-05-11]] — AI-capex credit ecosystem (CASE)
+
+## Case priors
+- **JPM AI capex (2026-05-11).** Default for [[hy-hpc-crowding-and-supply]] (crowded; promote only
+  on a named reversal condition — flows turning) and for any AI-credit axis lacking a confirmed
+  clean differential, supplied scenarios, and a falsifier.
 
 ## Notes
