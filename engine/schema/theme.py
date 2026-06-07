@@ -1,8 +1,4 @@
-"""ThemeObject — the append-only, observable-anchored, frozen pipeline output.
-
-Status-dependent discipline gates (expression vs discovery) are enforced here by a
-model_validator: no incomplete object is ever emitted.
-"""
+"""ThemeObject — the append-only, observable-anchored, frozen pipeline output."""
 from __future__ import annotations
 
 import uuid
@@ -20,26 +16,8 @@ from .streams import IcebergClassification
 from .system_map import SystemMap
 from .trap import BiasCritique, LoopDiagnosis, TrapImplications
 
-
 class ThemeObject(BaseModel):
-    """
-    The output of the pipeline. Append-only, observable-anchored.
-
-    Carries a STATUS that traces the lifecycle and selects which gates apply:
-      - "blocked": halted before a valid causal object was built (block_reason set).
-        Exempt from all gates — it is the firewall's HALT record, not a thesis.
-      - "discovery_complete": a valid causal object is built but families are NOT yet
-        ranked. Discovery gates apply.
-      - "strategy_family_routed" (default): causal object + ranked strategy families, then
-        STOP — the intended TERMINAL output of the discovery half. Discovery gates AND the
-        family gate apply. Detailed-expression fields stay absent/None.
-      - "expression_complete": detailed legs built downstream; the four EXPRESSION gates
-        apply (axis operational, residual_edge computed, ≥1 scored expression, ≥1 falsifier).
-
-    Frozen + append-only: once constructed, a ThemeObject is immutable. The memory firewall
-    relies on this — the phase-A fresh-reasoning snapshot cannot be mutated by phase-B
-    calibration (which sees case history). Build a changed object via model_copy.
-    """
+    """The output of the pipeline. Append-only, observable-anchored."""
     model_config = ConfigDict(frozen=True)
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -91,10 +69,7 @@ class ThemeObject(BaseModel):
 
     @model_validator(mode="after")
     def discipline_gates(self) -> "ThemeObject":
-        """
-        Status-dependent hard gates. Failure raises ValueError — the object is not
-        emitted. These are type constraints, not quality checks.
-        """
+        """Status-dependent hard gates. Failure raises ValueError — the object is not"""
         if self.status == "blocked":
             # The HALT record is exempt from all gates; it only needs its reason.
             if not (self.block_reason and self.block_reason.strip()):
@@ -148,12 +123,7 @@ class ThemeObject(BaseModel):
         return self
 
     def _discovery_gates(self) -> "ThemeObject":
-        """The DISCOVERY gates — apply to discovery_complete AND strategy_family_routed.
-        They concern only the PROMOTED core theme (the one being routed); hot topics, main
-        developments, and non-promoted theme candidates are valid without an axis.
-
-        Promotion gates (falsifier + ranked family) bind only on the routed terminal state.
-        """
+        """The DISCOVERY gates — apply to discovery_complete AND strategy_family_routed."""
         # D-Gate 1: a causal chain is present and connected (one component).
         if self.causal_chain is None or not self.causal_chain.nodes:
             raise ValueError(

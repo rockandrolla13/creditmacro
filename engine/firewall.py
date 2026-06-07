@@ -1,20 +1,4 @@
-"""
-Memory Access Firewall — the two-phase runner with a FROZEN SNAPSHOT between phases.
-
-    PHASE A  reason fresh (method memory + the new report only) → causal object + routed
-             strategy families with confidence.            [run_workflow(mode="discovery")]
-    FREEZE   serialize phase-A output, record content hash + timestamp.  [freeze() → immutable]
-    PHASE B  consult history: read CASE pages to find analogues and calibrate confidence —
-             additively. The frozen causal object is NEVER mutated.
-
-Provenance of the split is explicit on the emitted FirewalledResult: `fresh_snapshot_hash`,
-`fresh_reasoning` (immutable), and `post_case_calibration` (additive, referencing the hash).
-A reader can always tell what the agent concluded BEFORE seeing history vs the adjustment
-AFTER — that is what makes the firewall auditable rather than honor-system.
-
-Lifecycle reuse (no parallel enum): phase A ends at the engine's `strategy_family_routed`
-status; phase B annotates it; neither phase ever produces `expression_complete`.
-"""
+"""Memory Access Firewall — the two-phase runner with a FROZEN SNAPSHOT between phases."""
 from __future__ import annotations
 
 import hashlib
@@ -30,40 +14,28 @@ from .protocols import Provider
 from .schema import ThemeObject
 from .workflow import run_workflow
 
-
 # ── the frozen snapshot ───────────────────────────────────────────────────────
 
 # Volatile identity/timestamp fields excluded from the content hash so that two runs of
 # IDENTICAL fresh reasoning fingerprint equal (the hash is over CONTENT, not provenance).
 _HASH_EXCLUDE = {"id": True, "created_at": True, "provenance": {"last_updated": True}}
 
-
 class FrozenSnapshot(BaseModel):
-    """Immutable record of the phase-A fresh reasoning.
-
-    Integrity model: the **content_hash** — not Python-level immutability — is the anchor.
-    `ThemeObject`/`StrategyFamilyRec` are frozen so attribute reassignment fails, but nested
-    output models (e.g. `Pricing`) are built mutably by design; the hash is what detects any
-    post-freeze drift and what phase-B calibration must reference. Treat the hash as
-    authoritative, not the object's frozenness."""
+    """Immutable record of the phase-A fresh reasoning."""
     model_config = ConfigDict(frozen=True)
     content_hash: str
     created_at: str
     theme: ThemeObject
 
-
 def _hash_theme(theme: ThemeObject) -> str:
-    """SHA-256 over the CANONICAL JSON of the causal object + routed families, excluding
-    volatile id/timestamps (`_HASH_EXCLUDE`) so identical reasoning hashes equal across runs."""
+    """SHA-256 over the CANONICAL JSON of the causal object + routed families, excluding"""
     payload = theme.model_dump(mode="json", exclude=_HASH_EXCLUDE)
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
-
 
 def freeze(theme: ThemeObject, now: Optional[str] = None) -> FrozenSnapshot:
     """Freeze phase-A output into an immutable snapshot with a content hash + timestamp."""
     created_at = now if now is not None else datetime.now(timezone.utc).isoformat()
     return FrozenSnapshot(content_hash=_hash_theme(theme), created_at=created_at, theme=theme)
-
 
 # ── phase-B calibration (additive; never mutates the frozen object) ───────────
 
@@ -71,25 +43,19 @@ class Analogue(BaseModel):
     slug: str          # the case page consulted (post-freeze)
     note: str
 
-
 class ConfidenceAdjustment(BaseModel):
-    """A recorded calibration of one routed family. fresh_confidence is copied from the
-    frozen snapshot; adjusted_confidence is the post-history view — stored HERE, never
-    written back onto the frozen family."""
+    """A recorded calibration of one routed family. fresh_confidence is copied from the"""
     family: str
     fresh_confidence: float
     adjusted_confidence: float
     reason: str
 
-
 class PostCaseCalibration(BaseModel):
-    """Additive phase-B block. References the frozen snapshot by hash so the split is
-    auditable. Adds analogues, lessons, and confidence adjustments; mutates nothing."""
+    """Additive phase-B block. References the frozen snapshot by hash so the split is"""
     fresh_snapshot_hash: str
     analogues: list[Analogue] = []
     lessons: list[str] = []
     confidence_adjustments: list[ConfidenceAdjustment] = []
-
 
 # ── the emitted object: provenance of the split ───────────────────────────────
 
@@ -112,16 +78,12 @@ class FirewalledResult(BaseModel):
             )
         return self
 
-
 # A phase-B calibrator: given the frozen snapshot + a phase-B retriever, produce additive
 # calibration. Receiving the hash proves it ran AFTER the freeze.
 Calibrator = Callable[[FrozenSnapshot, MemoryRetriever], PostCaseCalibration]
 
-
 def default_calibrator(snapshot: FrozenSnapshot, retriever: MemoryRetriever) -> PostCaseCalibration:
-    """Reference phase-B calibrator: read CASE analogues sharing a routed family, record a
-    lesson per analogue, and copy each family's fresh confidence into an (unchanged-by-
-    default) adjustment. It mutates nothing on the frozen snapshot."""
+    """Reference phase-B calibrator: read CASE analogues sharing a routed family, record a"""
     theme = snapshot.theme
     routed = {f.family for f in theme.strategy_families}
 
@@ -158,7 +120,6 @@ def default_calibrator(snapshot: FrozenSnapshot, retriever: MemoryRetriever) -> 
         confidence_adjustments=adjustments,
     )
 
-
 # ── the two-phase runner ──────────────────────────────────────────────────────
 
 def run_two_phase(
@@ -170,12 +131,7 @@ def run_two_phase(
     calibrator: Optional[Calibrator] = default_calibrator,
     now: Optional[str] = None,
 ) -> FirewalledResult:
-    """Run the firewalled two-phase pass and emit a FirewalledResult.
-
-    The retriever starts in phase A (method-only, fail-closed). Phase-A reasoning builds the
-    causal object + routes families (discovery mode — never expression). The snapshot is
-    FROZEN and its hash marked on the retriever BEFORE phase B is unlocked, so any case read
-    is provably post-freeze. Phase B then runs the (additive) calibrator."""
+    """Run the firewalled two-phase pass and emit a FirewalledResult."""
     if retriever is None:
         retriever = MemoryRetriever(pages or {}, phase="A")
     if retriever.phase != "A":

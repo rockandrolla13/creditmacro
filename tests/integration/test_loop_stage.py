@@ -1,10 +1,4 @@
-"""TRAP split into two stages, fixing the backward dependency:
-
-  LOOP_DIAGNOSIS  (pre-pricing)  — loops/dominant/shift/traps/decision; FEEDS propose_scenarios
-                                   (the balancing limit becomes a reversal scenario).
-  TRAP_IMPLICATIONS (post-pricing) — scenario_implications + expression_risk, which need the
-                                   scenarios/pricing/expressions that only exist after pricing.
-"""
+"""TRAP split into two stages, fixing the backward dependency:"""
 from __future__ import annotations
 
 import pytest
@@ -15,7 +9,6 @@ from engine.schema import LeveragePoint, LoopDiagnosis, TrapImplications
 from engine.scripted_provider import ScriptedProvider
 from engine.workflow import run_workflow
 from tests._helpers import CASES_DIR as CASES, build_theme
-
 
 # ── schema split ──────────────────────────────────────────────────────────────
 
@@ -28,17 +21,14 @@ def test_loop_diagnosis_is_pre_pricing_only():
     with pytest.raises(ValidationError):
         LoopDiagnosis(dominant_loop_now="R1", possible_loop_shift="x", decision="buy")
 
-
 def test_trap_implications_is_post_pricing_only():
     ti = TrapImplications(scenario_implications=["worst state drives edge"],
                           expression_risk_implications=["long-beta dies first"])
     assert ti.scenario_implications and ti.expression_risk_implications
     assert not hasattr(ti, "dominant_loop_now")
 
-
 def test_leverage_point_observable_flag():
     assert LeveragePoint(description="flows", observable=True).observable is True
-
 
 # ── ordering: loop diagnosis FEEDS propose_scenarios (no backward dependency) ──
 
@@ -57,7 +47,6 @@ class _SpyProvider(ScriptedProvider):
         self.implications_got = (scenarios, pricing, expressions)
         return super().assess_trap_implications(scenarios, pricing, expressions)
 
-
 def test_loop_diagnosis_is_passed_into_propose_scenarios():
     case = load_case(CASES / "french_banks.yaml")
     spy = _SpyProvider(case)
@@ -65,14 +54,12 @@ def test_loop_diagnosis_is_passed_into_propose_scenarios():
     # the pre-pricing loop diagnosis reached scenario construction
     assert isinstance(spy.scenarios_got_loop, LoopDiagnosis)
 
-
 def test_trap_implications_run_after_pricing_with_real_scenarios():
     case = load_case(CASES / "french_banks.yaml")
     spy = _SpyProvider(case)
     run_workflow(spy, case.resolved_policy(), mode="expression")
     scenarios, pricing, expressions = spy.implications_got
     assert scenarios and pricing is not None and expressions  # post-pricing inputs exist
-
 
 # ── attachment + golden ───────────────────────────────────────────────────────
 
@@ -83,7 +70,6 @@ def test_workflow_attaches_both_loop_and_implications():
         "promote_to_scenario_pricing", "watchlist", "reject", "needs_more_data")
     assert isinstance(theme.trap_implications, TrapImplications)
     assert theme.trap_implications.scenario_implications
-
 
 def test_ai_issuance_has_neither_and_stays_golden():
     _, theme, _ = build_theme("ai_issuance.yaml")

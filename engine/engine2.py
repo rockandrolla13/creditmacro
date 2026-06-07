@@ -1,23 +1,4 @@
-"""
-Engine 2 — scenario pricing and edge (the SINGLE home for Engine-2 quant; AR-BND-001).
-
-MATHEMATICS
-  q (priced-in measure):  min_q KL(q ‖ prior)  s.t.  Σ q_s f_k(X_s) = c_k,  Σ q_s = 1.
-  Solution is the EXPONENTIAL TILT
-        q_s = prior_s · exp(Σ_k λ_k f_k(X_s)) / Z(λ),
-  with λ solving the convex dual  min_λ  ln Z(λ) − Σ_k λ_k c_k.
-    - K=1 (level f_1(X)=X, c_1=X_mkt): E_q[f] is monotone increasing in λ
-      (dE/dλ = Var_q[f] ≥ 0) → 1-D root find.
-    - K>1 (+ axis-struck option payoffs): K-dim Newton on the dual
-      (gradient E_q[f]−c, Hessian Cov_q[f] ≻ 0).
-  Feasibility: a solution exists iff each target c_k is strictly interior to
-  (min_s f_k(X_s), max_s f_k(X_s)). Otherwise status=INFEASIBLE — q is NOT fabricated.
-
-  edge (identity): ⟨p − q, X⟩.
-
-RISK CAVEAT: prices give a RISK-NEUTRAL q; edge vs this q is GROSS OF RISK PREMIUM.
-  (A pricing-kernel map to physical q lands with the MC-edge step.)
-"""
+"""Engine 2 — scenario pricing and edge (the SINGLE home for Engine-2 quant; AR-BND-001)."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -29,7 +10,6 @@ from scipy.optimize import brentq
 
 from .schema import EdgeContribution, PricedIn, Pricing, Scenario
 
-
 # ── Moment constraints ────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
@@ -39,11 +19,9 @@ class MomentConstraint:
     target: float
     label: str = ""
 
-
 def level_constraint(x_mkt: float) -> MomentConstraint:
     """The level constraint E_q[X] = X_mkt (f(X)=X)."""
     return MomentConstraint(fn=lambda x: x, target=float(x_mkt), label="level")
-
 
 def option_constraint(strike: float, target: float) -> MomentConstraint:
     """An axis-struck call payoff f(X)=max(X−strike,0) constraining q's tail/curvature."""
@@ -53,14 +31,12 @@ def option_constraint(strike: float, target: float) -> MomentConstraint:
         label=f"call@{strike}",
     )
 
-
 @dataclass
 class QSolution:
     q: list[float]
     status: Literal["FEASIBLE", "INFEASIBLE"]
     reason: str = ""
     lambdas: list[float] = field(default_factory=list)
-
 
 # ── Tilt internals ────────────────────────────────────────────────────────────
 
@@ -69,7 +45,6 @@ def _tilt_q(prior: np.ndarray, expo: np.ndarray) -> np.ndarray:
     m = float(np.max(expo))
     w = prior * np.exp(expo - m)
     return w / w.sum()
-
 
 def _expand_bracket(resid, x0: float, hit) -> float:
     """Geometrically expand x0 (×2, up to 200 steps) until resid(x) satisfies `hit`."""
@@ -80,17 +55,12 @@ def _expand_bracket(resid, x0: float, hit) -> float:
         x *= 2.0
     return x
 
-
 def solve_q_tilt(
     X_s: list[float],
     constraints: list[MomentConstraint],
     prior: list[float],
 ) -> QSolution:
-    """Exact min-KL(q‖prior) tilt subject to the given moment constraints.
-
-    See module docstring. Returns INFEASIBLE (without fabricating q) when any target
-    is not strictly interior to its payoff's scenario span.
-    """
+    """Exact min-KL(q‖prior) tilt subject to the given moment constraints."""
     n = len(X_s)
     prior_arr = np.asarray(prior, dtype=float)
     if prior_arr.shape != (n,):
@@ -150,7 +120,6 @@ def solve_q_tilt(
         return QSolution(q=[], status="INFEASIBLE", reason="dual Newton did not converge")
     return QSolution(q=q.tolist(), status="FEASIBLE", lambdas=lam.tolist())
 
-
 # ── Edge identity ─────────────────────────────────────────────────────────────
 
 def compute_edge(p_s: list[float], q_s: list[float], X_s: list[float]) -> float:
@@ -160,10 +129,8 @@ def compute_edge(p_s: list[float], q_s: list[float], X_s: list[float]) -> float:
     X = np.array(X_s, dtype=float)
     return float(np.dot(p - q, X))
 
-
 def _edge_attribution(names, p, q, X_s, *, round_dp: Optional[int] = None) -> list[EdgeContribution]:
-    """Per-scenario (p−q)·X attribution, sorted by contribution desc. round_dp rounds the
-    stored values (run_pricing persists 6dp; the MC point estimate stays exact)."""
+    """Per-scenario (p−q)·X attribution, sorted by contribution desc. round_dp rounds the"""
     def v(x: float) -> float:
         return round(x, round_dp) if round_dp is not None else x
     return sorted(
@@ -172,18 +139,10 @@ def _edge_attribution(names, p, q, X_s, *, round_dp: Optional[int] = None) -> li
         key=lambda c: c.contribution, reverse=True,
     )
 
-
 # ── Uncertainty-propagating fair value (Step 3) ──────────────────────────────
 
 def scenario_fair_value(scenarios: list[Scenario]) -> tuple[float, float]:
-    """Return (E[X], sqrt(Var[X])) under the scenario mixture.
-
-    Var[X] = Σ_s p_s σ_g_s²              (within-scenario: each X_s uncertain)
-           + Σ_s p_s (X_s − E[X])²       (between-scenario: dispersion of fair value)
-
-    Law of total variance. With all σ_g_s = 0 only the between term survives, so the
-    std reports how dispersed the axis fair value is across states.
-    """
+    """Return (E[X], sqrt(Var[X])) under the scenario mixture."""
     p = np.array([s.p_s for s in scenarios], dtype=float)
     X = np.array([s.implied_axis_value for s in scenarios], dtype=float)
     sig = np.array([(s.sigma_g_s or 0.0) for s in scenarios], dtype=float)
@@ -193,12 +152,10 @@ def scenario_fair_value(scenarios: list[Scenario]) -> tuple[float, float]:
     between = float(np.dot(p, (X - fv) ** 2))
     return fv, float(np.sqrt(within + between))
 
-
 # ── Monte-Carlo edge (Step 4) ────────────────────────────────────────────────
 
 class EdgeMC(BaseModel):
-    """Edge with second moments. edge_mean is the DETERMINISTIC identity (NOT the MC
-    sample mean); MC supplies the rest. See module note on the hybrid SNR."""
+    """Edge with second moments. edge_mean is the DETERMINISTIC identity (NOT the MC"""
     edge_mean: float
     edge_std: float
     snr: float
@@ -207,7 +164,6 @@ class EdgeMC(BaseModel):
     direction_ok: bool
     attribution: list[EdgeContribution]
     infeasible_fraction: float
-
 
 def compute_edge_mc(
     p: list[float],
@@ -222,19 +178,7 @@ def compute_edge_mc(
     seed: int = 0,
     scenario_names: Optional[list[str]] = None,
 ) -> EdgeMC:
-    """Monte-Carlo edge.
-
-    edge_mean = ⟨p − q, X⟩ at the POINT estimates (exactly reproduces residual_edge;
-    NOT the MC mean — q is nonlinear in X so by Jensen they differ).
-
-    MC: each draw samples X_s ~ N(X_s, σ_g_s) and p ~ Dirichlet(κ·p), re-solves q via
-    the tilt, recomputes the edge. SNR = edge_mean / edge_std (a documented hybrid:
-    point-estimate numerator, MC-spread denominator). Infeasible draws (X_mkt outside
-    the drawn span) are SKIPPED and COUNTED — never silently dropped.
-
-    Reproducibility: SeedSequence(seed).spawn(n_draws) gives each draw an independent
-    stream, so results are identical regardless of execution order (AR-PAR-001).
-    """
+    """Monte-Carlo edge."""
     n = len(X_s)
     names = scenario_names if scenario_names is not None else [f"s{i}" for i in range(n)]
 
@@ -287,7 +231,6 @@ def compute_edge_mc(
         infeasible_fraction=infeasible / n_draws,
     )
 
-
 # ── Pricing assembly ──────────────────────────────────────────────────────────
 
 def run_pricing(
@@ -301,13 +244,7 @@ def run_pricing(
     n_draws: int = 10_000,
     seed: int = 0,
 ) -> Pricing:
-    """Assemble Pricing from scenarios via the closed-form tilt q and the edge identity.
-
-    q0 is the prior (None → uniform). When thesis_sign and sigma_axis are supplied the
-    DETERMINISTIC edge enrichments (attribution, direction, vol-adjusted edge, basis,
-    q_status) are populated. MC second moments (edge_std, snr, p_success,
-    infeasible_fraction) are added only when run_mc=True (the edge is gross of risk
-    premium regardless)."""
+    """Assemble Pricing from scenarios via the closed-form tilt q and the edge identity."""
     p_s = [s.p_s for s in scenarios]
     X_s = [s.implied_axis_value for s in scenarios]
     names = [s.name for s in scenarios]

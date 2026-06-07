@@ -1,25 +1,4 @@
-"""
-Discovery half — route a causal object's promoted theme to ONE strategy FAMILY.
-
-Routing needs the axis SHAPE *and* DIRECTION (shape alone is insufficient — a curve axis
-steepens or flattens). The deliverable is a ranked StrategyFamilyRec, then STOP: no
-instruments, sizing, stops, hedge ratios, or legs are produced in discovery mode.
-
-confidence = causal_confidence × axis_fit × edge_survival × purity × data_confidence
-  (the six stored confidence_components also include scenario_availability, a flag).
-
-Caps are CEILINGS on the product (lowest applicable) — they encode "unanswerable", not
-"low", so a capped family names the MISSING input (why_not) instead of asserting false
-precision:
-  no supplied scenarios   -> DO NOT invent them; ceiling 0.45; scenario_availability=False
-  no current market value  -> edge_survival="unknown"; ceiling 0.60
-(no causal chain → blocked, no operational axis on the promoted theme → no routing, and
-no falsifier → block promotion are enforced upstream in the workflow / discipline gates.)
-
-LIGHT priced-in only: reuse the golden solve_q_tilt + compute_edge on the SUPPLIED
-scenarios. Never generate scenarios or probabilities. The numeric primitives are imported
-unchanged — this module only composes them.
-"""
+"""Discovery half — route a causal object's promoted theme to ONE strategy FAMILY."""
 from __future__ import annotations
 
 from typing import Literal, Optional, Union
@@ -67,13 +46,8 @@ _TRACKING_FIDELITY: dict[str, float] = {
     "volatility_convexity": 0.65, "watchlist_only": 0.0,
 }
 
-
 def _family_monetisation(axis_moves: list[float], fidelity: float) -> list[float]:
-    """The family's per-scenario P&L: ``fidelity·(axis move) + (1−fidelity)·residual`` where
-    the residual is an axis-ORTHOGONAL series of matched variance (deterministic). Feeding
-    this to compute_purity yields an R² that falls below 1 as fidelity drops — so a clean
-    curve trade scores higher purity than a leaky cross-asset proxy. fidelity ≥ 1 (or a
-    degenerate axis) returns the axis moves unchanged (purity → 1)."""
+    """The family's per-scenario P&L: ``fidelity·(axis move) + (1−fidelity)·residual`` where"""
     x = np.asarray(axis_moves, dtype=float)
     if x.size < 2 or float(x.std()) < 1e-12 or fidelity >= 1.0:
         return x.tolist()
@@ -108,17 +82,14 @@ _DOWNSTREAM: dict[str, tuple[str, str]] = {
                        "an operational axis, supplied scenarios, and a falsifier"),
 }
 
-
 def classify_axis(
     axis: Axis, thesis_sign: int
 ) -> tuple[AxisShape, AxisDirection]:
-    """Resolve (shape, direction): use the axis's own typed fields when set, else derive
-    shape from the operational text and direction from the thesis sign."""
+    """Resolve (shape, direction): use the axis's own typed fields when set, else derive"""
     shape: AxisShape = axis.axis_shape or _shape_from_text(axis)
     if axis.axis_direction is not None:
         return shape, axis.axis_direction
     return shape, _direction_from_sign(shape, thesis_sign)
-
 
 def _shape_from_text(axis: Axis) -> AxisShape:
     text = f"{axis.definition} {axis.measurement}".lower()
@@ -134,7 +105,6 @@ def _shape_from_text(axis: Axis) -> AxisShape:
         return "relative_value"
     return "level"
 
-
 def _direction_from_sign(shape: AxisShape, thesis_sign: int) -> AxisDirection:
     up = thesis_sign >= 0
     return {
@@ -145,7 +115,6 @@ def _direction_from_sign(shape: AxisShape, thesis_sign: int) -> AxisDirection:
         "cross_asset": "wider" if up else "tighter",
         "volatility": "dispersion_up" if up else "dispersion_down",
     }[shape]
-
 
 def _route_family(shape: AxisShape, direction: AxisDirection, axis: Axis) -> str:
     """Map (shape, direction) to one strategy family."""
@@ -162,13 +131,10 @@ def _route_family(shape: AxisShape, direction: AxisDirection, axis: Axis) -> str
         return "credit_vs_equity" if "equity" in text else "credit_vs_rates"
     return "outright"  # level (and any curve direction not steeper/flatter)
 
-
 def _light_residual_edge(
     scenarios: list[Scenario], prior: list[float], x_mkt: float
 ) -> tuple[Optional[float], float]:
-    """Residual edge ⟨p−q, X⟩ via the max-entropy tilt, and the scenario span. Returns
-    (None, span) when the light pricing is INFEASIBLE (priced-in unavailable) — q is never
-    fabricated (mirrors engine2's contract)."""
+    """Residual edge ⟨p−q, X⟩ via the max-entropy tilt, and the scenario span. Returns"""
     X_s = [s.implied_axis_value for s in scenarios]
     p = [s.p_s for s in scenarios]
     span = max(X_s) - min(X_s)
@@ -177,15 +143,12 @@ def _light_residual_edge(
         return None, span
     return compute_edge(p, sol.q, X_s), span
 
-
 def _data_confidence(scenario_availability: bool, priced_in_available: bool,
                      n_scenarios: int) -> float:
-    """Data sufficiency in [0,1]. Weak (0.5) when scenarios/pricing are missing — the
-    ceiling caps do the hard 'unanswerable' work; the factor only grades richness."""
+    """Data sufficiency in [0,1]. Weak (0.5) when scenarios/pricing are missing — the"""
     if not scenario_availability or not priced_in_available:
         return 0.5
     return min(1.0, n_scenarios / 4.0)
-
 
 def select_strategy_families(
     axis: Optional[Axis],
@@ -198,11 +161,7 @@ def select_strategy_families(
     has_market_value: bool = True,
     causal_confidence: float = 1.0,
 ) -> list[StrategyFamilyRec]:
-    """Route the promoted theme's axis to one strategy family with decomposed confidence.
-
-    Returns [] when there is no operational axis to route (the discipline gate also blocks
-    this). Returns a single-element list: the routed family, or 'watchlist_only' when
-    nothing clears confidence (route, don't fail)."""
+    """Route the promoted theme's axis to one strategy family with decomposed confidence."""
     if axis is None or not has_operational_axis:
         return []
 

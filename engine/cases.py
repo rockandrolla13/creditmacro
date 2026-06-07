@@ -1,19 +1,4 @@
-"""
-Case-system models: PolicyConfig, the Oracle discriminated union, and the small
-typed result/attribution objects.
-
-DESIGN NOTES (see docs/engine2_design.md + reviews/2026_06_06_architecture_review.md):
-  - PolicyConfig is the SINGLE source of truth for gate thresholds (AR-DRY-001).
-  - Oracle is a Pydantic discriminated union on `kind` with a polymorphic check()
-    (AR-ABS-001): illegal states are unrepresentable and there is no `kind` switch
-    in the runner.
-  - The INVARIANTS FLOOR (schema_valid, gates_evaluate, edge_sign==thesis_sign,
-    q_feasible, finite) is run by the runner as a SEPARATE always-on step; an
-    Oracle.check() adds only the kind-specific assertions.
-
-This module holds MODELS ONLY — no file I/O (that is case_loader.py) and no
-provider behaviour (that is scripted_provider.py).
-"""
+"""Case-system models: PolicyConfig, the Oracle discriminated union, and the small"""
 from __future__ import annotations
 
 from typing import Annotated, Literal, Optional, Union
@@ -40,19 +25,16 @@ from .schema import (
     TrapImplications,
 )
 
-
 # ── Policy: single source of truth for gate thresholds (AR-DRY-001) ──────────
 
 class PolicyConfig(BaseModel):
-    """Gate thresholds + scoring constants. Defaults reproduce the values currently
-    hard-coded as `score_expression` keyword defaults."""
+    """Gate thresholds + scoring constants. Defaults reproduce the values currently"""
     omega_min: float = 2.0
     liquidity_min: float = 0.40
     cost_fraction_max: float = 0.33
     convexity_weight_a: float = 0.10   # `a` in score_expression
     crowding_decay_g: float = 0.50     # `g` in score_expression
     snr_min: float = 1.0               # SNR gate — SEPARATE from the 4 discipline gates
-
 
 # ── Typed contracts (AR-ABS-003) — EdgeContribution now lives in schema.py ────
 
@@ -61,21 +43,17 @@ class AssertionResult(BaseModel):
     passed: bool
     detail: str = ""
 
-
 # ── Oracle discriminated union (AR-ABS-001 / AR-EXT-001) ─────────────────────
 
 class _OracleBase(BaseModel):
     def check(self, theme: ThemeObject) -> list[AssertionResult]:
-        """Kind-specific assertions. The invariants floor is run separately by the
-        runner. Subclasses override."""
+        """Kind-specific assertions. The invariants floor is run separately by the"""
         raise NotImplementedError(
             f"{type(self).__name__}.check is implemented in its own build step."
         )
 
-
 class ExactOracle(_OracleBase):
-    """Pins exact quant outputs to a tolerance. Used by self-authored cases where we
-    control every number (e.g. AI-issuance)."""
+    """Pins exact quant outputs to a tolerance. Used by self-authored cases where we"""
     kind: Literal["exact"] = "exact"
     scenario_fv: float
     q: list[float]
@@ -133,20 +111,12 @@ class ExactOracle(_OracleBase):
 
         return results
 
-
 class RatioTarget(BaseModel):
     target: float
     tol: float
 
-
 class AcceptanceOracle(_OracleBase):
-    """Asserts structural relationships (a P&L ratio, attribution, edge direction)
-    rather than exact numbers. Used for deck-sourced / fuzzy cases (e.g. French-banks).
-
-    - base_worst_ratio: PnL of the most-likely (max-p_s) scenario over |max loss|.
-    - attribution_top: the scenario the edge mostly comes from (top edge contribution).
-    - edge_sign: the edge points in the thesis direction (pricing.edge_direction_ok).
-    """
+    """Asserts structural relationships (a P&L ratio, attribution, edge direction)"""
     kind: Literal["acceptance"] = "acceptance"
     base_worst_ratio: RatioTarget
     edge_sign: Literal["thesis_aligned"] = "thesis_aligned"
@@ -190,36 +160,29 @@ class AcceptanceOracle(_OracleBase):
 
         return results
 
-
 class InvariantsOnlyOracle(_OracleBase):
-    """No numeric oracle — only the always-on invariants floor applies. The path for
-    PDF-sourced cases."""
+    """No numeric oracle — only the always-on invariants floor applies. The path for"""
     kind: Literal["invariants_only"] = "invariants_only"
 
     def check(self, theme: ThemeObject) -> list[AssertionResult]:
         return []  # the invariants floor (run by the runner) is the whole oracle
-
 
 Oracle = Annotated[
     Union[ExactOracle, AcceptanceOracle, InvariantsOnlyOracle],
     Field(discriminator="kind"),
 ]
 
-
 # ── CaseSpec — all the data to build a ThemeObject except the COMPUTED parts ──
 # (pricing q/edge and expression scores are computed by the workflow, not stored).
 
 class CausalPayload(BaseModel):
-    """Hand-built EXPAND_CAUSAL output a case can carry, returned verbatim by the
-    ScriptedProvider (the live LLMProvider produces the same shape from the prompt)."""
+    """Hand-built EXPAND_CAUSAL output a case can carry, returned verbatim by the"""
     main_theme: CausalNode
     causal_chain: CausalChain
     shared_factor: str
 
-
 class CaseSpec(BaseModel):
-    """One self-contained case. The ScriptedProvider returns slices of this; the
-    runner computes pricing + scores and asserts against the oracle."""
+    """One self-contained case. The ScriptedProvider returns slices of this; the"""
     theme_sentence: str
     horizon: str
     author: str

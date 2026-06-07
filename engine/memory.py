@@ -1,18 +1,4 @@
-"""
-Memory access — the FIREWALL that keeps CASE memory out of FRESH reasoning.
-
-The wiki is shared memory. Pages carry `access_class`:
-  - method : concepts, causal mechanisms, how-to-reason pages from books & papers. Safe to
-             load while reasoning fresh — they teach HOW to think, not WHAT was concluded.
-  - case   : past themes/scenarios, closed-thesis outcomes, prior analyses. They record
-             CONCLUSIONS; loading them during fresh reasoning anchors the agent on history.
-
-`MemoryRetriever` is the enforcement point. In phase A it is FAIL-CLOSED: it returns ONLY
-method pages and refuses everything else (case, missing, or invalid access_class) — the
-refused slug is logged and `None` is returned. There is no other path to wiki content, so
-the block holds by CONSTRUCTION, not by asking the agent nicely. Phase B (entered only after
-the fresh snapshot is frozen) unlocks case pages for analogue-finding and calibration.
-"""
+"""Memory access — the FIREWALL that keeps CASE memory out of FRESH reasoning."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,10 +14,8 @@ VALID_ACCESS_CLASSES = ("method", "case")
 _METHOD_TYPES = {"concept", "entity", "model"}
 _CASE_TYPES = {"theme", "scenario"}
 
-
 class WikiPage(BaseModel):
-    """One parsed wiki page. access_class may be None/invalid on a malformed page — the
-    lint check (`check_access_class`) surfaces that; the retriever fails closed regardless."""
+    """One parsed wiki page. access_class may be None/invalid on a malformed page — the"""
     model_config = ConfigDict(frozen=True)
     slug: str
     access_class: Optional[str] = None
@@ -39,10 +23,8 @@ class WikiPage(BaseModel):
     frontmatter: dict = {}
     body: str = ""
 
-
 def derive_access_class(frontmatter: dict) -> Optional[str]:
-    """Best-effort backfill default from a page's type/source_type. Returns None when it
-    cannot be determined (do not guess — let lint flag it)."""
+    """Best-effort backfill default from a page's type/source_type. Returns None when it"""
     if frontmatter.get("access_class") in VALID_ACCESS_CLASSES:
         return frontmatter["access_class"]
     typ = frontmatter.get("type")
@@ -57,7 +39,6 @@ def derive_access_class(frontmatter: dict) -> Optional[str]:
     if typ == "strategy_family":
         return "method"   # the family taxonomy is how-to-express knowledge
     return None
-
 
 # ── parsing ───────────────────────────────────────────────────────────────────
 
@@ -86,10 +67,8 @@ def parse_wiki_page(path: Union[str, Path]) -> WikiPage:
         body=body,
     )
 
-
 def load_wiki_pages(wiki_dir: Union[str, Path]) -> dict[str, WikiPage]:
-    """Load all content pages (sources/entities/concepts/themes/scenarios/strategy-families/
-    models) under a wiki directory, keyed by slug. Skips index/log/scratch/status/CONVENTIONS."""
+    """Load all content pages (sources/entities/concepts/themes/scenarios/strategy-families/"""
     wiki_dir = Path(wiki_dir)
     skip = {"index", "log", "lint-status", "lint-scratch", "CONVENTIONS", "README"}
     pages: dict[str, WikiPage] = {}
@@ -100,12 +79,10 @@ def load_wiki_pages(wiki_dir: Union[str, Path]) -> dict[str, WikiPage]:
         pages[page.slug] = page
     return pages
 
-
 # ── lint check (rule 1) ───────────────────────────────────────────────────────
 
 def check_access_class(pages: dict[str, WikiPage]) -> list[str]:
-    """Lint: every page must carry a valid access_class (method | case). Returns one
-    finding string per offending page (empty list ⇒ all valid)."""
+    """Lint: every page must carry a valid access_class (method | case). Returns one"""
     findings: list[str] = []
     for slug, page in pages.items():
         if page.access_class not in VALID_ACCESS_CLASSES:
@@ -115,16 +92,10 @@ def check_access_class(pages: dict[str, WikiPage]) -> list[str]:
             )
     return findings
 
-
 # ── the retriever (the firewall) ──────────────────────────────────────────────
 
 class MemoryRetriever:
-    """Phase-gated, FAIL-CLOSED wiki retriever.
-
-    phase A: returns ONLY access_class=='method' pages; refuses everything else (case /
-             missing / invalid) → logs the slug and returns None.
-    phase B: returns any page (case unlocked) — entered only after the fresh snapshot is
-             frozen (the runner calls `mark_frozen` before `advance_to_phase_b`)."""
+    """Phase-gated, FAIL-CLOSED wiki retriever."""
 
     def __init__(self, pages: dict[str, WikiPage], phase: Literal["A", "B"] = "A") -> None:
         self._pages = pages
@@ -138,8 +109,7 @@ class MemoryRetriever:
         return self._phase
 
     def mark_frozen(self, content_hash: str) -> None:
-        """Record that the phase-A snapshot is frozen — must be called BEFORE phase B so
-        every later case read is provably after the freeze."""
+        """Record that the phase-A snapshot is frozen — must be called BEFORE phase B so"""
         self.frozen_hash = content_hash
 
     def advance_to_phase_b(self) -> None:

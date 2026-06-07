@@ -1,10 +1,4 @@
-"""
-Case loading — read a YAML/JSON case file into a typed CaseSpec and resolve the
-prior to a concrete vector.
-
-I/O only (AR-BND-002): no models live here (cases.py) and no provider behaviour
-(scripted_provider.py).
-"""
+"""Case loading — read a YAML/JSON case file into a typed CaseSpec and resolve the"""
 from __future__ import annotations
 
 import json
@@ -15,18 +9,12 @@ import yaml
 
 from .cases import CaseSpec
 
-
 def resolve_prior(
     prior: Union[list[float], str],
     n: int,
     hist_freq: Optional[list[Optional[float]]] = None,
 ) -> list[float]:
-    """Resolve a prior specification to a length-n probability vector.
-
-    - "uniform"    → [1/n, …]
-    - "historical" → normalised unconditional scenario frequencies (Scenario.hist_freq)
-    - explicit list → returned as-is after a length check
-    """
+    """Resolve a prior specification to a length-n probability vector."""
     if prior == "uniform":
         return [1.0 / n] * n
     if prior == "historical":
@@ -50,7 +38,6 @@ def resolve_prior(
             )
         return vec
     raise ValueError(f"unrecognised prior specification: {prior!r}")
-
 
 def load_case(path: Union[str, Path]) -> CaseSpec:
     """Read a case file, validate it into a CaseSpec, and resolve its prior."""

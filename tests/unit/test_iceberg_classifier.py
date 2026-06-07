@@ -1,21 +1,10 @@
-"""
-Market Intelligence Iceberg Classifier — Stage-0 classification stage.
-
-Spec: docs/market_intelligence_iceberg_classifier_skill.md
-
-Tests the pure classifier:
-  - layer ↔ lane ↔ typed_stream mapping (Meadows iceberg → dashboard → typed stream)
-  - ThemePromotionScore = StructureScore × (PatternScore + EventScore) − HotTopicAttentionScore
-  - promotion_rules (promote_to_theme / watchlist / narrative_noise)
-  - rejection_rules (a hot topic is NEVER promoted on attention alone; crowding confounder)
-"""
+"""Market Intelligence Iceberg Classifier — Stage-0 classification stage."""
 from __future__ import annotations
 
 import pytest
 
 from engine.schema import IcebergClassification, IcebergScores
 from engine.stage0 import classify_iceberg
-
 
 # ── promotion_rules ───────────────────────────────────────────────────────────
 
@@ -32,7 +21,6 @@ def test_promote_to_theme_high_structure_axis_present_positive_promotion():
     assert c.scores.theme_promotion == pytest.approx(0.644)
     assert c.scores.theme_promotion > 0
 
-
 def test_watchlist_structurally_interesting_but_no_axis():
     c = classify_iceberg(
         {"event": 0.60, "pattern": 0.56, "structure": 0.80, "hot_topic_attention": 0.30},
@@ -40,7 +28,6 @@ def test_watchlist_structurally_interesting_but_no_axis():
     )
     assert c.decision == "watchlist"
     assert c.operational_axis is None
-
 
 def test_narrative_noise_high_attention_low_structure():
     c = classify_iceberg(
@@ -55,7 +42,6 @@ def test_narrative_noise_high_attention_low_structure():
     # crowding / risk-premium confounder flag must be raised on loud attention
     assert any("crowding" in f.lower() for f in c.confounder_flags)
 
-
 def test_hot_topic_never_promoted_on_attention_alone():
     # Loud attention, an axis even exists, but structure is low → must NOT promote.
     c = classify_iceberg(
@@ -65,7 +51,6 @@ def test_hot_topic_never_promoted_on_attention_alone():
     )
     assert c.decision != "promote_to_theme"
     assert c.decision == "narrative_noise"
-
 
 # ── scoring_model ─────────────────────────────────────────────────────────────
 
@@ -77,14 +62,12 @@ def test_theme_promotion_formula_numeric():
     expected = 0.5 * (0.4 + 0.2) - 0.3   # = 0.0
     assert c.scores.theme_promotion == pytest.approx(expected)
 
-
 def test_promotion_sign_matches_evidence_minus_attention():
     # Same sign convention as rank_candidates' pre_screen_score = evidence − attention:
     # with structure=1 and event=0, theme_promotion == pattern − attention.
     c = classify_iceberg({"structure": 1.0, "pattern": 0.7, "event": 0.0,
                           "hot_topic_attention": 0.2})
     assert c.scores.theme_promotion == pytest.approx(0.7 - 0.2)
-
 
 # ── classification_rules: layer ↔ lane ↔ typed_stream ─────────────────────────
 
@@ -104,7 +87,6 @@ def test_layer_lane_stream_mapping(dominant, exp_layer, exp_lane, exp_stream):
     assert c.layer == exp_layer
     assert c.dashboard_lane == exp_lane
     assert c.typed_stream == exp_stream
-
 
 def test_returns_iceberg_classification_with_typed_scores():
     c = classify_iceberg({"structure": 0.9, "pattern": 0.5, "event": 0.5},

@@ -7,44 +7,35 @@ from pydantic import BaseModel
 
 from .causal import CausalEdge, CausalNode
 
-
 class Stock(BaseModel):
     """A LEVEL measurable at an instant (outstanding debt, index weight, AUM)."""
     name: str
     unit: str
     observable: Optional[str] = None
 
-
 class Flow(BaseModel):
-    """A RATE over time that changes a stock (issuance, fund flows, defaults).
-    Distinct type from Stock — misclassifying level vs rate is the common error."""
+    """A RATE over time that changes a stock (issuance, fund flows, defaults)."""
     name: str
     changes_stock: str          # which Stock.name this flow moves
     unit_per_time: str
     observable: Optional[str] = None
 
-
 class FeedbackLoop(BaseModel):
-    """Reinforcing (amplifies) or balancing (stabilises). Reflexive links are marked
-    feedback on the underlying CausalEdge."""
+    """Reinforcing (amplifies) or balancing (stabilises). Reflexive links are marked"""
     id: str
     type: Literal["reinforcing", "balancing"]
     path: list[str]             # node-id sequence the loop traverses
     delay: Optional[str] = None
     closes_via: str = ""        # what closes the loop back on itself
 
-
 class Delay(BaseModel):
-    """A lag between a flow and its stock, or a driver and its price response — where
-    the system surprises investors."""
+    """A lag between a flow and its stock, or a driver and its price response — where"""
     between: str
     length: str
     why_it_matters: str = ""
 
-
 class SystemMap(BaseModel):
-    """Theme embedded in a system (Meadows). Reuses the causal chain's nodes/edges as
-    elements/interconnections; adds stocks, flows, loops, delays, shocks, observables."""
+    """Theme embedded in a system (Meadows). Reuses the causal chain's nodes/edges as"""
     boundary_inside: list[str]
     boundary_outside: list[str]
     boundary_rationale: str = ""

@@ -1,19 +1,4 @@
-"""
-Generic, parametrized oracle RUNNER with an always-on invariants floor (Step 7).
-
-Two layers, kept strictly separate (see docs/engine2_design.md §3.3 + §10 and
-reviews/2026_06_06_architecture_review.md AR-ABS-001 / AR-EXT-001):
-
-  1. The INVARIANTS FLOOR — `invariants_floor(theme)` — is asserted for EVERY case
-     regardless of oracle kind. It is a pure function over a built ThemeObject.
-  2. The case ORACLE — `case.oracle.check(theme)` — adds the kind-specific
-     assertions. Dispatch is POLYMORPHIC via the discriminated union: there is NO
-     `if kind == ...` switch anywhere in this module (that is the whole point of
-     AR-ABS-001).
-
-`run_case` ties it together: load → ScriptedProvider → run_workflow → floor +
-oracle, returning the COMBINED `list[AssertionResult]` (floor first, oracle after).
-"""
+"""Generic, parametrized oracle RUNNER with an always-on invariants floor (Step 7)."""
 from __future__ import annotations
 
 import math
@@ -26,17 +11,14 @@ from .schema import ThemeObject
 from .scripted_provider import ScriptedProvider
 from .workflow import run_workflow
 
-
 # ── the always-on invariants floor ───────────────────────────────────────────
 
 def _finite_or_none(value: float | None) -> bool:
     """A value is acceptable if it is None (not required here) or finite."""
     return value is None or math.isfinite(value)
 
-
 def invariants_floor(theme: ThemeObject) -> list[AssertionResult]:
-    """Assert the floor that holds for EVERY emitted ThemeObject, irrespective of
-    oracle kind. Returns one AssertionResult per check, in a stable order."""
+    """Assert the floor that holds for EVERY emitted ThemeObject, irrespective of"""
     results: list[AssertionResult] = []
 
     # 1. schema_valid — the ThemeObject exists / was constructed.
@@ -89,23 +71,16 @@ def invariants_floor(theme: ThemeObject) -> list[AssertionResult]:
 
     return results
 
-
 # ── case discovery + the combined runner ──────────────────────────────────────
 
 def discover_cases(cases_dir: Union[str, Path] = "cases") -> list[Path]:
-    """Glob every *.yaml / *.yml case file, sorted. Dropping a new case file here
-    makes the parametrized suite pick it up automatically."""
+    """Glob every *.yaml / *.yml case file, sorted. Dropping a new case file here"""
     base = Path(cases_dir)
     paths = list(base.glob("*.yaml")) + list(base.glob("*.yml"))
     return sorted(paths)
 
-
 def run_case(path: Union[str, Path]) -> tuple[CaseSpec, ThemeObject, list[AssertionResult]]:
-    """Load a case, run the workflow, and assert the floor + the oracle.
-
-    Returns the case, the built theme, and the COMBINED results (floor first,
-    then the polymorphic oracle's own assertions). Dispatch to the oracle is
-    polymorphic — NO kind switch (AR-ABS-001)."""
+    """Load a case, run the workflow, and assert the floor + the oracle."""
     case = load_case(path)
     # run_case asserts the invariants floor + numeric oracle, which need the priced legs,
     # so it drives the full expression pipeline (run_workflow now defaults to discovery).

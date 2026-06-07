@@ -31,7 +31,8 @@ Target total ≈ 1,299 LOC (−20.0%).
 | 3.2 edge-attr helper + best_expression() | DONE | engine2 `_edge_attribution`; `ThemeObject.best_expression()` |
 | 4.1 shared test helpers | DONE | `tests/_helpers.py` (build_theme, golden consts, oracle assert) |
 | 4.2 migrate tests | DONE | all clean sites migrated to _helpers (french_banks/workflow/causal_stage/discovery_firewall/cases/loop_stage); special-cased sites (custom providers, model_copy) left; structural DRY win, LOC ~neutral due to _helpers fixed cost |
-| 5.1 prose tightening | STOPPED | trimmed the worst stub docstring only; declined scorched-earth |
+| 5.1 prose tightening | DONE | user opted in: AST-safe blank collapse (−355), docstring-internal blanks (−104), multi-line docstrings → one-liners (−571) |
 
-**Result: 6,499 → 6,190 LOC = −309 (−4.8%), 185 tests green, golden master intact, zero behaviour change.**
-**20% NOT reached** — by design decision: the remaining ~15% is pure docstring/comment deletion that both reviewers flagged as removing genuine design value. Awaiting user call on whether to proceed with that.
+**Final: 6,499 → 5,156 LOC = −1,343 (−20.7%), 185 tests green, golden master intact.**
+Committed in two parts: structural/dead-code/dedup (commit 1) and prose/whitespace (commit 2).
+Design narrative preserved in `reviews/`, `CLAUDE.md`, and git history; only inline docstrings were collapsed to one-line summaries. The causal prompt + error messages were untouched (AST distinguishes docstrings from string assignments/calls).

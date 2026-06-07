@@ -1,14 +1,4 @@
-"""
-System prompts for the generative engine seams.
-
-CAUSAL_EXPANDER_PROMPT is the generic payload of the EXPAND_CAUSAL stage: it converts
-ANY research text into ONE causal Theme Object whose tradeable nodes terminate in
-operational axes, emitting EXACTLY (main_theme: CausalNode, causal_chain: CausalChain,
-shared_factor: str) — field-for-field the engine.schema shapes, nothing else.
-
-It is DOMAIN-AGNOSTIC: it names the domain's standing confounder generically (for
-credit, the risk premium). It contains no case-specific or issuer-specific content.
-"""
+"""System prompts for the generative engine seams."""
 from __future__ import annotations
 
 CAUSAL_EXPANDER_PROMPT = """\

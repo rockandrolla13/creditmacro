@@ -1,8 +1,4 @@
-"""SYSTEM_MAP + CRITIQUE stages wired into run_workflow (after EXPAND_CAUSAL).
-
-A case carrying system_map / bias_critique payloads gets them attached to the
-ThemeObject; a case without them runs the existing path unchanged (golden master).
-"""
+"""SYSTEM_MAP + CRITIQUE stages wired into run_workflow (after EXPAND_CAUSAL)."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,7 +18,6 @@ from engine.scripted_provider import ScriptedProvider
 from engine.workflow import run_workflow
 
 CASES = Path(__file__).resolve().parents[2] / "cases"
-
 
 def _payloads_for(case):
     chain = case.causal.causal_chain  # reuse the case's own chain nodes/edges
@@ -57,7 +52,6 @@ def _payloads_for(case):
     )
     return sm, bc
 
-
 def _run(path, attach=False):
     case = load_case(path)
     if attach and case.causal is not None:
@@ -66,13 +60,11 @@ def _run(path, attach=False):
     theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy(), mode="expression")
     return case, theme
 
-
 def test_scripted_provider_returns_none_without_payloads():
     case = load_case(CASES / "ai_issuance.yaml")
     prov = ScriptedProvider(case)
     assert prov.build_system_map(None, None) is None
     assert prov.critique_mental_model("s", None) is None
-
 
 def test_workflow_attaches_system_map_and_critique_when_present():
     _, theme = _run(CASES / "french_banks.yaml", attach=True)
@@ -82,12 +74,10 @@ def test_workflow_attaches_system_map_and_critique_when_present():
     assert isinstance(theme.bias_critique, BiasCritique)
     assert theme.bias_critique.decision in ("accept_model", "challenge_model", "reject_model")
 
-
 def test_system_map_distinguishes_stock_from_flow():
     _, theme = _run(CASES / "french_banks.yaml", attach=True)
     assert theme.system_map.stocks and theme.system_map.flows
     assert any(fl.type == "balancing" for fl in theme.system_map.feedback_loops)
-
 
 def test_ai_issuance_has_no_system_stages_and_stays_golden():
     _, theme = _run(CASES / "ai_issuance.yaml")
@@ -95,16 +85,13 @@ def test_ai_issuance_has_no_system_stages_and_stays_golden():
     assert theme.bias_critique is None
     assert theme.pricing.residual_edge == pytest.approx(20.0, abs=1e-6)
 
-
 # ── generic over any case that carries the payloads as DATA (e.g. french_banks.yaml) ──
 
 ALL_CASES = sorted(CASES.glob("*.yaml"))
 MAP_CASES = [p for p in ALL_CASES if load_case(p).system_map is not None]
 
-
 def test_at_least_one_case_carries_a_system_map_payload():
     assert MAP_CASES, "expected >=1 case carrying a system_map (e.g. french_banks)"
-
 
 @pytest.mark.parametrize("path", MAP_CASES, ids=lambda p: p.stem)
 def test_loaded_system_map_attaches_and_is_well_formed(path):

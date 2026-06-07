@@ -1,9 +1,4 @@
-"""SystemMap + BiasCritique schema (Meadows mapper + adversarial critic stages).
-
-Stock (a level) and Flow (a rate) are distinct types — misclassifying them is the most
-common error. A FeedbackLoop is reinforcing or balancing (enforced by Literal). Both
-ThemeObject fields are Optional (golden master unaffected).
-"""
+"""SystemMap + BiasCritique schema (Meadows mapper + adversarial critic stages)."""
 from __future__ import annotations
 
 import pytest
@@ -22,11 +17,9 @@ from engine.schema import (
     SystemMap,
 )
 
-
 def _axis():
     return Axis(definition="A OAS − B OAS, bps", measurement="daily, bps", current_value=40.0,
                history=AxisHistory(mean=70.0, vol=30.0, percentile=10.0, regime_tags=["x"]))
-
 
 def _system_map():
     return SystemMap(
@@ -50,19 +43,16 @@ def _system_map():
         surprise_modes=["reflexive index loop reverses"],
     )
 
-
 def test_stock_and_flow_are_distinct_types():
     s = Stock(name="debt", unit="USD")
     f = Flow(name="issuance", changes_stock="debt", unit_per_time="USD/qtr")
     assert s.unit == "USD" and f.unit_per_time == "USD/qtr"
     assert type(s) is not type(f)
 
-
 def test_feedback_loop_must_be_reinforcing_or_balancing():
     FeedbackLoop(id="B1", type="balancing", path=["a", "b"], closes_via="brake")
     with pytest.raises(ValidationError):
         FeedbackLoop(id="X", type="oscillating", path=["a"], closes_via="?")
-
 
 def test_system_map_constructs_and_reuses_chain_types():
     sm = _system_map()
@@ -72,14 +62,12 @@ def test_system_map_constructs_and_reuses_chain_types():
     assert sm.interconnections[0].feedback is True
     assert sm.feedback_loops[0].type == "reinforcing"
 
-
 def test_bias_critique_decision_is_constrained():
     bc = BiasCritique(dominant_mental_model="new asset class = opportunity",
                       decision="challenge_model")
     assert bc.decision == "challenge_model"
     with pytest.raises(ValidationError):
         BiasCritique(dominant_mental_model="m", decision="maybe")
-
 
 def test_theme_object_new_fields_optional_default_none():
     from engine.example import theme

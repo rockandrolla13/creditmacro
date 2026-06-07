@@ -1,18 +1,4 @@
-"""
-ThemeObject schema — the append-only, observable-anchored record.
-
-Split by subdomain (AR-BND-001) into a package; this `__init__` re-exports every public
-name so existing `from engine.schema import X` imports are unchanged. Submodules:
-  streams         — Stage-0 typed streams + Iceberg classifier
-  causal          — Engine-1 thesis/axis + Causal Theme Compiler
-  system_map      — Meadows system structure
-  trap            — bias critic + feedback/leverage/trap detector
-  pricing         — Engine-2 scenarios + max-entropy pricing
-  expression      — Engine-3 trade expressions
-  strategy_family — discovery deliverable (ranked families + confidence)
-  risk            — Engine-4 sizing/risk, PM gate, provenance
-  theme           — the assembled, frozen ThemeObject + discipline gates
-"""
+"""ThemeObject schema — the append-only, observable-anchored record."""
 from __future__ import annotations
 
 from .causal import (

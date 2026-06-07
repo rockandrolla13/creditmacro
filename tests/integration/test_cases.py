@@ -1,12 +1,4 @@
-"""Generic, parametrized oracle runner — Step 7.
-
-Every case in cases/*.yaml is auto-discovered and asserted against (a) the
-always-on invariants floor and (b) its own polymorphic oracle. Dropping a new
-case file adds a test automatically (parametrize over discover_cases()).
-
-Dispatch to the oracle is polymorphic (case.oracle.check) — NO `kind` switch
-(AR-ABS-001 / AR-EXT-001). The floor is a SEPARATE always-on step.
-"""
+"""Generic, parametrized oracle runner — Step 7."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -42,14 +34,12 @@ EXACT_ORACLE_NAMES = {
 
 CASES = discover_cases()
 
-
 # ── parametrized over every discovered case ──────────────────────────────────
 
 @pytest.mark.parametrize("path", CASES, ids=lambda p: p.stem)
 def test_case_builds_theme(path: Path):
     case, theme, _ = build_theme(path)
     assert isinstance(theme, ThemeObject)
-
 
 @pytest.mark.parametrize("path", CASES, ids=lambda p: p.stem)
 def test_case_invariants_floor_all_pass(path: Path):
@@ -59,14 +49,12 @@ def test_case_invariants_floor_all_pass(path: Path):
     failed = [r for r in results if not r.passed]
     assert not failed, f"floor failures for {path.stem}: {failed}"
 
-
 @pytest.mark.parametrize("path", CASES, ids=lambda p: p.stem)
 def test_case_oracle_all_pass(path: Path):
     case, theme, _ = build_theme(path)
     results = case.oracle.check(theme)
     failed = [r for r in results if not r.passed]
     assert not failed, f"oracle failures for {path.stem}: {failed}"
-
 
 @pytest.mark.parametrize("path", CASES, ids=lambda p: p.stem)
 def test_run_case_combines_floor_and_oracle(path: Path):
@@ -78,7 +66,6 @@ def test_run_case_combines_floor_and_oracle(path: Path):
     failed = [r for r in results if not r.passed]
     assert not failed, f"combined failures for {path.stem}: {failed}"
 
-
 # ── focused tests ────────────────────────────────────────────────────────────
 
 def test_both_known_cases_are_discovered():
@@ -86,22 +73,15 @@ def test_both_known_cases_are_discovered():
     assert {"ai_issuance", "french_banks"} <= stems
     assert len(discover_cases()) >= 2
 
-
 def test_discover_cases_is_sorted():
     paths = discover_cases()
     assert paths == sorted(paths)
 
-
 def _ai_case_path() -> Path:
     return next(p for p in discover_cases() if p.stem == "ai_issuance")
 
-
 def test_floor_catches_broken_theme():
-    """Prove the floor CATCHES violations — not a rubber stamp.
-
-    Build a deliberately broken theme by flipping edge_direction_ok via
-    model_copy on a real theme's pricing.
-    """
+    """Prove the floor CATCHES violations — not a rubber stamp."""
     case = load_case(_ai_case_path())
     theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy(), mode="expression")
 
@@ -114,7 +94,6 @@ def test_floor_catches_broken_theme():
     # the rest of the floor still evaluates
     assert by_name["q_feasible"].passed is True
 
-
 def test_floor_catches_non_feasible_q():
     case = load_case(_ai_case_path())
     theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy(), mode="expression")
@@ -124,7 +103,6 @@ def test_floor_catches_non_feasible_q():
 
     by_name = {r.name: r for r in invariants_floor(broken)}
     assert by_name["q_feasible"].passed is False
-
 
 def test_floor_catches_non_finite():
     case = load_case(_ai_case_path())
@@ -136,11 +114,8 @@ def test_floor_catches_non_finite():
     by_name = {r.name: r for r in invariants_floor(broken)}
     assert by_name["finite"].passed is False
 
-
 def test_run_case_dispatches_via_polymorphic_check():
-    """An exact case must yield the exact-oracle assertion names PLUS the floor
-    names — proving dispatch went through Oracle.check with no AttributeError and
-    no kind switch."""
+    """An exact case must yield the exact-oracle assertion names PLUS the floor"""
     case, theme, results = run_case(_ai_case_path())
     names = {r.name for r in results}
     assert FLOOR_NAMES <= names

@@ -5,7 +5,6 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-
 class Scenario(BaseModel):
     """One state of the world. Engine 2 / Scenario Proposer."""
     name: str
@@ -20,19 +19,16 @@ class Scenario(BaseModel):
     # optional — requires macro regime classification (Lancaster / HMM)
     regime_conditional_p_s: Optional[float] = None  # p_s given axis.regime; re-run solver on this when set
 
-
 class PricedIn(BaseModel):
     """Max-entropy market-implied scenario probabilities. Q6."""
     q_s: list[float]   # same ordering as ThemeObject.scenarios
     frac: float        # (X_mkt − normal_fv) / (scenario_fv − normal_fv)
-
 
 class EdgeContribution(BaseModel):
     """Per-scenario edge attribution — typed, not a free-form dict (AR-ABS-003)."""
     scenario: str
     contribution: float   # (p_s - q_s) * X_s
     disagreement: float   # (p_s - q_s)
-
 
 class Pricing(BaseModel):
     """Engine 2 quant output. Q4 through Q7."""

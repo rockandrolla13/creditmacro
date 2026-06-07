@@ -1,5 +1,4 @@
-"""French-banks reconstruction (Alaph deck) as a second golden master — an
-`acceptance` oracle run through the generic runner."""
+"""French-banks reconstruction (Alaph deck) as a second golden master — an"""
 from __future__ import annotations
 
 import pytest
@@ -7,15 +6,12 @@ import pytest
 from engine.schema import ThemeObject
 from tests._helpers import build_theme
 
-
 def _run():
     return build_theme("french_banks.yaml")
-
 
 def test_builds_a_theme_object():
     _, theme, _ = _run()
     assert isinstance(theme, ThemeObject)
-
 
 def test_prior_is_historical_and_q_is_feasible():
     case, theme, _ = _run()
@@ -24,17 +20,14 @@ def test_prior_is_historical_and_q_is_feasible():
     assert theme.pricing.q_status == "FEASIBLE"
     assert sum(theme.pricing.priced_in.q_s) == pytest.approx(1.0, abs=1e-6)
 
-
 def test_edge_is_thesis_aligned_widening():
     _, theme, _ = _run()
     assert theme.pricing.residual_edge > 0          # widening direction
     assert theme.pricing.edge_direction_ok is True
 
-
 def test_edge_comes_from_underweighted_no_support_state():
     _, theme, _ = _run()
     assert theme.pricing.edge_attribution[0].scenario == "Worst / no support"
-
 
 def test_base_worst_ratio_matches_deck_1p9():
     _, theme, _ = _run()
@@ -44,13 +37,11 @@ def test_base_worst_ratio_matches_deck_1p9():
     ratio = pnls[base_idx] / abs(min(pnls))
     assert ratio == pytest.approx(1.9, abs=0.25)
 
-
 def test_acceptance_oracle_passes():
     case, theme, _ = _run()
     results = case.oracle.check(theme)
     failed = [r for r in results if not r.passed]
     assert not failed, f"oracle failures: {failed}"
-
 
 def test_all_four_discipline_gates_evaluate():
     _, theme, _ = _run()

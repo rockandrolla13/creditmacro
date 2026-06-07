@@ -5,20 +5,12 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-
 class ScenarioPnL(BaseModel):
     scenario_name: str
     pnl: float
 
-
 class Expression(BaseModel):
-    """
-    One trade expression. Engine 3 / Enumerator + Scorer.
-    score is None if any gate failed; computed if all gates passed.
-    "Best" is never max E[P&L] — it is the highest multiplicative score
-    among expressions that pass Omega >= 2, liquidity >= min, cost <= max,
-    finite worst-case.
-    """
+    """One trade expression. Engine 3 / Enumerator + Scorer."""
     id: str
     strategy_family: str   # e.g. "5s30s CDS curve", "cash bond L/S", "ETF basis"
     long_leg: str

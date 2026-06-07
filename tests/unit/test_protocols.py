@@ -1,14 +1,8 @@
-"""Conformance tests for the Provider seam protocol and SizingRiskBundle.
-
-Provider is runtime_checkable, so isinstance verifies the full method set across the
-composed ScenarioSource/ExpressionSource/RiskSource protocols — this catches a seam
-method being dropped or renamed.
-"""
+"""Conformance tests for the Provider seam protocol and SizingRiskBundle."""
 from __future__ import annotations
 
 from engine.protocols import Provider, SizingRiskBundle
 from engine.schema import Falsifier, PMGate, Risk, Sizing, StopLoss
-
 
 class _FullProvider:
     def context(self): ...
@@ -26,19 +20,15 @@ class _FullProvider:
     def size_and_risk(self, thesis, axis, best, conviction): ...
     def critique(self, theme): ...
 
-
 class _MissingSeam:
     def parse(self, raw): ...
     # everything else missing
 
-
 def test_full_provider_satisfies_protocol():
     assert isinstance(_FullProvider(), Provider)
 
-
 def test_incomplete_provider_does_not_satisfy_protocol():
     assert not isinstance(_MissingSeam(), Provider)
-
 
 def test_sizing_risk_bundle_groups_the_three_outputs():
     bundle = SizingRiskBundle(

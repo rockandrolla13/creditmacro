@@ -1,25 +1,4 @@
-"""
-run_workflow — drive a Provider through the engine seams over a shared ThemeObject.
-
-Two modes, separated by the DISCOVERY FIREWALL:
-
-  mode="discovery"  — idea → causal object → ranked STRATEGY FAMILIES, then STOP.
-      Runs iceberg (provider.parse) → expand_causal → [scripted system_map / critique /
-      traps] → strategy-family selection + confidence, and emits a discovery_complete
-      ThemeObject with NO priced legs / sizing. A causal object is MANDATORY: if
-      expand_causal returns None the run HALTS with DiscoveryBlocked('needs_causal_object').
-      There is NO fallback to define_axis — discovery refuses to manufacture a tradeable
-      axis from a thesis sentence alone.
-
-  mode="expression" — the full legacy pipeline (Engine 2 pricing + Engine 3 scoring +
-      Engine 4 sizing), emitting an expression_complete ThemeObject. It ALSO attaches the
-      ranked strategy_families. This is the explicit downstream "detailed legs" call; it
-      retains the define_axis fallback so a causal-less scripted case still prices (golden
-      master continuity).
-
-The runner is case-blind: it talks only to the Provider protocol and the quant layer.
-PolicyConfig is the single source of gate thresholds (AR-DRY-001).
-"""
+"""run_workflow — drive a Provider through the engine seams over a shared ThemeObject."""
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -32,11 +11,9 @@ from .scoring import compute_omega, score_expression
 from .protocols import Provider, RunContext
 from .schema import Axis, Expression, Scenario, StrategyFamilyRec, ThemeObject
 
-
 def _prior_vector(ctx: RunContext, n: int) -> list[float]:
     """The resolved prior, or uniform when the context carries none."""
     return ctx.prior if ctx.prior else [1.0 / n] * n
-
 
 def _strategy_families(
     axis: Axis,
@@ -46,9 +23,7 @@ def _strategy_families(
     has_operational_axis: bool = True,
     causal_confidence: float = 1.0,
 ) -> list[StrategyFamilyRec]:
-    """Route the promoted theme's axis to a strategy family (shape+direction), with
-    decomposed confidence. Scenarios are used only for the LIGHT priced-in edge; when
-    absent the family is still routed but capped (never invented)."""
+    """Route the promoted theme's axis to a strategy family (shape+direction), with"""
     prior = _prior_vector(ctx, len(scenarios)) if scenarios else []
     return select_strategy_families(
         axis=axis,
@@ -60,7 +35,6 @@ def _strategy_families(
         has_market_value=ctx.x_mkt is not None,
         causal_confidence=causal_confidence,
     )
-
 
 def _score_expressions(
     expressions: list[Expression],
@@ -92,28 +66,18 @@ def _score_expressions(
         scored.append(expr.model_copy(update={"score": score, "gate_fail_reason": fail}))
     return scored
 
-
 def run_workflow(
     provider: Provider,
     policy: PolicyConfig,
     mode: Literal["discovery", "expression"] = "discovery",
 ) -> tuple[ThemeObject, str]:
-    """Run the pipeline in the requested mode and return (ThemeObject, memo).
-
-    mode defaults to "discovery" — the firewalled idea→causal-object→families path that
-    STOPS at ranked strategy families (and HALTs blocked without a causal object). Detailed
-    legs (pricing, scoring, sizing) are downstream: pass mode="expression" explicitly to
-    run the full pipeline on a case that carries the expression payload."""
+    """Run the pipeline in the requested mode and return (ThemeObject, memo)."""
     if mode == "expression":
         return _run_expression(provider, policy)
     return _run_discovery(provider, policy)
 
-
 def _causal_stage(provider, ctx, thesis, *, fallback_axis: bool):
-    """EXPAND_CAUSAL + the system-map / critique / loop-diagnosis block shared by both
-    modes. main_theme=None means no causal object: with fallback_axis it resolves the axis
-    via define_axis (expression); without it the system block is skipped so the caller can
-    emit a blocked record (discovery)."""
+    """EXPAND_CAUSAL + the system-map / critique / loop-diagnosis block shared by both"""
     main_theme, causal_chain, shared_factor = provider.expand_causal(ctx.statement, ctx.statement)
     if main_theme is None and not fallback_axis:
         return SimpleNamespace(main_theme=None, causal_chain=causal_chain,
@@ -131,7 +95,6 @@ def _causal_stage(provider, ctx, thesis, *, fallback_axis: bool):
         bias_critique=provider.critique_mental_model(ctx.statement, causal_chain),
         loop_diagnosis=provider.diagnose_loops(system_map),
     )
-
 
 # ── DISCOVERY mode — idea → causal object → ranked families → STOP ────────────
 
@@ -179,7 +142,6 @@ def _run_discovery(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObjec
         # detailed-expression half intentionally left absent (None / empty)
     )
     return theme, _render_discovery_memo(theme)
-
 
 # ── EXPRESSION mode — the full legacy pipeline (+ families, + status) ─────────
 
@@ -258,17 +220,14 @@ def _run_expression(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObje
     )
     return theme, _render_memo(theme, best, pricing)
 
-
 def _validate_causal_chain(main_theme, causal_chain) -> None:
-    """Boundary-validate the EXPAND_CAUSAL output (node-level rules are enforced by the
-    schema; this asserts the cross-object invariants the stage depends on)."""
+    """Boundary-validate the EXPAND_CAUSAL output (node-level rules are enforced by the"""
     if causal_chain is None:
         raise ValueError("EXPAND_CAUSAL: main_theme present but causal_chain is None")
     if not main_theme.is_routable():
         raise ValueError("EXPAND_CAUSAL: main_theme must be a kind='theme' node with an operational axis")
     if main_theme.id not in {n.id for n in causal_chain.nodes}:
         raise ValueError("EXPAND_CAUSAL: main_theme must be one of the chain's nodes")
-
 
 def _render_blocked_memo(theme: ThemeObject) -> str:
     return (
@@ -278,7 +237,6 @@ def _render_blocked_memo(theme: ThemeObject) -> str:
         "manufactured from the thesis sentence and no pricing was run. Supply a causal "
         "object (expand_causal) and re-run discovery.\n"
     )
-
 
 def _render_discovery_memo(theme: ThemeObject) -> str:
     fam_rows = "\n".join(
@@ -294,7 +252,6 @@ def _render_discovery_memo(theme: ThemeObject) -> str:
         f"_Discovery stops here. Detailed legs (curve points, names, hedge ratios, sizing) "
         f"require a separate expression-mode run on this discovery_complete object._\n"
     )
-
 
 def _render_memo(theme: ThemeObject, best: Expression, pricing) -> str:
     q_fmt = ", ".join(f"{q:.3f}" for q in pricing.priced_in.q_s)

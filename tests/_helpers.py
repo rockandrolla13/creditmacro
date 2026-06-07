@@ -1,5 +1,4 @@
-"""Shared test helpers — DRY: one place for case-loading, the workflow run, golden
-constants, and the oracle-pass assertion. Import directly: `from tests._helpers import ...`."""
+"""Shared test helpers — DRY: one place for case-loading, the workflow run, golden"""
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,16 +17,12 @@ GOLDEN_OMEGA = 7.666666666666667
 GOLDEN_SCORE = 3.918220233274124
 ABS = 1e-6
 
-
 def build_theme(case_ref, mode: str = "expression"):
-    """load_case → ScriptedProvider → run_workflow. `case_ref` is a Path or a name relative
-    to cases/ (may include a subdir, e.g. 'discovery/jpm_ai_capex.yaml'). Returns
-    (case, theme, memo)."""
+    """load_case → ScriptedProvider → run_workflow. `case_ref` is a Path or a name relative"""
     path = case_ref if isinstance(case_ref, Path) else CASES_DIR / case_ref
     case = load_case(path)
     theme, memo = run_workflow(ScriptedProvider(case), case.resolved_policy(), mode=mode)
     return case, theme, memo
-
 
 def assert_oracle_passes(case, theme) -> None:
     """Assert the case oracle reports no failures against the built theme."""

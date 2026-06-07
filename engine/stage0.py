@@ -1,18 +1,4 @@
-"""
-Stage 0 — Ingestion.
-
-Takes raw research text and emits three typed streams:
-  Observation     (facts)      → update Driver.current_level
-  CandidateTheme  (narratives) → become ThemeObjects
-  ConsensusSignal (attention)  → prior for q_s and crowding c
-
-Then nominates CandidateThemes ranked by
-    pre_screen_score = evidence_score − attention_score
-which is a cheap pre-screen on p − q before any pricing is run.
-
-The LLM-call that parses text into typed streams is stubbed.
-The ranking logic (divergence computation) is real.
-"""
+"""Stage 0 — Ingestion."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -26,7 +12,6 @@ from .schema import (
     Observation,
 )
 
-
 # ── Typed stream container ────────────────────────────────────────────────────
 
 @dataclass
@@ -39,7 +24,6 @@ class IngestionResult:
     # construction in example.py / scripted_provider.py is unaffected).
     iceberg_classifications: list[IcebergClassification] = field(default_factory=list)
 
-
 # ── Evidence and attention scoring ───────────────────────────────────────────
 
 def _evidence_score(
@@ -47,45 +31,29 @@ def _evidence_score(
     observations: list[Observation],
     recency_halflife_days: int = 30,
 ) -> float:
-    """
-    Recency-weighted count of Observations whose driver_tags overlap with
-    the theme statement keywords.
-    Simple proxy: count matched obs, decay by age.
-    Real implementation: LLM embedding similarity + date weighting.
-    """
+    """Recency-weighted count of Observations whose driver_tags overlap with"""
     linked = [o for o in observations if o.id in theme.evidence_ids]
     if not linked:
         return 0.0
     # All linked obs count equally in this stub — real: weight by recency
     return float(len(linked))
 
-
 def _attention_score(
     theme: CandidateTheme,
     signals: list[ConsensusSignal],
 ) -> float:
-    """
-    Strength-weighted sum of ConsensusSignals linked to this theme.
-    Positive attention_strength on a topic → market already focused → high q.
-    """
+    """Strength-weighted sum of ConsensusSignals linked to this theme."""
     linked = [s for s in signals if s.id in theme.consensus_ids]
     if not linked:
         return 0.0
     return sum(abs(s.attention_strength) for s in linked) / len(linked)
-
 
 def rank_candidates(
     candidates: list[CandidateTheme],
     observations: list[Observation],
     signals: list[ConsensusSignal],
 ) -> list[CandidateTheme]:
-    """
-    For each candidate: compute evidence_score, attention_score, pre_screen_score.
-    Sort descending by pre_screen_score.
-
-    High pre_screen_score = strong factual support + low market attention
-                          = likely p > q → residual edge candidate.
-    """
+    """For each candidate: compute evidence_score, attention_score, pre_screen_score."""
     scored: list[CandidateTheme] = []
     for c in candidates:
         ev = _evidence_score(c, observations)
@@ -97,7 +65,6 @@ def rank_candidates(
         })
         scored.append(updated)
     return sorted(scored, key=lambda x: x.pre_screen_score, reverse=True)
-
 
 # ── Market Intelligence Iceberg Classifier (Stage-0 classification) ───────────
 #
@@ -129,14 +96,8 @@ _CROWDING_FLAG = (
     "crowding/risk-premium: loud attention => likely already priced, not mispriced"
 )
 
-
 def _layer_from_scores(s: IcebergScores) -> str:
-    """Dominant iceberg layer = argmax over the four layer-representative scores.
-
-    hot_topic_attention is NOT a layer selector — it feeds the promotion math and
-    the crowding confounder. The mental_model layer is selected by mental_model.
-    Ties resolve toward the deeper (more investable) layer.
-    """
+    """Dominant iceberg layer = argmax over the four layer-representative scores."""
     # Order matters: max() returns the FIRST maximal element, so list the deeper
     # (more investable) layers first to resolve ties toward structure.
     candidates = [
@@ -147,24 +108,11 @@ def _layer_from_scores(s: IcebergScores) -> str:
     ]
     return max(candidates, key=lambda kv: kv[1])[0]
 
-
 def classify_iceberg(
     item_scores: Mapping[str, float],
     operational_axis: Optional[str] = None,
 ) -> IcebergClassification:
-    """Pure classifier. Score → layer/lane/stream → promotion decision.
-
-    item_scores keys (all 0..1, missing ⇒ 0.0): event, pattern, structure,
-    mental_model, hot_topic_attention. operational_axis is required for promotion;
-    None ⇒ not yet investable.
-
-    Promotion rules (applied EXACTLY):
-      promote_to_theme  — structure high AND operational_axis present AND theme_promotion > 0
-      narrative_noise   — high hot_topic_attention AND low structure
-      watchlist         — structurally interesting but no axis yet, or event pending (default)
-
-    A hot topic is NEVER promoted on attention alone.
-    """
+    """Pure classifier. Score → layer/lane/stream → promotion decision."""
     event = float(item_scores.get("event", 0.0))
     pattern = float(item_scores.get("pattern", 0.0))
     structure = float(item_scores.get("structure", 0.0))
@@ -223,15 +171,8 @@ def classify_iceberg(
         rationale=rationale,
     )
 
-
 def _candidate_item_scores(candidate: CandidateTheme) -> dict[str, float]:
-    """Derive iceberg sub-scores for a ranked CandidateTheme.
-
-    A CandidateTheme is a system-structure item by construction, so structure=1.0;
-    pattern carries the (clamped) evidence_score and attention carries the
-    attention_score. This makes theme_promotion = evidence − attention, exactly the
-    candidate's pre_screen_score.
-    """
+    """Derive iceberg sub-scores for a ranked CandidateTheme."""
     return {
         "structure": 1.0,
         "pattern": min(max(candidate.evidence_score, 0.0), 1.0),
@@ -240,19 +181,13 @@ def _candidate_item_scores(candidate: CandidateTheme) -> dict[str, float]:
         "hot_topic_attention": min(max(candidate.attention_score, 0.0), 1.0),
     }
 
-
 def classify_candidate(
     candidate: CandidateTheme,
     operational_axis: Optional[str] = None,
 ) -> IcebergClassification:
-    """Classify a ranked CandidateTheme into an IcebergClassification.
-
-    operational_axis is None at Stage 0 unless an axis has already been named, so
-    candidates land on the watchlist (CORE THEMES, axis pending) until one does.
-    """
+    """Classify a ranked CandidateTheme into an IcebergClassification."""
     c = classify_iceberg(_candidate_item_scores(candidate), operational_axis=operational_axis)
     return c.model_copy(update={"item_id": candidate.id})
-
 
 # ── LLM-call stub ────────────────────────────────────────────────────────────
 
@@ -261,16 +196,12 @@ def parse_research_text(text: str) -> tuple[
     list[CandidateTheme],
     list[ConsensusSignal],
 ]:
-    """STUB (LLM call): raw research text → three typed streams. Keep the types SEPARATE
-    (a hot-topic thesis is both a CandidateTheme AND a ConsensusSignal — emit both): a
-    sentence that is both scores LOW on pre_screen_score (already priced); evidence with no
-    consensus scores HIGH (latent edge)."""
+    """STUB (LLM call): raw research text → three typed streams. Keep the types SEPARATE"""
     raise NotImplementedError(
         "parse_research_text: stub — replace with an LLM call that classifies each sentence "
         "as Observation (falsifiable fact) / CandidateTheme (directional narrative) / "
         "ConsensusSignal (market focus), emitting all applicable types."
     )
-
 
 # ── Main ingestion entry point ────────────────────────────────────────────────
 
@@ -280,13 +211,7 @@ def ingest(
     observations: Optional[list[Observation]] = None,
     signals: Optional[list[ConsensusSignal]] = None,
 ) -> IngestionResult:
-    """
-    Full Stage 0 pipeline.
-    Returns an IngestionResult with ranked CandidateThemes.
-
-    When parse_research_text is stubbed, caller may pass pre-built
-    observations and signals directly (used in example.py).
-    """
+    """Full Stage 0 pipeline."""
     if observations is None or signals is None:
         obs, candidates, sigs = parse_research_text(text)
     else:
@@ -308,7 +233,6 @@ def ingest(
         ranked_candidates=top,
         iceberg_classifications=classifications,
     )
-
 
 def print_ranked_candidates(result: IngestionResult) -> None:
     """Print the pre-screen ranking table."""

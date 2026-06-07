@@ -1,17 +1,10 @@
-"""
-ScriptedProvider — one CaseSpec presented through the Provider seam.
-
-Every seam returns the corresponding slice of the case and IGNORES its inputs, so it
-is deterministic and input-blind. This single class replaces all per-case fixtures
-(AR-BND-002): a new case is a YAML file, never a new class.
-"""
+"""ScriptedProvider — one CaseSpec presented through the Provider seam."""
 from __future__ import annotations
 
 from .cases import CaseSpec
 from .protocols import RunContext, SizingRiskBundle
 from .schema import Axis, Expression, Scenario, ThemeObject, Thesis
 from .stage0 import IngestionResult
-
 
 class ScriptedProvider:
     """Implements engine.protocols.Provider from a single CaseSpec."""

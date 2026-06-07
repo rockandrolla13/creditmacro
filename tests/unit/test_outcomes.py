@@ -9,7 +9,6 @@ from engine.outcomes import (
     read_outcomes,
 )
 
-
 def _rec(theme_id="t1", realized=None):
     return ThemeOutcomeRecord(
         theme_id=theme_id,
@@ -22,10 +21,8 @@ def _rec(theme_id="t1", realized=None):
         realized_axis_at_horizon=realized,
     )
 
-
 def test_record_defaults_realized_to_none():
     assert _rec().realized_axis_at_horizon is None
-
 
 def test_append_then_read_roundtrips(tmp_path):
     path = tmp_path / "outcomes.jsonl"
@@ -38,7 +35,6 @@ def test_append_then_read_roundtrips(tmp_path):
     assert r.p == [0.4, 0.35, 0.15, 0.1]
     assert r.realized_axis_at_horizon is None
 
-
 def test_append_is_additive(tmp_path):
     path = tmp_path / "outcomes.jsonl"
     append_outcome(_rec("a"), path)
@@ -47,14 +43,12 @@ def test_append_is_additive(tmp_path):
     assert [r.theme_id for r in records] == ["a", "b"]
     assert records[1].realized_axis_at_horizon == 72.0
 
-
 def test_each_record_is_one_json_line(tmp_path):
     path = tmp_path / "outcomes.jsonl"
     append_outcome(_rec("a"), path)
     append_outcome(_rec("b"), path)
     lines = path.read_text().strip().splitlines()
     assert len(lines) == 2
-
 
 def test_calibration_analyses_are_documented_stubs():
     from engine.outcomes import calibration_report, edge_realization

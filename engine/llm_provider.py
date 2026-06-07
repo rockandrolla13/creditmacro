@@ -1,19 +1,4 @@
-"""
-LLMProvider — the LIVE generative counterpart to ScriptedProvider.
-
-expand_causal calls the Anthropic Messages API with CAUSAL_EXPANDER_PROMPT as the
-system prompt, then PARSES + VALIDATES the model's JSON into the engine schema
-(CausalNode, CausalChain, shared_factor). It mirrors ScriptedProvider.expand_causal's
-contract: (research_text, parsed_theme) -> (CausalNode, CausalChain, str).
-
-Dependency injection: `client` is any object exposing the Messages API
-(client.messages.create(...)). When it is None the real anthropic.Anthropic() client
-is built LAZILY — on first call only — so importing and constructing this class never
-needs an API key. Tests inject a fake client and exercise the real parse path offline.
-
-On bad model output (not JSON / missing keys / schema-invalid) expand_causal RAISES
-ValueError with the offending snippet — it NEVER fabricates or returns None.
-"""
+"""LLMProvider — the LIVE generative counterpart to ScriptedProvider."""
 from __future__ import annotations
 
 import json
@@ -28,14 +13,8 @@ from .schema import CausalChain, CausalNode
 _DEFAULT_MODEL = "claude-sonnet-4-6"
 _DEFAULT_MAX_TOKENS = 4096
 
-
 class LLMProvider:
-    """Generative EXPAND_CAUSAL seam backed by the Anthropic Messages API.
-
-    This is a SINGLE-SEAM adapter: it satisfies `protocols.CausalExpander` (just
-    `expand_causal`), NOT the full `protocols.Provider`. It cannot drive `run_workflow` on
-    its own — pair it with a provider that supplies the other seams (pricing inputs,
-    scenarios, sizing). Naming it for the seam it implements keeps the type honest."""
+    """Generative EXPAND_CAUSAL seam backed by the Anthropic Messages API."""
 
     def __init__(
         self,
@@ -50,8 +29,7 @@ class LLMProvider:
         self.system_prompt = system_prompt
 
     def _get_client(self):
-        """Build the real Anthropic client lazily — only when actually needed, so that
-        importing/constructing LLMProvider never requires an API key."""
+        """Build the real Anthropic client lazily — only when actually needed, so that"""
         if self._client is None:
             import anthropic  # imported lazily so the dependency is optional at import time
 
@@ -116,7 +94,6 @@ class LLMProvider:
 
         return main_theme, causal_chain, shared_factor
 
-
 def _extract_text(response) -> str:
     """Concatenate the text of every text content block in an Anthropic Message."""
     content = getattr(response, "content", None)
@@ -135,10 +112,8 @@ def _extract_text(response) -> str:
         )
     return "\n".join(parts)
 
-
 def _parse_json_object(text: str) -> dict:
-    """Parse the JSON object from the model text, tolerating prose / ```json fences by
-    extracting the substring spanning the first '{' to the last '}'."""
+    """Parse the JSON object from the model text, tolerating prose / ```json fences by"""
     snippet = text.strip()
     start = snippet.find("{")
     end = snippet.rfind("}")

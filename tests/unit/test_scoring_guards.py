@@ -8,11 +8,9 @@ import pytest
 from engine.case_loader import resolve_prior
 from engine.scoring import compute_omega
 
-
 def test_compute_omega_rejects_empty_series():
     with pytest.raises((ValueError, ZeroDivisionError)):
         compute_omega([])
-
 
 def test_resolve_prior_type_hints_resolve():
     # Optional must be importable in case_loader, else get_type_hints raises NameError.

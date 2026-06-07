@@ -1,16 +1,4 @@
-"""Integration tests for the DISCOVERY FIREWALL.
-
-idea → causal object → ranked STRATEGY FAMILIES with confidence, then STOP. Detailed legs
-(expressions, sizing) are downstream (expression mode) and must NOT leak from discovery.
-
-The firewall:
-  - mode="discovery" requires a causal object. expand_causal → None ⇒ HALT (DiscoveryBlocked,
-    reason 'needs_causal_object'), with NO pricing and NO families (C1 regression).
-  - a discovery_complete ThemeObject carries ranked strategy_families but leaves the
-    detailed-expression fields (full expressions, sizing) absent/None.
-  - mode="expression" keeps the full legacy pipeline (golden master) AND now also emits
-    strategy_families with status=expression_complete.
-"""
+"""Integration tests for the DISCOVERY FIREWALL."""
 from __future__ import annotations
 
 import json
@@ -29,16 +17,13 @@ FRENCH_BANKS = CASES_DIR / "french_banks.yaml"
 JPM_DISCOVERY = CASES_DIR / "discovery" / "jpm_ai_capex.yaml"
 ABS = 1e-6
 
-
 def _discover(path: Path):
     _, theme, memo = build_theme(path, "discovery")
     return theme, memo
 
-
 def _express(path: Path):
     _, theme, memo = build_theme(path, "expression")
     return theme, memo
-
 
 # ── run_workflow defaults to DISCOVERY (the firewalled path) ──────────────────
 
@@ -51,7 +36,6 @@ def test_run_workflow_defaults_to_discovery_mode():
     assert theme.pricing is None
     assert theme.strategy_families
 
-
 def test_default_discovery_blocks_a_causal_less_case():
     # ai_issuance carries no causal payload ⇒ the default (discovery) path HALTs blocked,
     # rather than silently pricing a trade.
@@ -60,14 +44,12 @@ def test_default_discovery_blocks_a_causal_less_case():
     assert theme.status == "blocked"
     assert theme.block_reason == "needs_causal_object"
 
-
 # ── C1 regression: no causal object ⇒ status=blocked, no pricing leak ─────────
 
 def test_discovery_without_causal_object_is_blocked():
     theme, _memo = _discover(AI_ISSUANCE)  # ai_issuance carries NO causal payload
     assert theme.status == "blocked"
     assert theme.block_reason == "needs_causal_object"
-
 
 def test_blocked_object_leaks_no_pricing_or_families():
     theme, _ = _discover(AI_ISSUANCE)
@@ -77,7 +59,6 @@ def test_blocked_object_leaks_no_pricing_or_families():
     assert theme.sizing is None
     # no axis is manufactured from the thesis sentence (no fallback)
     assert theme.axis is None
-
 
 # ── discovery_complete shape: families present, detailed legs absent ──────────
 
@@ -94,11 +75,9 @@ def test_jpm_discovery_emits_ranked_families_not_trade_ready():
     assert theme.sizing is None
     assert not theme.expressions
 
-
 def test_jpm_curve_axis_yields_steepener_top_family():
     theme, _ = _discover(JPM_DISCOVERY)
     assert theme.strategy_families[0].family == "steepener"
-
 
 def test_routed_object_serializes_with_sizing_and_expressions_null():
     theme, _ = _discover(JPM_DISCOVERY)
@@ -109,12 +88,10 @@ def test_routed_object_serializes_with_sizing_and_expressions_null():
     assert blob["expressions"] == []
     assert blob["strategy_families"], "families must serialize on a routed object"
 
-
 def test_french_banks_discovery_selects_long_short_top():
     theme, _ = _discover(FRENCH_BANKS)
     assert theme.status == "strategy_family_routed"
     assert theme.strategy_families[0].family == "long_short"
-
 
 # ── expression mode keeps golden master AND now emits families ────────────────
 
@@ -129,12 +106,10 @@ def test_discovery_without_market_value_routes_unknown_edge():
     assert top.confidence <= 0.60 + 1e-9
     assert top.why_not and "market value" in top.why_not.lower()
 
-
 def test_expression_mode_requires_a_market_value():
     case = load_case(AI_ISSUANCE).model_copy(update={"x_mkt": None})
     with pytest.raises(ValueError):
         run_workflow(ScriptedProvider(case), case.resolved_policy(), mode="expression")
-
 
 def test_ai_issuance_expression_stays_golden_and_emits_families():
     theme, _ = _express(AI_ISSUANCE)

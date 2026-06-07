@@ -5,18 +5,8 @@ from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 class ConfidenceComponents(BaseModel):
-    """The decomposed factors behind a StrategyFamilyRec.confidence — stored so a low
-    score is EXPLAINABLE (which factor killed it), never an opaque number.
-
-    confidence = causal_confidence × axis_fit × edge_survival × purity × data_confidence
-    (scenario_availability is a flag, not a multiplicand). edge_survival is "unknown" when
-    no current market value was available to run the light priced-in check.
-
-    Frozen: a routed family's confidence breakdown is part of the causal object the memory
-    firewall freezes — it must not be mutated after the fresh-reasoning snapshot.
-    """
+    """The decomposed factors behind a StrategyFamilyRec.confidence — stored so a low"""
     model_config = ConfigDict(frozen=True)
     causal_confidence: float = Field(ge=0.0, le=1.0)   # strength of the causal model
     axis_fit: float = Field(ge=0.0, le=1.0)            # how directly the family expresses the axis shape
@@ -25,20 +15,8 @@ class ConfidenceComponents(BaseModel):
     data_confidence: float = Field(ge=0.0, le=1.0)     # data sufficiency
     scenario_availability: bool                        # were scenarios supplied (never invented)?
 
-
 class StrategyFamilyRec(BaseModel):
-    """One ranked strategy FAMILY — the discovery half's deliverable. Routed from the
-    promoted theme's axis SHAPE *and* DIRECTION (e.g. (curve, steeper) → steepener); NOT a
-    detailed expression. Detailed legs (curve points, names, hedge ratios, sizing) are
-    downstream and out of discovery scope.
-
-    'watchlist_only' is the explicit no-tradeable-family outcome — route to it (don't fail)
-    when nothing clears confidence. A capped/low-confidence family names the missing input
-    in `why_not` rather than asserting false precision.
-
-    Frozen: routed families are part of the fresh-reasoning snapshot the memory firewall
-    freezes; phase-B calibration records adjustments separately, never mutating these.
-    """
+    """One ranked strategy FAMILY — the discovery half's deliverable. Routed from the"""
     model_config = ConfigDict(frozen=True)
     # Exactly the families the discovery router (engine/discovery._route_family) can produce.
     # Re-add a family (curve, sector_rotation, capital_structure, etf_basket_rv,

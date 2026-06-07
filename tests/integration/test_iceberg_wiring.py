@@ -1,13 +1,8 @@
-"""
-Stage-0 wiring: the iceberg classifier is attached to IngestionResult by ingest(),
-and the additive Optional field does not break existing IngestionResult construction
-(example.py / scripted_provider.py).
-"""
+"""Stage-0 wiring: the iceberg classifier is attached to IngestionResult by ingest(),"""
 from __future__ import annotations
 
 from engine.schema import IcebergClassification
 from engine.stage0 import IngestionResult, ingest
-
 
 def test_ingest_attaches_iceberg_classifications():
     # Use the worked-example streams (LLM stub bypassed) so we exercise the real path.
@@ -21,7 +16,6 @@ def test_ingest_attaches_iceberg_classifications():
     # ingest() with injected streams produces no candidates → empty classifications,
     # but the field must exist and be a list.
     assert isinstance(result.iceberg_classifications, list)
-
 
 def test_ingest_classifies_ranked_candidates(monkeypatch):
     from engine.example import CANDIDATE, observations, signals
@@ -43,7 +37,6 @@ def test_ingest_classifies_ranked_candidates(monkeypatch):
     assert c.decision == "watchlist"
     assert c.dashboard_lane == "CORE_THEMES"
     assert c.typed_stream == "CandidateTheme"
-
 
 def test_ingestion_result_constructible_without_classifications():
     # The golden-master / example.py construction path: no iceberg field passed.

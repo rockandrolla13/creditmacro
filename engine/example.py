@@ -1,14 +1,4 @@
-"""
-Worked example: "AI issuance will steepen IG credit curves"
-
-Runs Stage 0 → Engine 1 → Engine 2 → Engine 3 → Engine 4 → PM Gate, then emits the
-ThemeObject JSON + the pipeline's own decision memo. Engine 1–4 are loaded from
-cases/ai_issuance.yaml and run through the generic runner (ScriptedProvider →
-run_workflow). The pipeline is built LAZILY by `build_example()` and cached — importing
-this module has NO side effects; computed names stay importable via PEP 562 `__getattr__`.
-
-Run with:  python -m engine.example
-"""
+"""Worked example: AI issuance will steepen IG credit curves."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,7 +11,6 @@ from .scripted_provider import ScriptedProvider
 from .schema import CandidateTheme, ConsensusSignal, Observation
 from .stage0 import IngestionResult, rank_candidates
 from .workflow import run_workflow
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STAGE 0 — ingestion streams (hand-built; LLM stub bypassed). Cheap, pure data —
@@ -86,7 +75,6 @@ stage0_result = IngestionResult(
     ranked_candidates=ranked,
 )
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # ENGINES 1–4 — loaded from the case and run through the generic runner.
 # Built lazily + cached: no pipeline runs at import time.
@@ -96,10 +84,8 @@ CASE_PATH = Path(__file__).resolve().parent.parent / "cases" / "ai_issuance.yaml
 
 _BUNDLE: Optional[SimpleNamespace] = None
 
-
 def build_example() -> SimpleNamespace:
-    """Build (once, then cache) the worked-example pipeline output. Returns a namespace of
-    the names the golden-master tests use, plus the pipeline's own rendered `memo`."""
+    """Build (once, then cache) the worked-example pipeline output. Returns a namespace of"""
     global _BUNDLE
     if _BUNDLE is not None:
         return _BUNDLE
@@ -129,16 +115,13 @@ def build_example() -> SimpleNamespace:
     )
     return _BUNDLE
 
-
 def __getattr__(name: str):
-    """PEP 562: serve the lazily-built example names on first access, so importing this
-    module stays side-effect-free while `from engine.example import theme` still works."""
+    """PEP 562: serve the lazily-built example names on first access, so importing this"""
     bundle = build_example()
     try:
         return getattr(bundle, name)
     except AttributeError:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
-
 
 def main() -> None:
     from .stage0 import print_ranked_candidates
@@ -149,7 +132,6 @@ def main() -> None:
     print(ex.theme_json)
     print("\n" + "=" * 80, "DECISION MEMO", "=" * 80, sep="\n")
     print(ex.memo)
-
 
 if __name__ == "__main__":
     main()

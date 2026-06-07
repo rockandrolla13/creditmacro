@@ -1,7 +1,4 @@
-"""Stage-0 typed streams + the Market-Intelligence Iceberg classifier outputs.
-
-These are the INPUT to the pipeline (developments / themes / attention), not the output.
-"""
+"""Stage-0 typed streams + the Market-Intelligence Iceberg classifier outputs."""
 from __future__ import annotations
 
 import uuid
@@ -9,28 +6,18 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-
 # ── Stage 0 typed streams ─────────────────────────────────────────────────────
 
 class Observation(BaseModel):
-    """
-    Dated, sourced fact.
-    Type: developments / events from research notes.
-    Downstream: updates Driver.current_level; triggers rescoring.
-    """
+    """Dated, sourced fact."""
     id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
     date: str                    # ISO date of the observation
     source: str                  # e.g. "Citi credit weekly 2024-11-08"
     text: str                    # verbatim or paraphrased fact
     driver_tags: list[str] = []  # which Driver.name fields this updates
 
-
 class CandidateTheme(BaseModel):
-    """
-    Durable narrative: the secular / cyclical story.
-    Type: core themes from research notes.
-    Downstream: becomes a ThemeObject after passing through all four engines.
-    """
+    """Durable narrative: the secular / cyclical story."""
     id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
     statement: str
     horizon: str
@@ -42,13 +29,8 @@ class CandidateTheme(BaseModel):
     attention_score: float = 0.0   # strength-weighted ConsensusSignal support
     pre_screen_score: float = 0.0  # evidence_score − attention_score ≈ p−q proxy
 
-
 class ConsensusSignal(BaseModel):
-    """
-    Market attention / positioning.
-    Type: hot topics from research notes; ETF flow z-scores (TAARSS); surveys.
-    Downstream: prior for market-implied q_s; input to crowding penalty c.
-    """
+    """Market attention / positioning."""
     id: str = Field(default_factory=lambda: str(uuid.uuid4())[:8])
     source: str                    # e.g. "TAARSS", "DB_flow_report", "GS_survey"
     topic: str
@@ -56,16 +38,10 @@ class ConsensusSignal(BaseModel):
     direction: Literal["positive", "negative", "neutral"]
     date: str
 
-
 # ── Stage 0: Market Intelligence Iceberg Classifier ──────────────────────────
 
 class IcebergScores(BaseModel):
-    """The six 0..1 sub-scores of the iceberg classifier (Meadows levels).
-
-    theme_promotion is the generalisation of stage0.rank_candidates'
-    pre_screen_score (evidence − attention) and MAY be negative:
-        theme_promotion = structure × (pattern + event) − hot_topic_attention
-    """
+    """The six 0..1 sub-scores of the iceberg classifier (Meadows levels)."""
     event: float = 0.0              # EventScore: datedness × catalyst_potential
     pattern: float = 0.0           # PatternScore: persistence × breadth_of_trend
     structure: float = 0.0         # StructureScore: has_mechanism × has_operational_axis
@@ -73,15 +49,8 @@ class IcebergScores(BaseModel):
     hot_topic_attention: float = 0.0  # HotTopicAttentionScore: current attention / crowding
     theme_promotion: float = 0.0   # ThemePromotionScore (may be negative)
 
-
 class IcebergClassification(BaseModel):
-    """One classified ingestion item: its iceberg layer, dashboard lane, typed
-    stream, scores, and the Stage-0 routing decision.
-
-    An item may occupy more than one layer (a thesis that is also a crowded
-    narrative is both a CandidateTheme AND a ConsensusSignal); each emitted
-    IcebergClassification records ONE layer — do not collapse, emit both.
-    """
+    """One classified ingestion item: its iceberg layer, dashboard lane, typed"""
     layer: Literal[
         "surface_event", "pattern_trend", "system_structure", "mental_model"
     ]
