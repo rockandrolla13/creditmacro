@@ -41,10 +41,18 @@ class ScenarioProbabilityJustification(BaseModel):
 
 
 class ProbabilitySetJustification(BaseModel):
-    """Set-level roll-up. effective_probability_vector == supplied p_s (it never feeds pricing)."""
+    """Set-level roll-up. effective_probability_vector is the posterior (== supplied p_s when
+    no evidence). It is an AUDIT artifact — pricing keeps reading Scenario.p_s."""
     scenario_probabilities: list[ScenarioProbabilityJustification]
     sums_to_one: bool
     probability_quality: float = Field(ge=0.0, le=1.0)
     probability_source_summary: str
     effective_probability_vector: list[float]
     warnings: list[str] = []
+
+
+class ProbabilityEvidenceBundle(BaseModel):
+    """Supplied (never generated) evidence input to justify_probabilities: per-scenario
+    evidence refs + optional per-scenario prior-source labels."""
+    evidence_by_scenario: dict[str, list[ProbabilityEvidenceRef]] = {}
+    prior_sources: dict[str, ProbabilitySource] = {}

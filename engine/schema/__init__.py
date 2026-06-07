@@ -16,6 +16,7 @@ from .expression import Expression, ScenarioPnL
 from .pricing import EdgeContribution, PricedIn, Pricing, Scenario
 from .probability import (
     EvidenceDirection,
+    ProbabilityEvidenceBundle,
     ProbabilityEvidenceRef,
     ProbabilitySetJustification,
     ProbabilitySource,
@@ -49,6 +50,7 @@ __all__ = [
     # probability (Q4)
     "ProbabilitySource", "EvidenceDirection", "ProbabilityEvidenceRef",
     "ScenarioProbabilityJustification", "ProbabilitySetJustification",
+    "ProbabilityEvidenceBundle",
     # expression
     "ScenarioPnL", "Expression",
     # strategy_family

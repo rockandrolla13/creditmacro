@@ -11,7 +11,8 @@ from .probability import justify_probabilities
 from .scoring import compute_omega, score_expression
 from .protocols import Provider, RunContext
 from .schema import (
-    Axis, Expression, ProbabilitySetJustification, Scenario, StrategyFamilyRec, ThemeObject,
+    Axis, Expression, ProbabilityEvidenceBundle, ProbabilitySetJustification, Scenario,
+    StrategyFamilyRec, ThemeObject,
 )
 
 def _prior_vector(ctx: RunContext, n: int) -> list[float]:
@@ -28,7 +29,8 @@ def _justify(scenarios: list[Scenario], ctx: RunContext, *, gate_case_evidence: 
     evidence = ctx.probability_evidence
     if gate_case_evidence:
         evidence = {k: [r for r in refs if not _is_case_evidence(r)] for k, refs in evidence.items()}
-    return justify_probabilities(scenarios, evidence, ctx.prior_sources)
+    bundle = ProbabilityEvidenceBundle(evidence_by_scenario=evidence, prior_sources=ctx.prior_sources)
+    return justify_probabilities(None, scenarios, evidence_bundle=bundle)
 
 
 _CASE_SLUG_MARKERS = ("case", "outcome", "historical", "postmortem", "analogue", "theme-", "scenario-")
