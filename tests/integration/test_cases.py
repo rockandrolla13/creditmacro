@@ -22,6 +22,7 @@ from engine.runner import (
 from engine.schema import ThemeObject
 from engine.scripted_provider import ScriptedProvider
 from engine.workflow import run_workflow
+from tests._helpers import build_theme
 
 FLOOR_NAMES = {
     "schema_valid",
@@ -46,15 +47,13 @@ CASES = discover_cases()
 
 @pytest.mark.parametrize("path", CASES, ids=lambda p: p.stem)
 def test_case_builds_theme(path: Path):
-    case = load_case(path)
-    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy())
+    case, theme, _ = build_theme(path)
     assert isinstance(theme, ThemeObject)
 
 
 @pytest.mark.parametrize("path", CASES, ids=lambda p: p.stem)
 def test_case_invariants_floor_all_pass(path: Path):
-    case = load_case(path)
-    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy())
+    case, theme, _ = build_theme(path)
     results = invariants_floor(theme)
     assert {r.name for r in results} == FLOOR_NAMES
     failed = [r for r in results if not r.passed]
@@ -63,8 +62,7 @@ def test_case_invariants_floor_all_pass(path: Path):
 
 @pytest.mark.parametrize("path", CASES, ids=lambda p: p.stem)
 def test_case_oracle_all_pass(path: Path):
-    case = load_case(path)
-    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy())
+    case, theme, _ = build_theme(path)
     results = case.oracle.check(theme)
     failed = [r for r in results if not r.passed]
     assert not failed, f"oracle failures for {path.stem}: {failed}"
@@ -105,7 +103,7 @@ def test_floor_catches_broken_theme():
     model_copy on a real theme's pricing.
     """
     case = load_case(_ai_case_path())
-    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy())
+    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy(), mode="expression")
 
     broken_pricing = theme.pricing.model_copy(update={"edge_direction_ok": False})
     broken = theme.model_copy(update={"pricing": broken_pricing})
@@ -119,7 +117,7 @@ def test_floor_catches_broken_theme():
 
 def test_floor_catches_non_feasible_q():
     case = load_case(_ai_case_path())
-    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy())
+    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy(), mode="expression")
 
     broken_pricing = theme.pricing.model_copy(update={"q_status": "INFEASIBLE"})
     broken = theme.model_copy(update={"pricing": broken_pricing})
@@ -130,7 +128,7 @@ def test_floor_catches_non_feasible_q():
 
 def test_floor_catches_non_finite():
     case = load_case(_ai_case_path())
-    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy())
+    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy(), mode="expression")
 
     broken_pricing = theme.pricing.model_copy(update={"residual_edge": float("nan")})
     broken = theme.model_copy(update={"pricing": broken_pricing})

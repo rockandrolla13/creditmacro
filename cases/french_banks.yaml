@@ -1,6 +1,6 @@
 # French-banks case — reconstructed from the Alaph deck (acceptance oracle).
 # axis = FR-banks-basket senior CDS - France sovereign CDS; prior=historical.
-# Carries causal chain + system_map + bias_critique + trap_detection.
+# Carries causal chain + system_map + bias_critique + loop_diagnosis(pre) + trap_implications(post).
 theme_sentence: Declining sovereign support widens French-bank vs France credit risk
 horizon: 2Y
 author: engine.fixtures (French-banks reconstruction)
@@ -372,7 +372,7 @@ bias_critique:
   rationale: declining-support thesis survives >=5 lenses; edge is net of the standing
     risk-premium confounder and cross-checked vs Germany/UK; the reflexive bailout
     loop is the main risk, captured as B1
-trap_detection:
+loop_diagnosis:
   feedback_loop_map:
   - id: B1
     type: balancing
@@ -407,12 +407,6 @@ trap_detection:
   - state-aid announcements (EUR bn)
   - differential compressing back toward 20bps off the wides
   - German/UK bank-vs-sovereign differentials converging
-  scenario_implications:
-  - the worst/no-support state carries the widening edge
-  - a bailout state is the balancing-loop reversal that caps it
-  expression_risk_implications:
-  - long-the-differential / short-French-banks dies first on a bailout snap
-  - carry/flatteners next; convex long-protection survives
   invalidation_evidence:
   - differential < 20bps for two consecutive months
   - fresh EU state-aid backstops > EUR 50bn
@@ -420,3 +414,10 @@ trap_detection:
   - is the edge net of the standing risk premium (gross-of-premium today)?
   - are we positioned before or after the reflexive bailout loop?
   decision: promote_to_scenario_pricing
+trap_implications:
+  scenario_implications:
+  - the worst/no-support state carries the widening edge
+  - a bailout state is the balancing-loop reversal that caps it
+  expression_risk_implications:
+  - long-the-differential / short-French-banks dies first on a bailout snap
+  - carry/flatteners next; convex long-protection survives

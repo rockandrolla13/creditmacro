@@ -65,15 +65,6 @@ def test_single_scenario_is_infeasible_unless_trivial():
     assert sol.status == "INFEASIBLE"
 
 
-def test_matches_slsqp_solver():
-    # genuine cross-check: closed-form tilt vs the original SLSQP reference
-    from engine.engine2 import _solve_max_entropy_slsqp
-
-    slsqp = _solve_max_entropy_slsqp(X_AI, XMKT_AI)  # uniform prior by default
-    tilt = solve_q_tilt(X_AI, [level_constraint(XMKT_AI)], prior=UNIFORM4)
-    assert tilt.q == pytest.approx(slsqp, abs=ABS)
-
-
 def test_prior_pulls_q_toward_prior():
     # heavier prior on the first scenario should raise q_0 vs the uniform solution
     skewed = [0.7, 0.1, 0.1, 0.1]

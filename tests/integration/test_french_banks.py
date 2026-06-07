@@ -2,22 +2,14 @@
 `acceptance` oracle run through the generic runner."""
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
-from engine.case_loader import load_case
-from engine.scripted_provider import ScriptedProvider
 from engine.schema import ThemeObject
-from engine.workflow import run_workflow
-
-CASE = Path(__file__).resolve().parents[2] / "cases" / "french_banks.yaml"
+from tests._helpers import build_theme
 
 
 def _run():
-    case = load_case(CASE)
-    theme, memo = run_workflow(ScriptedProvider(case), case.resolved_policy())
-    return case, theme, memo
+    return build_theme("french_banks.yaml")
 
 
 def test_builds_a_theme_object():
@@ -46,7 +38,7 @@ def test_edge_comes_from_underweighted_no_support_state():
 
 def test_base_worst_ratio_matches_deck_1p9():
     _, theme, _ = _run()
-    best = max((e for e in theme.expressions if e.score is not None), key=lambda e: e.score)
+    best = theme.best_expression()
     pnls = [p.pnl for p in best.scenario_pnl]
     base_idx = max(range(len(theme.scenarios)), key=lambda i: theme.scenarios[i].p_s)
     ratio = pnls[base_idx] / abs(min(pnls))

@@ -17,7 +17,6 @@ from engine.schema import (
     Flow,
     Stock,
     SystemMap,
-    SystemMap as _SM,
 )
 from engine.scripted_provider import ScriptedProvider
 from engine.workflow import run_workflow
@@ -64,7 +63,7 @@ def _run(path, attach=False):
     if attach and case.causal is not None:
         sm, bc = _payloads_for(case)
         case = case.model_copy(update={"system_map": sm, "bias_critique": bc})
-    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy())
+    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy(), mode="expression")
     return case, theme
 
 
@@ -110,7 +109,7 @@ def test_at_least_one_case_carries_a_system_map_payload():
 @pytest.mark.parametrize("path", MAP_CASES, ids=lambda p: p.stem)
 def test_loaded_system_map_attaches_and_is_well_formed(path):
     case = load_case(path)
-    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy())
+    theme, _ = run_workflow(ScriptedProvider(case), case.resolved_policy(), mode="expression")
     sm = theme.system_map
     assert isinstance(sm, SystemMap) and sm.function_purpose
     assert sm.stocks and sm.flows                       # stock vs flow both present, distinct

@@ -6,23 +6,18 @@ chain attached, every theme-node operational, edges tagged inferred/feedback.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from engine.case_loader import load_case
-from engine.scripted_provider import ScriptedProvider
 from engine.schema import CausalChain, CausalNode
-from engine.workflow import run_workflow
+from tests._helpers import CASES_DIR, build_theme
 
-CASES_DIR = Path(__file__).resolve().parents[2] / "cases"
 ALL_CASES = sorted(CASES_DIR.glob("*.yaml"))
 CAUSAL_CASES = [p for p in ALL_CASES if load_case(p).causal is not None]
 
 
 def _run(path):
-    case = load_case(path)
-    theme, memo = run_workflow(ScriptedProvider(case), case.resolved_policy())
+    case, theme, _ = build_theme(path.name)
     return case, theme
 
 

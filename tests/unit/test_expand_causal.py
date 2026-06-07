@@ -22,6 +22,14 @@ from engine.scripted_provider import ScriptedProvider
 CASES = Path(__file__).resolve().parents[2] / "cases"
 
 
+def test_llm_provider_is_a_causal_expander_not_a_full_provider():
+    from engine.llm_provider import LLMProvider
+    from engine.protocols import CausalExpander, Provider
+    p = LLMProvider(client=object())
+    assert isinstance(p, CausalExpander)      # satisfies the narrow seam it implements
+    assert not isinstance(p, Provider)        # but cannot drive run_workflow (one seam only)
+
+
 def _payload():
     axis = Axis(definition="A OAS − B OAS, bps", measurement="daily, bps",
                 current_value=40.0,

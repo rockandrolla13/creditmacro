@@ -25,10 +25,12 @@ from .schema import (
     Risk,
     Scenario,
     Sizing,
+    LoopDiagnosis,
+    Pricing,
     SystemMap,
     ThemeObject,
     Thesis,
-    TrapDetection,
+    TrapImplications,
 )
 from .stage0 import IngestionResult
 
@@ -47,7 +49,9 @@ class RunContext(BaseModel):
     statement: str
     horizon: str
     author: str
-    x_mkt: float
+    # Optional: a freshly-discovered theme may have no live mark. Discovery degrades
+    # gracefully (edge_survival="unknown", capped confidence); expression mode requires it.
+    x_mkt: Optional[float] = None
     prior: list[float]
     capital: float = 0.0
     conviction: int = 3              # PM conviction (Alaph grid) — input to Engine 4
@@ -56,8 +60,24 @@ class RunContext(BaseModel):
     provenance: Provenance
 
 
+@runtime_checkable
+class CausalExpander(Protocol):
+    """The single seam a causal-compiler adapter must satisfy: research text → one causal
+    object. `LLMProvider` implements THIS (not the full `Provider`) — it cannot drive
+    `run_workflow`, which needs all the seams below."""
+
+    def expand_causal(
+        self, research_text: str, parsed_theme: str
+    ) -> tuple[Optional[CausalNode], Optional[CausalChain], Optional[str]]: ...
+
+
 class ScenarioSource(Protocol):
-    def propose_scenarios(self, thesis: Thesis, axis: Axis) -> list[Scenario]: ...
+    def propose_scenarios(
+        self, thesis: Thesis, axis: Axis, loop_diagnosis: Optional[LoopDiagnosis] = None
+    ) -> list[Scenario]:
+        """Propose scenarios; when a loop diagnosis is supplied, the balancing limit /
+        reversal point should appear as a reversal scenario."""
+        ...
 
 
 class ExpressionSource(Protocol):
@@ -101,9 +121,16 @@ class Provider(ScenarioSource, ExpressionSource, RiskSource, Protocol):
         """Adversarial review of the theme's mental model. None when not supplied."""
         ...
 
-    def detect_traps(self, system_map: Optional[SystemMap]) -> Optional[TrapDetection]:
-        """Diagnose loops/leverage/traps from the system map's loop map. None when not
-        supplied (does not re-derive loops)."""
+    def diagnose_loops(self, system_map: Optional[SystemMap]) -> Optional[LoopDiagnosis]:
+        """PRE-PRICING: diagnose loops/leverage/traps from the system map's loop map and
+        the reversal point that feeds scenario construction. None when not supplied."""
+        ...
+
+    def assess_trap_implications(
+        self, scenarios: list[Scenario], pricing: Pricing, expressions: list[Expression]
+    ) -> Optional[TrapImplications]:
+        """POST-PRICING: map loop states to scenario fair values and name the expression
+        families that break on reversal. None when not supplied."""
         ...
 
     def extract_drivers(self, statement: str) -> Thesis: ...

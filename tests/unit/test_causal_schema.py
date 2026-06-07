@@ -1,7 +1,9 @@
 """CausalChain schema: CausalNode / CausalEdge / CausalChain + ThemeObject fields.
 
 Boundary rules enforced at construction (a malformed chain MUST fail):
-  - a kind=="theme" node MUST carry an operational axis (axis not None, axis_operational True)
+  - a PROMOTED kind=="theme" node MUST carry an operational axis (it is being routed to a
+    strategy family); a non-promoted theme CANDIDATE may exist without one (a broad hot
+    topic is a valid discovery artifact, not a trade)
   - a dead-end (cause/consequence with axis=None) is valid — never an invented axis
   - every edge endpoint must reference an existing node id
 """
@@ -27,13 +29,24 @@ def _axis(name="X = A OAS − B OAS, bps"):
     )
 
 
-def test_theme_node_requires_operational_axis():
+def test_promoted_theme_node_requires_operational_axis():
+    # A theme being ROUTED to a strategy family must carry a computable axis.
     with pytest.raises(ValidationError):
-        CausalNode(id="n1", statement="tradeable", kind="theme", axis=None)
+        CausalNode(id="n1", statement="tradeable", kind="theme", axis=None, promoted=True)
+
+
+def test_unpromoted_theme_candidate_may_lack_axis():
+    # A broad core-theme candidate (e.g. "AI capex funding") is a valid discovery
+    # artifact without an axis — it just cannot be routed to a trade yet.
+    n = CausalNode(id="n1", statement="AI capex funding (broad)", kind="theme", axis=None)
+    assert n.promoted is False
+    assert n.axis is None
+    assert n.axis_operational is False
 
 
 def test_theme_node_with_axis_is_valid():
-    n = CausalNode(id="n1", statement="t", kind="theme", axis=_axis(), axis_operational=True)
+    n = CausalNode(id="n1", statement="t", kind="theme", axis=_axis(),
+                   axis_operational=True, promoted=True)
     assert n.axis_operational is True
     assert n.axis is not None
 

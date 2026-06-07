@@ -30,7 +30,12 @@ _DEFAULT_MAX_TOKENS = 4096
 
 
 class LLMProvider:
-    """Generative EXPAND_CAUSAL seam backed by the Anthropic Messages API."""
+    """Generative EXPAND_CAUSAL seam backed by the Anthropic Messages API.
+
+    This is a SINGLE-SEAM adapter: it satisfies `protocols.CausalExpander` (just
+    `expand_causal`), NOT the full `protocols.Provider`. It cannot drive `run_workflow` on
+    its own — pair it with a provider that supplies the other seams (pricing inputs,
+    scenarios, sizing). Naming it for the seam it implements keeps the type honest."""
 
     def __init__(
         self,
@@ -99,6 +104,14 @@ class LLMProvider:
             raise ValueError(
                 f"LLMProvider.expand_causal: main_theme id '{main_theme.id}' is not "
                 f"among the chain node ids {sorted(chain_ids)}."
+            )
+
+        # main_theme is the PROMOTED, routed theme — it must carry an operational axis.
+        # (Non-promoted theme candidates in the chain may omit one; the routed one cannot.)
+        if not main_theme.is_routable():
+            raise ValueError(
+                "LLMProvider.expand_causal: main_theme (the promoted, routed theme) must be "
+                "a kind='theme' node carrying an operational axis before it can be routed."
             )
 
         return main_theme, causal_chain, shared_factor

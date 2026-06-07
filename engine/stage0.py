@@ -261,35 +261,14 @@ def parse_research_text(text: str) -> tuple[
     list[CandidateTheme],
     list[ConsensusSignal],
 ]:
-    """
-    TODO: LLM call.
-
-    Input:  raw research document text
-    Output: three typed streams
-
-    Contract:
-      - Every Observation must have a date and source.
-      - Every CandidateTheme.statement must be a falsifiable, directional sentence.
-      - Every ConsensusSignal must have an attention_strength in [−1, 1] (or z-score).
-      - The three types must be kept SEPARATE: a theme that is a hot topic is
-        both a CandidateTheme AND a ConsensusSignal; emit both, do not collapse.
-
-    Why separation matters:
-      A sentence appearing as both a CandidateTheme (strong evidence_score)
-      AND a ConsensusSignal (high attention_score) will score LOW on
-      pre_screen_score — the market has already priced the story.
-      A theme with evidence but no consensus signal scores HIGH — latent edge.
-    """
+    """STUB (LLM call): raw research text → three typed streams. Keep the types SEPARATE
+    (a hot-topic thesis is both a CandidateTheme AND a ConsensusSignal — emit both): a
+    sentence that is both scores LOW on pre_screen_score (already priced); evidence with no
+    consensus scores HIGH (latent edge)."""
     raise NotImplementedError(
-        "parse_research_text: stub. "
-        "Replace with LLM call that parses text into three typed streams.\n"
-        "Prompt contract:\n"
-        "  - Classify each sentence as Observation / CandidateTheme / ConsensusSignal\n"
-        "  - A sentence can be multiple types — emit all applicable\n"
-        "  - Observations: must be falsifiable facts (developments, events, data)\n"
-        "  - CandidateThemes: must be directional narratives (secular / cyclical)\n"
-        "  - ConsensusSignals: must reflect WHAT THE MARKET IS FOCUSED ON, not what "
-        "the author believes"
+        "parse_research_text: stub — replace with an LLM call that classifies each sentence "
+        "as Observation (falsifiable fact) / CandidateTheme (directional narrative) / "
+        "ConsensusSignal (market focus), emitting all applicable types."
     )
 
 

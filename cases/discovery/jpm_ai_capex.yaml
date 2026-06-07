@@ -1,0 +1,162 @@
+# JPM AI-capex — DISCOVERY-ONLY fixture (no detailed legs).
+# Lives under cases/discovery/ so the top-level discover_cases() glob (cases/*.yaml) does
+# NOT sweep it into the expression-mode oracle suite. Run it via mode="discovery": it must
+# emit ranked strategy families (curve axis -> steepener top) and STOP — not auto trade-ready.
+# Source: "JPM AI Capex Funding Data" (markdowns/JPM_AI_Capex_Funding_Dat_2026-05-11_5290840).
+theme_sentence: AI capex funding shifts IG supply to the long end, steepening the IG 5s30s curve
+horizon: 6–12 months
+author: engine.fixtures (JPM AI-capex discovery)
+thesis:
+  drivers:
+  - name: AI capex funding surge
+    sign: +
+    proxy_observable: Hyperscaler IG bond issuance, 30Y tenor, YTD ($bn, JPM AI-capex tracker)
+    current_level: 210.0
+    mechanism: Capex-driven long-end IG supply pressure-tests duration demand, forcing
+      spread concessions at 30Y and steepening the curve.
+    edge_elasticity: null
+  - name: Duration demand mismatch
+    sign: +
+    proxy_observable: LDI / insurance net buying concentrated 10–20Y (EPFR, $bn/month)
+    current_level: null
+    mechanism: Long-end demand lags the supply surge, widening 5s30s.
+    edge_elasticity: null
+  causal_chain:
+  - from_node: AI capex funding surge
+    to_node: 30Y IG OAS
+  - from_node: Duration demand mismatch
+    to_node: 30Y IG OAS
+  - from_node: 30Y IG OAS
+    to_node: IG 5s30s OAS slope
+  direction_of_view: IG 5s30s OAS slope widens (steepens) from ~58bps
+  driver_diversification_multiplier: null
+axis:
+  definition: IG 5s30s OAS slope = OAS(30Y IG basket) − OAS(5Y IG basket), bps. Universe
+    = AI-capex-linked IG issuers, min $1bn outstanding, OAS <= 300bps.
+  measurement: 'Bloomberg BVAL OAS; 5Y = 4.5–5.5Y bucket, 30Y = 27–33Y bucket; basket
+    par-weighted by outstanding notional; daily close.'
+  current_value: 58.0
+  history:
+    mean: 80.0
+    vol: 16.0
+    percentile: 20.0
+    regime_tags:
+    - post-2022 rate-shock recovery
+  regime: null
+prior: uniform
+scenarios:
+- name: Capex Surge
+  p_s: 0.4
+  driver_path: Both drivers co-realise; 30Y AI-issuer supply accelerates.
+  implied_axis_value: 100.0
+  pnl_per_unit: 42.0
+  regime_conditional_p_s: null
+- name: Base — Gradual Steepen
+  p_s: 0.35
+  driver_path: Supply continues; demand absorbs moderately.
+  implied_axis_value: 80.0
+  pnl_per_unit: 22.0
+  regime_conditional_p_s: null
+- name: Risk-Off — Flatten
+  p_s: 0.15
+  driver_path: Credit sell-off rotates into 5Y; long-end supply pauses.
+  implied_axis_value: 50.0
+  pnl_per_unit: -8.0
+  regime_conditional_p_s: null
+- name: Capex Pause
+  p_s: 0.1
+  driver_path: AI capex disappoints; 30Y deals deferred.
+  implied_axis_value: 45.0
+  pnl_per_unit: -12.0
+  regime_conditional_p_s: null
+x_mkt: 58.0
+normal_fv: 69.0
+thesis_sign: 1
+policy: default
+provenance:
+  evidence:
+  - JPM AI Capex Funding Data 2026-05-11 (markdowns/JPM_AI_Capex_Funding_Dat_2026-05-11_5290840.md)
+  confidence: 0.55
+oracle:
+  kind: invariants_only
+causal:
+  main_theme:
+    id: n_slope
+    statement: IG 5s30s OAS slope steepens as AI-capex supply hits the long end
+    kind: theme
+    axis:
+      definition: IG 5s30s OAS slope = OAS(30Y IG basket) − OAS(5Y IG basket), bps.
+        Universe = AI-capex-linked IG issuers, min $1bn outstanding, OAS <= 300bps.
+      measurement: 'Bloomberg BVAL OAS; 5Y = 4.5–5.5Y bucket, 30Y = 27–33Y bucket;
+        basket par-weighted by outstanding notional; daily close.'
+      current_value: 58.0
+      history:
+        mean: 80.0
+        vol: 16.0
+        percentile: 20.0
+        regime_tags:
+        - post-2022 rate-shock recovery
+      regime: null
+    axis_operational: true
+  causal_chain:
+    nodes:
+    - id: n_capex
+      statement: AI capex funding surge drives hyperscaler long-end IG issuance
+      kind: cause
+      axis: null
+      axis_operational: false
+    - id: n_supply
+      statement: 30Y IG supply overwhelms concentrated 10–20Y duration demand
+      kind: cause
+      axis: null
+      axis_operational: false
+    - id: n_slope
+      statement: IG 5s30s OAS slope steepens as AI-capex supply hits the long end
+      kind: theme
+      axis:
+        definition: IG 5s30s OAS slope = OAS(30Y IG basket) − OAS(5Y IG basket), bps.
+          Universe = AI-capex-linked IG issuers, min $1bn outstanding, OAS <= 300bps.
+        measurement: 'Bloomberg BVAL OAS; 5Y = 4.5–5.5Y bucket, 30Y = 27–33Y bucket;
+          basket par-weighted by outstanding notional; daily close.'
+        current_value: 58.0
+        history:
+          mean: 80.0
+          vol: 16.0
+          percentile: 20.0
+          regime_tags:
+          - post-2022 rate-shock recovery
+        regime: null
+      axis_operational: true
+    edges:
+    - from_id: n_capex
+      to_id: n_supply
+      mechanism: capex funding need forces long-dated issuance
+      inferred: false
+      feedback: false
+    - from_id: n_supply
+      to_id: n_slope
+      mechanism: long-end supply/demand gap widens the 5s30s slope
+      inferred: true
+      feedback: false
+  shared_factor: AI capex cycle / hyperscaler funding factor
+loop_diagnosis:
+  feedback_loop_map: []
+  dominant_loop_now: R1 (reinforcing) — capex-funded long-end supply widens 5s30s
+  dominant_loop_evidence: 30Y AI-issuer YTD supply elevated vs 5Y average; slope below
+    its 3Y mean
+  possible_loop_shift: an AI capex cut flips R1 to balancing — deals are pulled and
+    the curve re-flattens (the reversal point)
+  system_traps:
+  - escalation if peers term out duration in sympathy
+  leverage_points:
+  - description: hyperscaler capex guidance (earnings calls)
+    observable: true
+  early_warning_indicators:
+  - monthly 30Y AI-issuer supply ($bn)
+  - 5s30s slope momentum
+  invalidation_evidence:
+  - 30Y AI-issuer YTD supply falls below $120bn
+  - IG 5s30s slope compresses below 40bps for two consecutive months
+  pm_questions:
+  - is the steepening already priced into 30Y new-issue concessions?
+  decision: promote_to_scenario_pricing

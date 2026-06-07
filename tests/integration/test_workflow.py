@@ -2,25 +2,14 @@
 it reproduces the golden numbers and passes its own exact oracle."""
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
-from engine.case_loader import load_case
-from engine.cases import PolicyConfig
-from engine.scripted_provider import ScriptedProvider
 from engine.schema import ThemeObject
-from engine.workflow import run_workflow
-
-CASE = Path(__file__).resolve().parents[2] / "cases" / "ai_issuance.yaml"
-ABS = 1e-6
+from tests._helpers import ABS, build_theme
 
 
 def _run():
-    case = load_case(CASE)
-    provider = ScriptedProvider(case)
-    theme, memo = run_workflow(provider, case.resolved_policy())
-    return case, theme, memo
+    return build_theme("ai_issuance.yaml")
 
 
 def test_workflow_returns_theme_and_memo():

@@ -28,7 +28,9 @@ class ScriptedProvider:
             x_mkt=c.x_mkt,
             prior=c.prior if isinstance(c.prior, list) else [],
             capital=c.capital,
-            conviction=c.sizing.conviction,
+            # conviction is an Engine-4 (expression) input; discovery-only cases carry no
+            # sizing, so fall back to the RunContext default.
+            conviction=c.sizing.conviction if c.sizing is not None else 3,
             thesis_sign=c.thesis_sign,
             run_edge_mc=c.edge_mc,
             provenance=c.provenance,
@@ -49,9 +51,13 @@ class ScriptedProvider:
         """Return the case's hand-built bias critique, or None."""
         return self._case.bias_critique
 
-    def detect_traps(self, system_map):
-        """Return the case's hand-built trap diagnosis, or None."""
-        return self._case.trap_detection
+    def diagnose_loops(self, system_map):
+        """PRE-PRICING: return the case's hand-built loop diagnosis, or None."""
+        return self._case.loop_diagnosis
+
+    def assess_trap_implications(self, scenarios, pricing, expressions):
+        """POST-PRICING: return the case's hand-built trap implications, or None."""
+        return self._case.trap_implications
 
     def parse(self, raw: str) -> IngestionResult:
         # Stage-0 ingestion is not part of a CaseSpec; a scripted case starts from an
@@ -72,7 +78,9 @@ class ScriptedProvider:
     def normal_fair_value(self, axis: Axis) -> float:
         return self._case.normal_fv
 
-    def propose_scenarios(self, thesis: Thesis, axis: Axis) -> list[Scenario]:
+    def propose_scenarios(self, thesis: Thesis, axis: Axis, loop_diagnosis=None) -> list[Scenario]:
+        # scripted: scenarios are pre-built in the case (a generative provider would fold
+        # loop_diagnosis.possible_loop_shift in as a reversal scenario).
         return self._case.scenarios
 
     def enumerate_expressions(

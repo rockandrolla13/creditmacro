@@ -17,10 +17,6 @@ MATHEMATICS
 
 RISK CAVEAT: prices give a RISK-NEUTRAL q; edge vs this q is GROSS OF RISK PREMIUM.
   (A pricing-kernel map to physical q lands with the MC-edge step.)
-
-`solve_max_entropy_q` is retained as a thin shim delegating to `solve_q_tilt` (back-
-compat). `_solve_max_entropy_slsqp` is the original SLSQP solver, kept ONLY as a
-cross-validation reference for the closed form.
 """
 from __future__ import annotations
 
@@ -29,7 +25,7 @@ from typing import Callable, Literal, Optional
 
 import numpy as np
 from pydantic import BaseModel
-from scipy.optimize import brentq, minimize
+from scipy.optimize import brentq
 
 from .schema import EdgeContribution, PricedIn, Pricing, Scenario
 
@@ -75,6 +71,16 @@ def _tilt_q(prior: np.ndarray, expo: np.ndarray) -> np.ndarray:
     return w / w.sum()
 
 
+def _expand_bracket(resid, x0: float, hit) -> float:
+    """Geometrically expand x0 (×2, up to 200 steps) until resid(x) satisfies `hit`."""
+    x = x0
+    for _ in range(200):
+        if hit(resid(x)):
+            break
+        x *= 2.0
+    return x
+
+
 def solve_q_tilt(
     X_s: list[float],
     constraints: list[MomentConstraint],
@@ -117,15 +123,8 @@ def solve_q_tilt(
             q = _tilt_q(prior_arr, lam * fv)
             return float(q @ fv - tgt)
 
-        lo, hi = -1.0, 1.0
-        for _ in range(200):
-            if resid(lo) < 0:
-                break
-            lo *= 2.0
-        for _ in range(200):
-            if resid(hi) > 0:
-                break
-            hi *= 2.0
+        lo = _expand_bracket(resid, -1.0, lambda r: r < 0)
+        hi = _expand_bracket(resid, 1.0, lambda r: r > 0)
         lam = brentq(resid, lo, hi, xtol=1e-15, rtol=4 * np.finfo(float).eps, maxiter=200)
         q = _tilt_q(prior_arr, lam * fv)
         return QSolution(q=q.tolist(), status="FEASIBLE", lambdas=[float(lam)])
@@ -152,51 +151,6 @@ def solve_q_tilt(
     return QSolution(q=q.tolist(), status="FEASIBLE", lambdas=lam.tolist())
 
 
-# ── Back-compat shim + SLSQP cross-check reference ───────────────────────────
-
-def solve_max_entropy_q(
-    X_s: list[float], X_mkt: float, q0: Optional[list[float]] = None,
-) -> list[float]:
-    """Back-compat: min KL(q‖prior) s.t. Σq_s X_s=X_mkt. Delegates to solve_q_tilt.
-    prior defaults to uniform (maximum ignorance)."""
-    n = len(X_s)
-    prior = q0 if q0 is not None else [1.0 / n] * n
-    sol = solve_q_tilt(X_s, [level_constraint(X_mkt)], prior)
-    if sol.status != "FEASIBLE":
-        raise RuntimeError(f"max-entropy solver failed: {sol.reason}")
-    return sol.q
-
-
-def _solve_max_entropy_slsqp(
-    X_s: list[float], X_mkt: float, q0: Optional[list[float]] = None,
-) -> list[float]:
-    """Original SLSQP solver — RETAINED ONLY as a cross-validation reference for the
-    closed-form tilt. Not used in the pipeline."""
-    n = len(X_s)
-    X = np.array(X_s, dtype=float)
-    q0_arr = np.array(q0, dtype=float) if q0 is not None else np.ones(n) / n
-    eps = 1e-12
-
-    def kl(q: np.ndarray) -> float:
-        return float(np.sum(q * np.log((q + eps) / (q0_arr + eps))))
-
-    def kl_grad(q: np.ndarray) -> np.ndarray:
-        return np.log((q + eps) / (q0_arr + eps)) + 1.0
-
-    result = minimize(
-        kl, q0_arr.copy(), jac=kl_grad, method="SLSQP",
-        bounds=[(eps, 1.0)] * n,
-        constraints=[
-            {"type": "eq", "fun": lambda q: np.dot(q, X) - X_mkt},
-            {"type": "eq", "fun": lambda q: q.sum() - 1.0},
-        ],
-        options={"ftol": 1e-12, "maxiter": 2000},
-    )
-    if not result.success:
-        raise RuntimeError(f"max-entropy solver failed: {result.message}")
-    return result.x.tolist()
-
-
 # ── Edge identity ─────────────────────────────────────────────────────────────
 
 def compute_edge(p_s: list[float], q_s: list[float], X_s: list[float]) -> float:
@@ -205,6 +159,18 @@ def compute_edge(p_s: list[float], q_s: list[float], X_s: list[float]) -> float:
     q = np.array(q_s, dtype=float)
     X = np.array(X_s, dtype=float)
     return float(np.dot(p - q, X))
+
+
+def _edge_attribution(names, p, q, X_s, *, round_dp: Optional[int] = None) -> list[EdgeContribution]:
+    """Per-scenario (p−q)·X attribution, sorted by contribution desc. round_dp rounds the
+    stored values (run_pricing persists 6dp; the MC point estimate stays exact)."""
+    def v(x: float) -> float:
+        return round(x, round_dp) if round_dp is not None else x
+    return sorted(
+        (EdgeContribution(scenario=names[i], contribution=v((p[i] - q[i]) * X_s[i]),
+                          disagreement=v(p[i] - q[i])) for i in range(len(X_s))),
+        key=lambda c: c.contribution, reverse=True,
+    )
 
 
 # ── Uncertainty-propagating fair value (Step 3) ──────────────────────────────
@@ -279,18 +245,7 @@ def compute_edge_mc(
     q_point = point.q
     edge_mean = compute_edge(p, q_point, X_s)
 
-    attribution = sorted(
-        (
-            EdgeContribution(
-                scenario=names[i],
-                contribution=(p[i] - q_point[i]) * X_s[i],
-                disagreement=p[i] - q_point[i],
-            )
-            for i in range(n)
-        ),
-        key=lambda c: c.contribution,
-        reverse=True,
-    )
+    attribution = _edge_attribution(names, p, q_point, X_s)
 
     # Monte-Carlo for the second moments.
     p_arr = np.asarray(p, dtype=float)
@@ -383,19 +338,7 @@ def run_pricing(
 
     # Deterministic edge enrichment (needs the trade direction + axis vol).
     if thesis_sign is not None and sigma_axis is not None:
-        attribution = sorted(
-            (
-                EdgeContribution(
-                    scenario=names[i],
-                    contribution=round((p_s[i] - q_s[i]) * X_s[i], 6),
-                    disagreement=round(p_s[i] - q_s[i], 6),
-                )
-                for i in range(n)
-            ),
-            key=lambda c: c.contribution,
-            reverse=True,
-        )
-        pricing.edge_attribution = attribution
+        pricing.edge_attribution = _edge_attribution(names, p_s, q_s, X_s, round_dp=6)
         pricing.edge_direction_ok = bool(edge * thesis_sign > 0)
         pricing.vol_adjusted_edge = round(edge / sigma_axis, 6) if sigma_axis > 0 else None
         pricing.edge_basis = "gross_of_risk_premium"

@@ -20,7 +20,7 @@ from typing import Annotated, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
-from .engines import compute_omega
+from .scoring import compute_omega
 from .schema import (
     Axis,
     BiasCritique,
@@ -32,11 +32,12 @@ from .schema import (
     Provenance,
     Risk,
     Scenario,
+    LoopDiagnosis,
     Sizing,
     SystemMap,
     ThemeObject,
     Thesis,
-    TrapDetection,
+    TrapImplications,
 )
 
 
@@ -107,8 +108,7 @@ class ExactOracle(_OracleBase):
             detail=f"{pr.residual_edge} vs {self.edge}",
         ))
 
-        scored = [e for e in theme.expressions if e.score is not None]
-        best = max(scored, key=lambda e: e.score) if scored else None
+        best = theme.best_expression()
         best_score = best.score if best is not None else float("nan")
         results.append(AssertionResult(
             name="score", passed=best is not None and near(best_score, self.score),
@@ -155,8 +155,7 @@ class AcceptanceOracle(_OracleBase):
     def check(self, theme: ThemeObject) -> list[AssertionResult]:
         results: list[AssertionResult] = []
 
-        scored = [e for e in theme.expressions if e.score is not None]
-        best = max(scored, key=lambda e: e.score) if scored else None
+        best = theme.best_expression()
 
         if best is None:
             results.append(AssertionResult(
@@ -232,15 +231,18 @@ class CaseSpec(BaseModel):
     prior: Union[list[float], Literal["uniform", "historical"]]
 
     scenarios: list[Scenario]
-    x_mkt: float          # live market price of the axis
+    x_mkt: Optional[float] = None   # live market price of the axis (None ⇒ discovery-only, no live mark)
     normal_fv: float      # unconditional / regime mean
 
-    expressions: list[Expression]   # pre-scoring (score is None); workflow scores them
+    # Detailed-expression half — required for expression cases, OMITTED for discovery-only
+    # cases (the discovery firewall stops before pricing/sizing). Defaults keep existing
+    # full cases valid while allowing a discovery fixture to carry none of them.
+    expressions: list[Expression] = []   # pre-scoring (score is None); workflow scores them
     capital: float = 0.0            # scoring input (existing book exposure)
 
-    sizing: Sizing
-    risk: Risk
-    pm_gate: PMGate
+    sizing: Optional[Sizing] = None
+    risk: Optional[Risk] = None
+    pm_gate: Optional[PMGate] = None
     provenance: Provenance
 
     thesis_sign: Literal[-1, 1]
@@ -248,7 +250,8 @@ class CaseSpec(BaseModel):
     causal: Optional[CausalPayload] = None   # EXPAND_CAUSAL payload (optional)
     system_map: Optional[SystemMap] = None        # SYSTEM_MAP stage payload (optional)
     bias_critique: Optional[BiasCritique] = None  # CRITIQUE stage payload (optional)
-    trap_detection: Optional[TrapDetection] = None  # TRAP stage payload (optional)
+    loop_diagnosis: Optional[LoopDiagnosis] = None      # TRAP pre-pricing payload (optional)
+    trap_implications: Optional[TrapImplications] = None  # TRAP post-pricing payload (optional)
     policy: Union[Literal["default"], PolicyConfig] = "default"
     oracle: Oracle
 

@@ -23,10 +23,14 @@ falsifiers.
   intuit leverage points but "push in the wrong direction."
 - **Engine grounding (this repo):** consumes `engine/schema.py:SystemMap` and its
   `FeedbackLoop` (`id`, `type ∈ {reinforcing, balancing}`, `path: list[str]`, `delay`,
-  `closes_via`), `Delay` (`between`, `length`, `why_it_matters`), `Stock`/`Flow`. NOW WIRED as
-  the live **TRAP stage** (`engine/workflow.py`, after `SYSTEM_MAP`/`CRITIQUE`, before pricing):
-  emits `engine/schema.py:TrapDetection` via the `Provider.detect_traps(system_map)` seam
-  (`ScriptedProvider` from the case; `LLMProvider` later), recorded on the `ThemeObject`.
+  `closes_via`), `Delay` (`between`, `length`, `why_it_matters`), `Stock`/`Flow`. NOW WIRED as a
+  live **two-part TRAP stage** (`engine/workflow.py`) that fixes a backward dependency:
+  (1) `Provider.diagnose_loops(system_map)` → `engine/schema.py:LoopDiagnosis` runs PRE-pricing
+  (after `SYSTEM_MAP`/`CRITIQUE`) and FEEDS `propose_scenarios` — the balancing limit / reversal
+  point becomes a reversal scenario; (2) `Provider.assess_trap_implications(scenarios, pricing,
+  expressions)` → `TrapImplications` runs POST-pricing, because `scenario_implications` /
+  `expression_risk_implications` read scenarios + pricing + expressions that do not exist earlier.
+  Both are recorded on the `ThemeObject` (`ScriptedProvider` from the case; `LLMProvider` later).
   Its `scenario_implications` feed `Scenario.implied_axis_value`; its `invalidation_evidence`
   feed `Falsifier`; its crowding verdict is consistent with the pre-screen's
   `−attention_score` term (`schema.py:CandidateTheme.pre_screen_score = evidence − attention`)

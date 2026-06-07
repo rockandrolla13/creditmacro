@@ -107,7 +107,9 @@ def run_case(path: Union[str, Path]) -> tuple[CaseSpec, ThemeObject, list[Assert
     then the polymorphic oracle's own assertions). Dispatch to the oracle is
     polymorphic — NO kind switch (AR-ABS-001)."""
     case = load_case(path)
-    theme, _memo = run_workflow(ScriptedProvider(case), case.resolved_policy())
+    # run_case asserts the invariants floor + numeric oracle, which need the priced legs,
+    # so it drives the full expression pipeline (run_workflow now defaults to discovery).
+    theme, _memo = run_workflow(ScriptedProvider(case), case.resolved_policy(), mode="expression")
 
     results = invariants_floor(theme)
     results.extend(case.oracle.check(theme))  # polymorphic dispatch — no kind switch

@@ -48,7 +48,8 @@ ThemeObject              # the shared state every later stage reads & writes
   shared_factor:          Optional[str]                    # EXPAND_CAUSAL / SYSTEM_MAP (portfolio layer)
   system_map:             Optional[SystemMap]              # SYSTEM_MAP (embeds the chain)
   bias_critique:          Optional[BiasCritique]           # CRITIQUE
-  trap_detection:         Optional[TrapDetection]          # TRAP (consumes the loop map)
+  loop_diagnosis:         Optional[LoopDiagnosis]          # TRAP pre-pricing (feeds scenarios)
+  trap_implications:      Optional[TrapImplications]       # TRAP post-pricing (reads scenarios/exprs)
 ```
 
 ### The skill-owned nested types (what each prompt must emit)
@@ -65,10 +66,11 @@ SystemMap   {boundary_inside/outside, function_purpose, elements:[CausalNode],
              external_shocks, internal_responses, observable_variables, surprise_modes}
 BiasCritique {dominant_mental_model, alternative_models, assumptions_treated_as_facts,
               lenses_examined, disconfirming_evidence, decision:accept|challenge|reject_model}
-TrapDetection {feedback_loop_map:[FeedbackLoop], dominant_loop_now, possible_loop_shift,
-               system_traps, leverage_points:[LeveragePoint], early_warning_indicators,
-               scenario_implications, expression_risk_implications, invalidation_evidence,
-               pm_questions, decision:promote_to_scenario_pricing|watchlist|reject|needs_more_data}
+LoopDiagnosis  {feedback_loop_map:[FeedbackLoop], dominant_loop_now, possible_loop_shift,
+                system_traps, leverage_points:[LeveragePoint], early_warning_indicators,
+                invalidation_evidence, pm_questions,
+                decision:promote_to_scenario_pricing|watchlist|reject|needs_more_data}   # PRE-pricing
+TrapImplications {scenario_implications, expression_risk_implications}                    # POST-pricing
 Pricing     {normal_fv, scenario_fv(_std), priced_in:{q_s,frac}, residual_edge,
              edge_attribution:[EdgeContribution], edge_direction_ok, vol_adjusted_edge,
              edge_basis, q_status, snr, p_success, infeasible_fraction}
@@ -88,11 +90,18 @@ Pricing     {normal_fv, scenario_fv(_std), priced_in:{q_s,frac}, residual_edge,
 | 2 | **Causal Theme Compiler** | `expand_causal` | statement | `main_theme`, `causal_chain`, `shared_factor`; **main_theme.axis → the priced `axis`** | theme node ⇒ operational axis (else dead end); boundary-validated |
 | 3 | **System Structure Mapper** | `build_system_map(thesis, causal_chain)` | `causal_chain` (embeds it) | `system_map` (stocks/flows/loops/delays) | reuses chain nodes/edges; Stock≠Flow; loop R/B |
 | 4 | **Mental Model & Bias Critic** | `critique_mental_model(statement, causal_chain)` | `causal_chain` | `bias_critique` | accept / challenge / reject_model |
-| 5 | **Feedback / Trap Detector** | `detect_traps(system_map)` | `system_map.feedback_loops` (consumes) | `trap_detection` | promote / watchlist / reject / needs_more_data |
-| 6 | **Scenario & Counterfactual Pricing** (Engine 2) | `propose_scenarios`, `run_pricing` | `scenarios`, `axis`, `X_mkt`, `prior`, `thesis_sign`, `sigma_axis` | `pricing` (q via tilt + feasibility, `residual_edge`, attribution, `edge_basis=gross_of_risk_premium`) | INFEASIBLE if X_mkt outside scenario span |
+| 5 | **Trap Detector — loop diagnosis (PRE-pricing)** | `diagnose_loops(system_map)` | `system_map.feedback_loops` (consumes) | `loop_diagnosis` | promote / watchlist / reject / needs_more_data |
+| 6 | **Scenario & Counterfactual Pricing** (Engine 2) | `propose_scenarios(…, loop_diagnosis)`, `run_pricing` | `scenarios`, `axis`, `X_mkt`, `prior`, `thesis_sign`, `sigma_axis`, **`loop_diagnosis`** (balancing limit → reversal scenario) | `scenarios`, `pricing` (q via tilt + feasibility, `residual_edge`, attribution, `edge_basis=gross_of_risk_premium`) | INFEASIBLE if X_mkt outside scenario span |
 | 7 | Expression scoring (Engine 3) | `enumerate_expressions` + `score_expression(policy)` | `expressions`, `scenarios`, `policy` | scored `expressions` | gates FIRST (Ω, λ, cost), rank SECOND |
-| 8 | Sizing + risk (Engine 4) | `size_and_risk(best, conviction)` | best expression | `sizing`, `risk`, `pm_gate` | — |
-| 9 | Emit | `ThemeObject(...)` | all of the above | the validated `ThemeObject` | **4 discipline gates** (below) fire on construction |
+| 8 | **Trap Detector — implications (POST-pricing)** | `assess_trap_implications(scenarios, pricing, expressions)` | `scenarios`, `pricing`, `expressions` | `trap_implications` | — |
+| 9 | Sizing + risk (Engine 4) | `size_and_risk(best, conviction)` | best expression | `sizing`, `risk`, `pm_gate` | — |
+| 10 | Emit | `ThemeObject(...)` | all of the above | the validated `ThemeObject` | **4 discipline gates** (below) fire on construction |
+
+> **The split fixes a backward dependency.** `scenario_implications` / `expression_risk_implications`
+> read scenarios + pricing + expressions, so they CANNOT be produced at the pre-pricing loop
+> stage. The detector therefore runs twice: `diagnose_loops` (stage 5, feeds scenarios) and
+> `assess_trap_implications` (stage 8, after pricing). The reversal point flows forward
+> (loop → scenario), never backward.
 
 **Flow of the diagnoses into existing fields** (no new fields invented):
 the standing **credit-risk-premium confounder** → `pricing.edge_basis`; skill **assumptions
