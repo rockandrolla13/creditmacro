@@ -26,6 +26,8 @@ class ScriptedProvider:
             conviction=c.sizing.conviction if c.sizing is not None else 3,
             thesis_sign=c.thesis_sign,
             run_edge_mc=c.edge_mc,
+            probability_evidence=c.probability_evidence,
+            prior_sources=c.prior_sources,
             provenance=c.provenance,
         )
 

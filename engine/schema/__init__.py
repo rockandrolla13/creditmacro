@@ -14,6 +14,13 @@ from .causal import (
 )
 from .expression import Expression, ScenarioPnL
 from .pricing import EdgeContribution, PricedIn, Pricing, Scenario
+from .probability import (
+    EvidenceDirection,
+    ProbabilityEvidenceRef,
+    ProbabilitySetJustification,
+    ProbabilitySource,
+    ScenarioProbabilityJustification,
+)
 from .risk import Falsifier, PMGate, Provenance, Risk, Sizing, StopLoss
 from .strategy_family import ConfidenceComponents, StrategyFamilyRec
 from .streams import (
@@ -39,6 +46,9 @@ __all__ = [
     "BiasCritique", "LeveragePoint", "LoopDiagnosis", "TrapImplications",
     # pricing
     "Scenario", "PricedIn", "EdgeContribution", "Pricing",
+    # probability (Q4)
+    "ProbabilitySource", "EvidenceDirection", "ProbabilityEvidenceRef",
+    "ScenarioProbabilityJustification", "ProbabilitySetJustification",
     # expression
     "ScenarioPnL", "Expression",
     # strategy_family

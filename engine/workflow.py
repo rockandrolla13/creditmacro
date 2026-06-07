@@ -7,13 +7,38 @@ from typing import Literal, Optional
 from .cases import PolicyConfig
 from .discovery import select_strategy_families
 from .engine2 import run_pricing
+from .probability import justify_probabilities
 from .scoring import compute_omega, score_expression
 from .protocols import Provider, RunContext
-from .schema import Axis, Expression, Scenario, StrategyFamilyRec, ThemeObject
+from .schema import (
+    Axis, Expression, ProbabilitySetJustification, Scenario, StrategyFamilyRec, ThemeObject,
+)
 
 def _prior_vector(ctx: RunContext, n: int) -> list[float]:
     """The resolved prior, or uniform when the context carries none."""
     return ctx.prior if ctx.prior else [1.0 / n] * n
+
+
+def _justify(scenarios: list[Scenario], ctx: RunContext, *, gate_case_evidence: bool = False
+             ) -> Optional[ProbabilitySetJustification]:
+    """Q4 — label the scenario p_s (audit-only). In discovery (gate_case_evidence=True) the
+    firewall drops case-class evidence before justifying so phase-A can't cite history."""
+    if not scenarios:
+        return None
+    evidence = ctx.probability_evidence
+    if gate_case_evidence:
+        evidence = {k: [r for r in refs if not _is_case_evidence(r)] for k, refs in evidence.items()}
+    return justify_probabilities(scenarios, evidence, ctx.prior_sources)
+
+
+_CASE_SLUG_MARKERS = ("case", "outcome", "historical", "postmortem", "analogue", "theme-", "scenario-")
+
+def _is_case_evidence(ref) -> bool:
+    """Case-class evidence (past outcomes / case-page citations) is blocked in phase-A
+    discovery. MVP heuristic on the source_slug; a later step can resolve access_class via
+    the wiki memory layer instead."""
+    slug = (ref.source_slug or "").lower()
+    return any(m in slug for m in _CASE_SLUG_MARKERS)
 
 def _strategy_families(
     axis: Axis,
@@ -22,6 +47,7 @@ def _strategy_families(
     *,
     has_operational_axis: bool = True,
     causal_confidence: float = 1.0,
+    probability_quality: float = 1.0,
 ) -> list[StrategyFamilyRec]:
     """Route the promoted theme's axis to a strategy family (shape+direction), with"""
     prior = _prior_vector(ctx, len(scenarios)) if scenarios else []
@@ -34,6 +60,7 @@ def _strategy_families(
         has_operational_axis=has_operational_axis,
         has_market_value=ctx.x_mkt is not None,
         causal_confidence=causal_confidence,
+        probability_quality=probability_quality,
     )
 
 def _score_expressions(
@@ -121,13 +148,17 @@ def _run_discovery(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObjec
     # Scenarios the causal object already carries (we do NOT generate them); used only
     # for the LIGHT priced-in confidence, never for detailed pricing.
     scenarios = provider.propose_scenarios(thesis, cs.axis, cs.loop_diagnosis)
+    # Q4 (firewall-gated): justify p_s, then let its quality floor the family confidence.
+    prob_just = _justify(scenarios, ctx, gate_case_evidence=True)
+    pq = prob_just.probability_quality if prob_just else 1.0
 
     # Promotion requires a falsifier: no falsifier ⇒ block promotion (stay at
     # discovery_complete, the causal object built but not routed to a family).
     has_falsifier = bool(cs.loop_diagnosis and cs.loop_diagnosis.invalidation_evidence)
     if has_falsifier:
         families = _strategy_families(
-            cs.axis, scenarios, ctx, has_operational_axis=cs.main_theme.axis_operational
+            cs.axis, scenarios, ctx, has_operational_axis=cs.main_theme.axis_operational,
+            probability_quality=pq,
         )
         status = "strategy_family_routed" if families else "discovery_complete"
     else:
@@ -137,6 +168,7 @@ def _run_discovery(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObjec
     theme = ThemeObject(
         status=status, statement=ctx.statement, horizon=ctx.horizon, author=ctx.author,
         thesis=thesis, axis=cs.axis, strategy_families=families, provenance=ctx.provenance,
+        probability_justification=prob_just,
         main_theme=cs.main_theme, causal_chain=cs.causal_chain, shared_factor=cs.shared_factor,
         system_map=cs.system_map, bias_critique=cs.bias_critique, loop_diagnosis=cs.loop_diagnosis,
         # detailed-expression half intentionally left absent (None / empty)
@@ -191,9 +223,12 @@ def _run_expression(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObje
     # Engine 4 — sizing + risk + PM gate.
     bundle = provider.size_and_risk(thesis, axis, best, ctx.conviction)
 
-    # Discovery deliverable also attaches to an expression_complete object.
+    # Q4 + discovery deliverable also attach to an expression_complete object.
+    prob_just = _justify(scenarios, ctx)
+    pq = prob_just.probability_quality if prob_just else 1.0
     has_op_axis = bool(axis.definition.strip() and axis.measurement.strip())
-    families = _strategy_families(axis, scenarios, ctx, has_operational_axis=has_op_axis)
+    families = _strategy_families(axis, scenarios, ctx, has_operational_axis=has_op_axis,
+                                  probability_quality=pq)
 
     theme = ThemeObject(
         status="expression_complete",
@@ -205,6 +240,7 @@ def _run_expression(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObje
         strategy_families=families,
         scenarios=scenarios,
         pricing=pricing,
+        probability_justification=prob_just,
         expressions=expressions,
         sizing=bundle.sizing,
         risk=bundle.risk,

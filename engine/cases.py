@@ -18,6 +18,8 @@ from .schema import (
     Risk,
     Scenario,
     LoopDiagnosis,
+    ProbabilityEvidenceRef,
+    ProbabilitySource,
     Sizing,
     SystemMap,
     ThemeObject,
@@ -210,6 +212,9 @@ class CaseSpec(BaseModel):
 
     thesis_sign: Literal[-1, 1]
     edge_mc: bool = False     # run Monte-Carlo edge (SNR/std) in run_pricing
+    # Q4 — supplied probability evidence (per scenario name) + prior source labels.
+    probability_evidence: dict[str, list[ProbabilityEvidenceRef]] = {}
+    prior_sources: dict[str, ProbabilitySource] = {}
     causal: Optional[CausalPayload] = None   # EXPAND_CAUSAL payload (optional)
     system_map: Optional[SystemMap] = None        # SYSTEM_MAP stage payload (optional)
     bias_critique: Optional[BiasCritique] = None  # CRITIQUE stage payload (optional)

@@ -160,8 +160,10 @@ def select_strategy_families(
     has_operational_axis: bool = True,
     has_market_value: bool = True,
     causal_confidence: float = 1.0,
+    probability_quality: float = 1.0,
 ) -> list[StrategyFamilyRec]:
-    """Route the promoted theme's axis to one strategy family with decomposed confidence."""
+    """Route the promoted theme's axis to one strategy family with decomposed confidence.
+    probability_quality (Q4) floors data_confidence — weak p_s provenance caps the family."""
     if axis is None or not has_operational_axis:
         return []
 
@@ -182,8 +184,10 @@ def select_strategy_families(
 
     # ── the six confidence components ────────────────────────────────────────
     axis_fit = _AXIS_FIT.get(family, 0.8)
-    data_confidence = _data_confidence(scenario_availability, priced_in_available,
-                                       len(scenarios))
+    data_confidence = min(
+        _data_confidence(scenario_availability, priced_in_available, len(scenarios)),
+        probability_quality,   # Q4: weak probability provenance caps the data half
+    )
 
     fidelity = _TRACKING_FIDELITY.get(family, 0.8)
     if priced_in_available:

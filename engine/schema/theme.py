@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .causal import Axis, CausalChain, CausalNode, Thesis, _chain_is_connected
 from .expression import Expression
 from .pricing import Pricing, Scenario
+from .probability import ProbabilitySetJustification
 from .risk import PMGate, Provenance, Risk, Sizing
 from .strategy_family import StrategyFamilyRec
 from .streams import IcebergClassification
@@ -41,6 +42,8 @@ class ThemeObject(BaseModel):
     # Detailed-expression half — present only for expression_complete objects.
     scenarios: list[Scenario] = []            # Engine 2
     pricing: Optional[Pricing] = None         # Engine 2
+    # Q4 — provenance/evidence/confidence for scenario p_s (audit-only; never feeds pricing).
+    probability_justification: Optional[ProbabilitySetJustification] = None
     expressions: list[Expression] = []        # Engine 3
     sizing: Optional[Sizing] = None           # Engine 4
     risk: Optional[Risk] = None               # Engine 4

@@ -18,6 +18,8 @@ from .schema import (
     Sizing,
     LoopDiagnosis,
     Pricing,
+    ProbabilityEvidenceRef,
+    ProbabilitySource,
     SystemMap,
     ThemeObject,
     Thesis,
@@ -44,6 +46,10 @@ class RunContext(BaseModel):
     conviction: int = 3              # PM conviction (Alaph grid) — input to Engine 4
     thesis_sign: Literal[-1, 1] = 1
     run_edge_mc: bool = False        # whether run_pricing should run the MC edge
+    # Q4 — supplied (never generated) probability evidence per scenario name + prior source
+    # labels. The workflow firewall-gates these before justifying.
+    probability_evidence: dict[str, list[ProbabilityEvidenceRef]] = {}
+    prior_sources: dict[str, ProbabilitySource] = {}
     provenance: Provenance
 
 @runtime_checkable
