@@ -7,6 +7,7 @@ from typing import Literal, Optional
 from .cases import PolicyConfig
 from .discovery import select_strategy_families
 from .engine2 import run_pricing
+from .llm_provider import NoCleanAxisError
 from .probability import justify_probabilities
 from .scoring import compute_omega, score_expression
 from .protocols import Provider, RunContext
@@ -102,6 +103,12 @@ def run_workflow(
 ) -> tuple[ThemeObject, str]:
     """Run the pipeline in the requested mode and return (ThemeObject, memo)."""
     if mode == "expression":
+        # Expression mode must not run on a discovery-only (live LLM) provider.
+        if not hasattr(provider, "enumerate_expressions"):
+            raise RuntimeError(
+                "expression_mode_not_supported: provider lacks expression seams "
+                "(LLMProvider is discovery-only; use ScriptedProvider for expression mode)."
+            )
         return _run_expression(provider, policy)
     return _run_discovery(provider, policy)
 
@@ -146,6 +153,21 @@ def _run_discovery(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObjec
             thesis=thesis, axis=None, provenance=ctx.provenance,
         )
         return blocked, _render_blocked_memo(blocked)
+
+    # NoCleanAxisError integration (opt-in via provider.confirm_axis): a live provider may
+    # confirm/refine the operational axis. If it reports NO clean axis, do NOT fabricate a
+    # market series — emit a blocked HALT (no pricing/sizing/expression). ScriptedProvider has
+    # no confirm_axis attribute, so the golden path is unchanged.
+    if getattr(provider, "confirm_axis", False):
+        try:
+            provider.define_axis(thesis)
+        except NoCleanAxisError:
+            blocked = ThemeObject(
+                status="blocked", block_reason="no_clean_operational_axis",
+                statement=ctx.statement, horizon=ctx.horizon, author=ctx.author,
+                thesis=thesis, axis=None, provenance=ctx.provenance,
+            )
+            return blocked, _render_blocked_memo(blocked)
 
     # Scenarios the causal object already carries (we do NOT generate them); used only
     # for the LIGHT priced-in confidence, never for detailed pricing.

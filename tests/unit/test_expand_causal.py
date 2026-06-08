@@ -167,7 +167,9 @@ def test_expand_causal_happy_path_parses_and_validates():
     # the SDK was called with system=CAUSAL_EXPANDER_PROMPT and a user message
     assert len(fake.calls) == 1
     call = fake.calls[0]
-    assert call["system"] is CAUSAL_EXPANDER_PROMPT
+    # system prompt is the causal-expander prompt + the discovery contract footer (Part 6)
+    assert call["system"].startswith(CAUSAL_EXPANDER_PROMPT)
+    assert "DISCOVERY CONTRACT" in call["system"]
     assert call["messages"][0]["role"] == "user"
     assert "AI issuance steepens IG curves" in call["messages"][0]["content"]
 
