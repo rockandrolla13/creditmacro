@@ -63,3 +63,20 @@ on top of a valuation level. If the spread is historically tight (rich), much of
 
 ## Non-goals
 No pricing math, no q-tilt, no residual-edge numbers, no sizing, no trades.
+
+## Additional rules from CollinDufresne-DeterminantsCreditSpread-2001.md
+(Determinants of credit-spread changes; method only — does not change any golden-master number.)
+- Empirically, the bulk of **credit-spread changes** is driven by a common systematic factor — an
+  aggregate / market-wide risk-premium component — far more than by firm-specific structural
+  fundamentals (issuer leverage, asset volatility, the risk-free level). The residuals across
+  different bonds are highly cross-correlated, pointing to a single priced common factor that the
+  issuer-level structural variables do not explain.
+- Method consequence: **a wide spread is not, by itself, mispricing.** Most of a spread move can be
+  the common risk-premium component widening or tightening, which is compensation for systematic
+  risk — not idiosyncratic edge.
+- Before calling spread = edge, **strip the systematic risk-premium / common-factor component
+  first**; only the residual after removing that common factor is a candidate for idiosyncratic
+  edge. This is the same error class as crediting "getting expensive": a premium/level move, not a
+  repeatable edge.
+- Reinforces the existing **gross-of-risk-premium confounder**: judge the residual premium net of
+  the common systematic factor. Qualitative only — never emit q-tilt or residual_edge numbers.

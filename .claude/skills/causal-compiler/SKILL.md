@@ -90,3 +90,41 @@ in DC/compute bond universe → valuation dispersion across related obligations.
 
 ## Non-goals
 No effect-size estimation, no trade construction, no scenario probabilities.
+
+## Additional rules from Causality and Explanation (Salmon)
+(Causal-mechanical view; from the "Causal Processes and Pseudo-Processes" essays.)
+- Separate a **causal process** (one that can carry a *mark* — a local modification that
+  propagates onward under its own steam) from a **pseudo-process** (one that exhibits perfect
+  regularity / co-movement but cannot transmit a mark; its features are inherited from an outside
+  common source). Salmon's spotlight-spot sweeping a wall co-moves flawlessly yet transmits
+  nothing. Two pseudo-processes driven by a shared source is exactly what **spurious correlation**
+  looks like.
+- **Mark-transmission test for a candidate channel.** Imagine perturbing the driver at one point
+  and ask whether that perturbation would travel *along the channel* through identifiable
+  intervening structure. If the modification does not propagate on its own — only the endpoints
+  happen to co-move — the link is a pseudo-process, not a causal channel: flag it, do not promote.
+- **Mark counterfactual condition** (Salmon's amendment after Cartwright's objection): the
+  downstream change must be one that would *not* have occurred had the mark not been introduced.
+  If the outcome would have moved anyway (a redundant or over-determined common cause), the
+  apparent transmission is spurious — mark it, not a driver.
+- Demand the **intervening mechanism/structure**, not bare endpoint co-movement: a genuine channel
+  localizes and carries a perturbation; this is the physical content behind requiring ≥1 mediator.
+- Axis use: an axis whose moves are inherited from a common factor (rating/duration/liquidity) is a
+  pseudo-process *relative to the thesis driver* until that factor is netted out — keeps
+  `identification_status: associational-until-netted`.
+
+## Additional rules from Counterfactuals and Probability (Schulz)
+(What a well-posed counterfactual query requires; from the intro and Adams's-thesis sections.)
+- A counterfactual's credence ≈ the **conditional probability of the consequent given the
+  antecedent scenario** (Ramsey/Adams test). "Had the driver not moved, the axis would differ" is
+  evaluated by asking how likely the axis-change is across the scenarios where the antecedent
+  holds — express it as a likelihood, not a bare yes/no.
+- Two sources of uncertainty unique to counterfactuals: (i) the **antecedent can be realized many
+  ways** — if different realizations give conflicting verdicts on the outcome, the query is
+  under-specified; pin down *how* the driver is moved. (ii) even with the antecedent fixed, the
+  world can **unfold many ways** (residual chance) — a single point answer overstates certainty.
+- **Positivity requirement:** the conditional probability is only defined when the antecedent has
+  positive probability. A counterfactual built on a zero / negligible-probability antecedent is
+  ill-posed — flag it rather than assert a verdict.
+- **Forward projection:** hold the antecedent fixed and project the world forward from that point;
+  do not backtrack into causally prior facts (consistent with the asymmetry rules above).

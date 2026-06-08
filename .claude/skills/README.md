@@ -111,3 +111,55 @@ rule the monetary-transmission mechanism was folded into the existing macro/syst
 
 These two are intentionally **not** built in this PR (no source available, and they touch
 the rates/fair-value layer). Do not synthesise them from general knowledge.
+
+## Method-cards batch 4 (research papers + causal/factor/calibration)
+
+Six NEW cards compiled from the `research/` papers (added this session) and the causal/factor/
+calibration books. Each mirrors an engine spec in `wiki/engines/`. They are **registered +
+discoverable + loadable** but deliberately **NOT wired** into `SEAM_TO_SKILLS`
+(`engine.skills.REGISTERED_UNWIRED_SKILLS`) — the seam-mapping tests assert exact equality and
+the golden master must not change. Readable method context only.
+
+| Skill slug | Pipeline stage | Intended seam | compiled_from |
+|---|---|---|---|
+| `macro-state-parser` | CONTEXT (regime + factor state) | `Provider.macro_context` | Hamilton (HMM), Stock–Watson (DFM), Giannone–Reichlin, Matheson |
+| `term-premium-estimator` | PRICING (rates / term premium) | `define_axis` / `normal_fair_value` | Vayanos–Vila, Brunner–Meltzer, term-structure panel (1-s2.0-S1042443102000458) |
+| `backdoor-identifiability-gate` | CAUSAL (identification gate) | `expand_causal` | Hernán–Robins, Angrist–Pischke, VanderWeele, Pearl |
+| `global-io-network` | CAUSAL/SYSTEM (shock propagation) | `build_system_map` | Koopman–Wang–Wei |
+| `factor-r2-router` | EXPRESSION (purity ρ² routing) | `select_strategy_families` | Ilmanen *Expected Returns* |
+| `outcome-calibration-engine` | Q4 (probability calibration) | `justify_probabilities` | Gneiting 2007, 1910.07325 (multivariate proper scoring) |
+
+### Supplements appended to frozen cards (append-only, bodies unchanged)
+- `causal-compiler` ← Salmon *Causality and Explanation* (causal vs pseudo-process / mark
+  transmission) + Schulz *Counterfactuals and Probability* (well-posed counterfactual queries).
+- `priced-in-estimator` ← Collin-Dufresne (2001) — spread *changes* are dominated by a common
+  systematic risk-premium factor → "a wide spread is not by itself mispricing." **OCR caveat
+  below.**
+- `trap-detector` ← Chan–Karceski–Lakonishok (`w8282`) — growth does not persist; extrapolation /
+  false-persistence traps; base-rate mean reversion.
+- `edge-validity` ← Pardo (walk-forward / OOS robustness) + Carver (cost-aware, vol-targeted,
+  rules-first) — backtest-robustness validation only, no sizing numbers.
+
+### CASE sources (NOT extracted — pending wiki ingestion)
+- `markdowns/79ef82a2-…md` — Morgan Stanley Global Credit Webcast (May 2026): sell-side credit views.
+- `markdowns/Steady, but AI.md` — 2026 credit-strategy note.
+- `markdowns/e707507f-…md` / `JPM_AI_Capex_Funding_…md` — the JPM AI-capex report (already the
+  `jpm-ai-capex-funding-2026-05-11` wiki CASE source).
+
+### Skipped (with reason)
+- *Money, Bank Credit & Economic Cycles* (Huerta de Soto) — Austrian credit-cycle ideology; thin
+  operational method for the engine. *Prompt Engineering for LLMs* — not investment method.
+  *Data Analysis & Data Mining* (Azzalini), *Economic Analysis Through Mathematics* (Lukač),
+  *Advanced Algorithmic Trading* (Halls-Moore) — generic/redundant. `requirements_engine.md` —
+  4-line stub, not a source. *Recursive Macroeconomic Theory* (Ljungqvist–Sargent) — METHOD but
+  31k lines; its Kalman/state-space material is already covered by `macro-state-parser`, so the
+  full text was deferred.
+- `option_implied_q_provider` (the remaining engine spec without a card) — **no source** in the
+  corpus (Breeden–Litzenberger / Buchen–Kelly not in `markdowns/`); cannot extract — do not
+  synthesise from general knowledge.
+
+### OCR gaps (read-before-write rule)
+- `markdowns/CollinDufresne-DeterminantsCreditSpread-2001.md` — **JSTOR cover-page stub** (36 of
+  76 lines are boilerplate; the body never OCR'd). The `priced-in-estimator` supplement therefore
+  paraphrases the paper's documented finding (cited the same way in `docs/method_bibliography.md`
+  §4), not the source body. Re-OCR the PDF to compile a fuller enrichment.

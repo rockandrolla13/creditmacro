@@ -88,3 +88,22 @@ Beyond the system archetypes, screen for the statistical errors that masquerade 
 
 ## Non-goals
 No exact shorts/longs, no hedge ratios, no sizing, no execution.
+
+## Additional rules from w8282.md
+(Chan–Karceski–Lakonishok, growth-rate persistence; method only, no trades.)
+- **Past growth does not persist.** Across the cross-section there is essentially no persistence in
+  earnings / bottom-line profit growth beyond what chance predicts; only sales growth shows mild
+  persistence. Competitive pressure dissipates abnormal profitability, so growth **mean-reverts**
+  to a normal rate.
+- **Extrapolation-of-past-trend trap.** Analysts and investors over-extrapolate a streak of strong
+  past growth and put too little weight on the base case (base-rate neglect). Rich valuations bake
+  in sustained-growth assumptions that history rarely delivers — flag any thesis that leans on "it
+  grew fast, so it will keep growing fast."
+- **False-persistence trap.** A multi-year run of above-median growth predicts future runs no
+  better than a coin-flip; do not treat a track record as a causal driver. Demand a mechanism, not
+  a streak (mirrors the "require a pre-stated mechanism" rule in the statistical-traps supplement).
+- **Base-rate / mean-reversion check.** Anchor on the unconditional distribution — median growth is
+  modest (GDP-like) and very high sustained growth sits in the far tail (rare) — before crediting
+  any extrapolated high-growth path.
+- **Survivorship caveat** (reinforces the existing supplement): persistence and growth stats
+  measured only on survivors overstate the truth; non-survivors are missing from the sample.

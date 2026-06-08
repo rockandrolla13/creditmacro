@@ -63,3 +63,26 @@ treat as crowding risk, not a validated edge.
 
 ## Non-goals
 No alteration of the edge_survival cap math, no pricing, no sizing, no trades.
+
+## Additional rules from Pardo & Carver (backtest robustness)
+(Method/validation context only — introduces NO sizing, position, or trade numbers. Pardo:
+Walk-Forward Analysis & Degrees-of-Freedom chapters; Carver: "Fitting" and "Speed of trading".)
+- **Walk-forward analysis (Pardo).** Optimize on one window, test on the *next, unseen* window,
+  then roll forward. Trust an edge only if it survives out-of-sample windows it was never fitted
+  on. Track **walk-forward efficiency** (out-of-sample vs in-sample performance ratio); a large
+  drop-off is the signature of overfitting.
+- **Degrees of freedom (Pardo).** More tunable parameters / fewer observations per parameter = less
+  reliable fit. Optimization done correctly is fine; optimization that fits noise is overfitting —
+  require enough independent observations per parameter before trusting the result.
+- **In-sample fitting trap (Carver).** Any choice made with hindsight (picking the winning rule or
+  instrument after seeing the whole sample) inflates the backtest; the honest estimate blends the
+  alternatives you could not have known to drop. Hedging across rules is more robust than betting
+  on the single best one.
+- **Narrative fallacy (Carver).** We see patterns in noisy price history that were not there and are
+  drawn to over-fitted rules; prefer simpler, fewer-parameter rules that generalize.
+- **Cost-aware / speed limit (Carver).** Judge edges *net of trading costs*, not gross, and on a
+  risk-adjusted (volatility-normalized) basis. High turnover imposes a cost hurdle the signal must
+  clear; a fast signal that does not clear it is not a real edge.
+- **Robustness verdict.** Confirmed only if stable across sub-periods, parameters, and instruments,
+  net of cost, with positive out-of-sample evidence — otherwise `robustness_verdict: unconfirmed`.
+  Qualitative only — never sets or alters the `edge_survival` cap number.

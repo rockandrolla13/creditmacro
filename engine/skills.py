@@ -33,6 +33,17 @@ SEAM_TO_SKILLS: dict[str, list[str]] = {
 PENDING_WIRING_SKILLS = ("evidence-weighting",)
 READABLE_DISCOVERY_SKILLS = ("priced-in-estimator", "edge-validity")
 
+# Batch 4: six method cards compiled from the research/ papers (Hamilton, Stock-Watson,
+# Giannone-Reichlin, Matheson, Vayanos-Vila, Brunner-Meltzer, Koopman-Wang-Wei) and the causal /
+# factor / calibration books (Hernán-Robins, Angrist-Pischke, VanderWeele, Pearl, Ilmanen,
+# Gneiting). REGISTERED + discoverable + loadable, but deliberately NOT added to SEAM_TO_SKILLS:
+# the seam-mapping tests assert exact equality and the golden master must not change. Readable
+# method context only; they mirror their engine specs in wiki/engines/.
+REGISTERED_UNWIRED_SKILLS = (
+    "macro-state-parser", "term-premium-estimator", "backdoor-identifiability-gate",
+    "global-io-network", "factor-r2-router", "outcome-calibration-engine",
+)
+
 _REQUIRED_FRONTMATTER = ("skill_name", "access_class", "pipeline_phase", "provider_seam",
                          "input_objects", "output_objects")
 # Sections kept when condensing for a prompt (token budget).
