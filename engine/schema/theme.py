@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .causal import Axis, CausalChain, CausalNode, Thesis, _chain_is_connected
 from .expression import Expression
+from .macro import MacroContext
 from .pricing import Pricing, Scenario
 from .probability import ProbabilitySetJustification
 from .risk import PMGate, Provenance, Risk, Sizing
@@ -64,6 +65,10 @@ class ThemeObject(BaseModel):
     trap_implications: Optional[TrapImplications] = None  # TRAP post-pricing (reads scenarios/exprs)
     # Stage 0: the iceberg classification of the candidate this theme was promoted from.
     iceberg_classification: Optional[IcebergClassification] = None
+    # Discovery context classifier (additive, advisory). Qualitative macro-regime framing;
+    # NOT priced, NOT a gate input. affected_strategy_families_hint is recorded only —
+    # confidence influence is pending a follow-up PR.
+    macro_context: Optional[MacroContext] = None
 
     def best_expression(self):
         """The highest-scored surviving expression, or None if none passed the gates."""

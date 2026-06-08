@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from .cases import CaseSpec
 from .protocols import RunContext, SizingRiskBundle
-from .schema import Axis, Expression, Scenario, ThemeObject, Thesis
+from .schema import Axis, Expression, MacroContext, Scenario, ThemeObject, Thesis
 from .stage0 import IngestionResult
 
 class ScriptedProvider:
@@ -49,6 +49,12 @@ class ScriptedProvider:
     def diagnose_loops(self, system_map):
         """PRE-PRICING: return the case's hand-built loop diagnosis, or None."""
         return self._case.loop_diagnosis
+
+    def macro_context(self, statement, causal_chain=None) -> "MacroContext | None":
+        """Discovery context classifier. A scripted case carries no macro context by
+        default (CaseSpec has no field), so this returns None and the golden / scripted
+        path stays byte-identical. If a future CaseSpec supplies one, surface it."""
+        return getattr(self._case, "macro_context", None)
 
     def assess_trap_implications(self, scenarios, pricing, expressions):
         """POST-PRICING: return the case's hand-built trap implications, or None."""

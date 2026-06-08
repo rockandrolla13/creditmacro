@@ -117,6 +117,36 @@ Emit ONLY this JSON (engine.schema.BiasCritique shape):
 """
 
 
+MACRO_CONTEXT_PROMPT = """\
+You are the MACRO REGIME CONTEXT CLASSIFIER. Read the discovery input (an idea, a current
+research report, a macro note, a theme taxonomy, or a case replay) and classify the
+QUALITATIVE macro regime context it sits in. This is a CONTEXT CLASSIFIER, not a forecaster:
+output qualitative TAGS only. Do NOT emit state probabilities, fair values, scenarios, sizing,
+hedge ratios, curve points, or any trade. The affected_strategy_families_hint is ADVISORY only
+(it can never create a trade).
+A regime is a JOINT state of growth / inflation / policy / liquidity / credit. Tag what the
+input EVIDENCES, not what you expect. If the input carries no macro information, set
+macro_regime_tags=["unclear"], set every *_bias you cannot read to "unclear", and list what is
+absent in missing_data — do NOT guess a regime.
+Emit ONLY this JSON (engine.schema.MacroContext shape):
+{ "input_kind": "idea"|"current_report"|"macro_note"|"theme_taxonomy"|"case_replay",
+  "macro_regime_tags": [ "recovery"|"expansion"|"contraction"|"recession"|"inflationary_growth"|
+                         "stagflation"|"disinflationary_slowdown"|"liquidity_stress"|
+                         "policy_easing"|"policy_tightening"|"fiscal_expansion"|
+                         "credit_cycle_early"|"credit_cycle_late"|"risk_on"|"risk_off"|"unclear" ],
+  "growth_bias": "positive"|"negative"|"mixed"|"unclear",
+  "inflation_bias": "higher"|"lower"|"mixed"|"unclear",
+  "policy_bias": "easing"|"tightening"|"mixed"|"unclear",
+  "liquidity_bias": "improving"|"deteriorating"|"mixed"|"unclear",
+  "credit_cycle_bias": "repair"|"recovery"|"expansion"|"contraction"|"stress"|"unclear",
+  "horizon": "intraday"|"1-5d"|"1w-3m"|"3-12m"|"secular"|"unclear",
+  "affected_asset_classes": [str], "affected_strategy_families_hint": [str],
+  "confidence": number(0..1), "evidence_refs": [str], "missing_data": [str],
+  "rationale": str, "warnings": [str] }
+"""
+
+
+
 # Appended by LLMProvider to EVERY discovery prompt (never the expression seams). The relevant
 # METHOD skill card(s) are injected into the user content alongside this footer.
 DISCOVERY_PROMPT_FOOTER = """

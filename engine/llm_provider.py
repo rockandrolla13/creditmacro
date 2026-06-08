@@ -23,6 +23,7 @@ from .prompts import (
     DEFINE_AXIS_PROMPT,
     DIAGNOSE_LOOPS_PROMPT,
     DISCOVERY_PROMPT_FOOTER,
+    MACRO_CONTEXT_PROMPT,
     SYSTEM_MAP_PROMPT,
 )
 from .protocols import RunContext
@@ -35,6 +36,7 @@ from .schema import (
     CausalNode,
     Driver,
     LoopDiagnosis,
+    MacroContext,
     Provenance,
     Scenario,
     SystemMap,
@@ -246,6 +248,17 @@ class LLMProvider:
         user = (f"Theme: {statement}\nCausal chain: {nodes}"
                 + self._skill_context("critique_mental_model"))
         return self._validate(BiasCritique, self._call_json(CRITIQUE_PROMPT, user), "critique_mental_model")
+
+    # ── MACRO_CONTEXT (discovery context classifier; qualitative tags only) ──
+    def macro_context(self, statement: str, causal_chain: Optional[CausalChain] = None
+                      ) -> Optional[MacroContext]:
+        """Classify the QUALITATIVE macro regime context the input sits in. METHOD-only:
+        injects the macro-regime-classifier card (records skills_loaded / skill_card_hashes),
+        reads no CASE memory. Emits tags, NEVER probabilities / scenarios / trades."""
+        nodes = ", ".join(n.statement for n in causal_chain.nodes) if causal_chain else ""
+        user = (f"Discovery input:\n{statement}\nCausal chain: {nodes}"
+                + self._skill_context("macro_context"))
+        return self._validate(MacroContext, self._call_json(MACRO_CONTEXT_PROMPT, user), "macro_context")
 
 
 def _extract_text(response) -> str:

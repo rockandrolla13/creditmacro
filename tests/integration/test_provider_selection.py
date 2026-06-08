@@ -63,6 +63,15 @@ _LOOPS = json.dumps({"dominant_loop_now": "R1", "possible_loop_shift": "flows tu
 _CRIT = json.dumps({"dominant_mental_model": "RV is mispricing",
                     "alternative_models": ["rating/duration/liquidity"], "disconfirming_evidence": ["non-stationary"],
                     "decision": "challenge_model"})
+_MACRO = json.dumps({"input_kind": "current_report",
+                     "macro_regime_tags": ["inflationary_growth", "policy_tightening", "credit_cycle_late"],
+                     "growth_bias": "positive", "inflation_bias": "higher", "policy_bias": "tightening",
+                     "liquidity_bias": "deteriorating", "credit_cycle_bias": "expansion", "horizon": "3-12m",
+                     "affected_asset_classes": ["IG credit", "rates"],
+                     "affected_strategy_families_hint": ["long_short", "index_index_rv"],
+                     "confidence": 0.5, "evidence_refs": ["jpm-ai-capex-funding-2026-05-11"],
+                     "missing_data": [], "rationale": "AI capex funding wave in a late-cycle tightening regime",
+                     "warnings": []})
 
 
 class _Block:
@@ -79,6 +88,7 @@ class _RoutingFake:
             if "SYSTEM MAP" in system: return _Resp(_SYSMAP)
             if "diagnose QUALITATIVELY" in system: return _Resp(_LOOPS)
             if "Critique the mental model" in system: return _Resp(_CRIT)
+            if "MACRO REGIME CONTEXT CLASSIFIER" in system: return _Resp(_MACRO)
             return _Resp(_EXPAND)
     @property
     def messages(self): return _RoutingFake._M(self)

@@ -169,6 +169,13 @@ def _run_discovery(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObjec
             )
             return blocked, _render_blocked_memo(blocked)
 
+    # Discovery context classifier (additive, advisory). Only providers that supply the
+    # seam produce a MacroContext; ScriptedProvider returns None, so the golden path is
+    # byte-identical. The affected_strategy_families_hint is RECORDED only here — confidence
+    # influence is pending a follow-up PR (no ConfidenceComponents math changes this PR).
+    mc = (provider.macro_context(ctx.statement, cs.causal_chain)
+          if hasattr(provider, "macro_context") else None)
+
     # Scenarios the causal object already carries (we do NOT generate them); used only
     # for the LIGHT priced-in confidence, never for detailed pricing.
     scenarios = provider.propose_scenarios(thesis, cs.axis, cs.loop_diagnosis)
@@ -195,6 +202,7 @@ def _run_discovery(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObjec
         probability_justification=prob_just,
         main_theme=cs.main_theme, causal_chain=cs.causal_chain, shared_factor=cs.shared_factor,
         system_map=cs.system_map, bias_critique=cs.bias_critique, loop_diagnosis=cs.loop_diagnosis,
+        macro_context=mc,
         # detailed-expression half intentionally left absent (None / empty)
     )
     return theme, _render_discovery_memo(theme)
