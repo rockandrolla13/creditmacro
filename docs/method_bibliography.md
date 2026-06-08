@@ -84,6 +84,7 @@ reference only).
 | [A Yield-Factor Model of Interest Rates](https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1467-9965.1996.tb00123.x) | Duffie & Kan · 1996 | Math. Finance 6(4) 379–406 · paper | PRICING → the affine TSM fair-value engine | paywalled · **Y** | Foundational affine-model paper |
 | [A No-Arbitrage VAR of Term Structure Dynamics](https://www.sciencedirect.com/science/article/abs/pii/S0304393203000321) | Ang & Piazzesi · 2003 | JME 50(4) 745–87 · paper | CONTEXT → macro-driven curve shape | paywalled · **Y** | High-citation; links macro drivers to curve fair value |
 | [Bond Risk Premia](https://www.aeaweb.org/articles?id=10.1257/0002828053828581) | Cochrane & Piazzesi · 2005 | AER 95(1) 138–60 · paper | EXPRESSION → curve carry/value (forward-rate factor) | paywalled · **Y** | Top-5 journal; canonical bond-return predictability |
+| [A Preferred-Habitat Model of the Term Structure of Interest Rates](https://www.nber.org/papers/w15487) | Vayanos & Vila · 2021 | Econometrica 89(1) 77–112 · paper | PRICING → bond supply/demand shock → continuous term-premium shift (model asset-supply shocks mathematically, not observationally) | preprint open · **Y** | Canonical preferred-habitat model; the supply→risk-premium transmission for QE / central-bank-balance-sheet shocks *(PDF in `research/preferred-habitat/`)* |
 
 ## 7. Macro regimes → feeds `CONTEXT` (driver extraction)
 
@@ -94,6 +95,7 @@ reference only).
 | [Measuring Uncertainty](https://www.aeaweb.org/articles?id=10.1257/aer.20131193) | Jurado, Ludvigson & Ng · 2015 | AER 105(3) 1177–216 · paper | CONTEXT → uncertainty/risk-appetite driver | paywalled · **Y** | Top-5 journal; rigorous uncertainty measurement |
 | [International Asset Allocation With Regime Shifts](https://academic.oup.com/rfs/article-abstract/15/4/1137/1568247) | Ang & Bekaert · 2002 | RFS 15 1137–87 · paper | CONTEXT → crisis-regime scenario weighting | paywalled · **Y** | Peer-reviewed evidence regimes matter for allocation |
 | [New Indicators for Tracking Growth in Real Time](https://www.imf.org/external/pubs/ft/wp/2011/wp1143.pdf) | Matheson · 2011 | IMF WP 11/43 · paper | CONTEXT → global growth-tracking driver | **open** · Y | IMF working paper; multi-country real-time growth indicators *(PDF in `research/nowcasting/`)* |
+| [An Aggregative Theory for a Closed Economy](https://kilthub.cmu.edu/articles/journal_contribution/An_Aggregative_Theory_for_a_Closed_Economy/6703592) | Brunner & Meltzer · 1976 | in *Monetarism* (ed. Stein), Ch. 2, 69–103 · book chapter | CONTEXT/CAUSAL → flow-of-funds transmission matrix; split a macro input into stock vs flow channels (asset substitution when balance sheets turn) | open (CMU archive) · **Y** | Foundational monetarist asset-substitution framework behind the balance-sheet→risk-premium pair *(PDF in `research/preferred-habitat/`)* |
 
 ## 8. Portfolio & sizing → `DOWNSTREAM` (reference only; the engine stops at a memo)
 
