@@ -24,6 +24,15 @@ SEAM_TO_SKILLS: dict[str, list[str]] = {
     "macro_context": ["macro-regime-classifier"],
 }
 
+# Newly compiled cards are REGISTERED (discoverable + loadable) but deliberately NOT added to
+# SEAM_TO_SKILLS — i.e. not auto-wired into any live seam this PR.
+#  - evidence-weighting: PENDING the Q4 posterior≠prior derivation (separate PR); must not feed
+#    ConfidenceComponents yet.
+#  - priced-in-estimator / edge-validity: READABLE in discovery as method context, but not
+#    injected (they must not change any golden-master numerical output).
+PENDING_WIRING_SKILLS = ("evidence-weighting",)
+READABLE_DISCOVERY_SKILLS = ("priced-in-estimator", "edge-validity")
+
 _REQUIRED_FRONTMATTER = ("skill_name", "access_class", "pipeline_phase", "provider_seam",
                          "input_objects", "output_objects")
 # Sections kept when condensing for a prompt (token budget).
