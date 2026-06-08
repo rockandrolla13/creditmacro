@@ -23,12 +23,26 @@ random.Random(42).shuffle(slugs)                                   # randomise O
 
 ## Source order (seed 42, frozen)
 
-_No source pages found in `wiki/sources/` yet._
+_Built 2026-06-08 (1 source page existed). The seed-42 shuffle of a single slug is itself.
+When more sources are added, extend this frozen list — do not reshuffle existing entries._
 
-When you add source summaries under `wiki/sources/`, build the frozen randomised checklist
-once (procedure above) and do not reshuffle it afterwards. Then run **"lint the wiki"** to
-process the first batch of 5.
+- [x] [[jpm-ai-capex-funding-2026-05-11]]  — Batch 1, 2026-06-08
 
 ## Hub pages (entities / concepts / themes touched during lint)
 
-_None yet._
+All 17 pages linked by the batch-1 source have exactly one contributing source (now linted) →
+`[x]`. Notable fix: the concept below was renamed to match its declared slug.
+
+- [x] [[hyperscaler-project-bond-basis-mechanics]] — concept; renamed from `…-bond-basis.md`
+  (filename ≠ slug, collided with the theme); all inbound `…-mechanics` links now resolve.
+- [x] themes: [[ai-capex-funding-credit-ecosystem]], [[hyperscaler-project-bond-basis]],
+  [[hy-hpc-crowding-and-supply]], [[data-center-index-inclusion-technicals]]
+- [x] concepts: [[data-center-credit]], [[high-performance-computing-credit]],
+  [[index-inclusion-technical]], [[limited-syndication]], [[144a-for-life]], [[related-obligation-rv]]
+- [x] strategy-families: [[long_short]], [[index_index_rv]], [[etf_basket_rv]], [[curve]],
+  [[cash_cds_basis]], [[outright]], [[watchlist_only]]
+
+## Deferred (not yet contributed by any linted source)
+
+- [ ] `engines/` (9 pages) — absent from `index.md`; needs a dedicated pass + an index Engines
+  section. See lint-scratch Batch 1 → Cross-cutting.

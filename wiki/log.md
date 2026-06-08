@@ -37,3 +37,20 @@ Entry format:
   index defines the live DC technical; HPC likely crowded (watchlist); memory-map not yet in skip-set.
 - **No-trade confirmation:** no exact bonds, curve points, hedge ratios, sizes, or execution emitted.
   Discovery memory only — families, not trades.
+
+## [2026-06-08] lint | batch 1
+- **Sources linted:** [[jpm-ai-capex-funding-2026-05-11]] (1; the only source page — seed-42
+  frozen order built this session). Read the source + all 17 pages it links (4 themes, 7
+  concepts, 7 strategy-families) + evidence atoms.
+- **Fixes made:** (1) renamed `concepts/hyperscaler-project-bond-basis.md` →
+  `…-mechanics.md` so the filename matches its declared `slug` — this resolved a slug collision
+  with the theme `hyperscaler-project-bond-basis` and fixed 4 broken inbound `[[…-mechanics]]`
+  links (index.md, log.md, data-center-credit, related-obligation-rv). (2) Source "Concepts:"
+  line relinked `[[hyperscaler-project-bond-basis]]` → `[[hyperscaler-project-bond-basis-mechanics]]`
+  (it meant the concept, not the theme).
+- **Cross-cutting patterns:** `engines/` (9 pages) absent from `index.md` — deferred to a
+  dedicated pass (outside this source's link graph).
+- **Remaining issues:** source frontmatter carries non-CONVENTIONS fields (`classification`,
+  `workflow_status`) — preserved, flagged for a schema decision. No broken links, missing pages,
+  stale sources lists, stubs, contradictions, or investment-process gaps in the linted set.
+- **Verification:** 0 real broken wikilinks and 0 slug collisions wiki-wide after fixes.

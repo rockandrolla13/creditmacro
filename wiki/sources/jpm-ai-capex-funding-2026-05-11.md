@@ -93,7 +93,7 @@ Families only (no trades): [[long_short]] (related-obligation RV), [[index_index
 
 ## Links created or updated
 - Themes: [[ai-capex-funding-credit-ecosystem]], [[hyperscaler-project-bond-basis]], [[hy-hpc-crowding-and-supply]], [[data-center-index-inclusion-technicals]]
-- Concepts: [[data-center-credit]], [[high-performance-computing-credit]], [[hyperscaler-project-bond-basis]], [[index-inclusion-technical]], [[limited-syndication]], [[144a-for-life]], [[related-obligation-rv]]
+- Concepts: [[data-center-credit]], [[high-performance-computing-credit]], [[hyperscaler-project-bond-basis-mechanics]], [[index-inclusion-technical]], [[limited-syndication]], [[144a-for-life]], [[related-obligation-rv]]
 - Strategy families: [[long_short]], [[index_index_rv]], [[etf_basket_rv]], [[curve]], [[cash_cds_basis]], [[outright]], [[watchlist_only]]
 
 ## Open questions
