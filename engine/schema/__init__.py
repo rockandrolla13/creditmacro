@@ -14,6 +14,7 @@ from .causal import (
     _chain_is_connected,
 )
 from .expression import Expression, ScenarioPnL
+from .macro import MacroContext, MacroRegimeTag
 from .pricing import EdgeContribution, PricedIn, Pricing, Scenario
 from .probability import (
     EvidenceDirection,
@@ -58,6 +59,8 @@ __all__ = [
     "ConfidenceComponents", "StrategyFamilyRec",
     # risk
     "Sizing", "StopLoss", "Falsifier", "Risk", "PMGate", "Provenance",
+    # macro context (discovery context classifier)
+    "MacroContext", "MacroRegimeTag",
     # theme
     "ThemeObject",
 ]

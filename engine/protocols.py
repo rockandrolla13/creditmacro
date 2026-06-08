@@ -11,6 +11,7 @@ from .schema import (
     CausalChain,
     CausalNode,
     Expression,
+    MacroContext,
     PMGate,
     Provenance,
     Risk,
@@ -120,3 +121,11 @@ class Provider(ScenarioSource, ExpressionSource, RiskSource, Protocol):
     def normal_fair_value(self, axis: Axis) -> float: ...
 
     def critique(self, theme: ThemeObject) -> list[str]: ...
+
+    def macro_context(
+        self, statement: str, causal_chain: Optional[CausalChain] = None
+    ) -> Optional[MacroContext]:
+        """OPTIONAL discovery context classifier — qualitative macro-regime tags only (no
+        probabilities / scenarios / trades). Default None: a provider that omits it produces
+        NO macro context, keeping the golden / scripted path byte-identical."""
+        return None
