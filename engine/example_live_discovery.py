@@ -14,14 +14,13 @@ freezes the snapshot, and STOPS. Writes a private (gitignored) capture record. N
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from .capture import LiveRunRecord, input_hash, write_run_record
+from .capture import LiveRunRecord
 from .cases import PolicyConfig
+from .live_discovery import SemanticContractViolation, run_live_discovery
 from .memory import MemoryRetriever, load_wiki_pages
-from .provider_select import run_discovery, select_discovery_provider
 
 
 def build_argparser() -> argparse.ArgumentParser:
@@ -31,6 +30,9 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--input", required=True, help="research sentence / idea")
     p.add_argument("--current-source", default=None, help="path to a current-input source card")
     p.add_argument("--axis", action="append", default=[], help="source-derived axis candidate (repeatable)")
+    p.add_argument("--input-kind", default=None,
+                   choices=["jpm_report", "curve_steepener", "etf_flow", "margin_compression"],
+                   help="enables the automatic axis/family semantic contract for this input kind")
     p.add_argument("--wiki", default="wiki")
     p.add_argument("--no-capture", action="store_true")
     return p
@@ -42,40 +44,31 @@ def run(argv: Optional[list[str]] = None) -> LiveRunRecord:
     # METHOD-only retriever over the wiki (phase A; fail-closed on CASE).
     retriever = MemoryRetriever(load_wiki_pages(args.wiki), phase="A")
     current_sources = [Path(args.current_source).stem] if args.current_source else []
+    slug = current_sources[0] if current_sources else "adhoc"
 
-    provider = select_discovery_provider(
-        args.provider, research_text=args.input, current_input_axes=args.axis,
-        current_sources=current_sources, retriever=retriever,
-    )
-    theme, memo = run_discovery(provider, PolicyConfig())
+    # The harness runs the AUTOMATIC semantic contract before any snapshot and fails closed.
+    try:
+        result = run_live_discovery(
+            research_text=args.input, current_input_axes=args.axis,
+            current_sources=current_sources, retriever=retriever,
+            input_kind=args.input_kind, policy=PolicyConfig(),
+            capture=not args.no_capture, slug=slug,
+        )
+    except SemanticContractViolation as exc:
+        print("=== SEMANTIC CONTRACT FAILED CLOSED (no snapshot frozen) ===")
+        for v in exc.violations:
+            print("  -", v)
+        return exc.record
 
-    families = [f.family for f in theme.strategy_families]
-    print(memo)
-    print("\n=== ranked strategy families:", families or "(none — blocked)")
+    theme = result.theme
+    print("\n=== ranked strategy families:", result.record.final_strategy_families or "(none — blocked)")
     print("=== status:", theme.status, "| block_reason:", theme.block_reason)
+    print("=== axis:", theme.axis.definition if theme.axis else None)
     print("=== NO-TRADE: pricing", theme.pricing, "| sizing", theme.sizing,
           "| expressions", theme.expressions)
-
-    record = LiveRunRecord(
-        run_id=f"live-{input_hash(args.input)}",
-        timestamp=datetime.now(timezone.utc).isoformat(),
-        model_name=getattr(provider, "model", "n/a"),
-        provider=args.provider,
-        input_hash=input_hash(args.input),
-        source_slugs=current_sources,
-        method_pages_read=getattr(provider, "memory_log", {}).get("method_pages_read", []),
-        case_pages_refused=getattr(provider, "memory_log", {}).get("case_pages_refused", []),
-        prompt_names=["expand_causal", "define_axis", "build_system_map",
-                      "diagnose_loops", "critique_mental_model"],
-        blocked_status=theme.block_reason,
-        final_strategy_families=families,
-        no_trade_confirmation=(theme.pricing is None and theme.sizing is None
-                               and not theme.expressions),
-    )
-    if not args.no_capture:
-        path = write_run_record(record, slug=current_sources[0] if current_sources else "adhoc")
-        print("=== capture written:", path)
-    return record
+    print("=== snapshot_hash:", result.record.snapshot_hash)
+    print("=== memory:", result.record.method_pages_read, "| refused:", result.record.case_pages_refused)
+    return result.record
 
 
 if __name__ == "__main__":

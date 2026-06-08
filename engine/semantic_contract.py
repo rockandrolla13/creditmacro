@@ -101,3 +101,33 @@ def check_axis_contract(
     else:
         v.append(f"unknown input kind {kind!r}")
     return v
+
+
+def validate_discovery_output(theme, input_kind: InputKind | None = None) -> list[str]:
+    """The AUTOMATIC gate run on every live discovery output BEFORE a FreshReasoningSnapshot.
+
+    Always fails closed on trade-leg / sizing / expression leakage; additionally checks the
+    axis/family contract when the input kind is known (skipped for a blocked HALT, which
+    deliberately carries no axis). Returns violations (empty ⇒ safe to freeze).
+    """
+    v: list[str] = []
+    # trade-leakage gates — discovery must NEVER carry pricing / sizing / detailed expressions
+    if getattr(theme, "pricing", None) is not None:
+        v.append("trade_leakage: pricing present in a discovery output")
+    if getattr(theme, "sizing", None) is not None:
+        v.append("trade_leakage: sizing present in a discovery output")
+    if getattr(theme, "expressions", None):
+        v.append("trade_leakage: detailed expressions present in a discovery output")
+    if getattr(theme, "status", None) == "expression_complete":
+        v.append("expression_leakage: discovery produced an expression_complete object")
+
+    # axis/family contract — only when the axis exists and the input kind is known
+    if getattr(theme, "status", None) != "blocked" and input_kind is not None \
+            and getattr(theme, "axis", None) is not None:
+        axes = [theme.axis.definition]
+        families = [f.family for f in theme.strategy_families]
+        missing = [getattr(f, "data_needed_next", "") or "" for f in theme.strategy_families]
+        if getattr(theme, "loop_diagnosis", None) is not None:
+            missing += list(theme.loop_diagnosis.pm_questions)
+        v += check_axis_contract(input_kind, axes, families, missing_data=missing)
+    return v
