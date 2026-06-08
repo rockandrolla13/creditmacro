@@ -1,0 +1,67 @@
+---
+skill_name: system-mapper
+access_class: method
+pipeline_phase: discovery_system_map
+provider_seam: [LLMProvider.build_system_map, Provider.build_system_map]
+input_objects: [CausalChain, operational_axes, source_evidence, method_context]
+output_objects: [SystemMap, Stock, Flow, FeedbackLoop, Delay, behavior_over_time_variables, observable_variables]
+gates_created: [stock_vs_flow_distinction, not_everything_is_a_loop, name_the_system_boundary]
+allowed_to_influence: [system structure, stock/flow identification, loop taxonomy, delay identification, observable variables]
+not_allowed_to_influence: [pricing, sizing, expressions, numerical simulation, scenario probabilities]
+failure_modes: [stock/flow confusion, loop-everything, missing the system boundary, inventing variables not in evidence]
+tests: [test_system_map_issuance_is_flow_debt_is_stock, test_system_map_reinforcing_loop_present]
+---
+
+# System Mapper
+
+> **Compiled from** *Thinking in Systems* (Meadows): stocks, flows, balancing (B) and
+> reinforcing (R) feedback, delays, and system boundary. METHOD card: no case conclusions, no trades.
+
+## Purpose
+Convert a causal object into a **system map**: elements, interconnections, function/purpose,
+stocks, flows, feedback loops, delays, and observable behaviour-over-time.
+
+## Process primitives (paraphrased from Meadows)
+- A **stock** is a level — an accumulation measurable at an instant (the memory of the system).
+- A **flow** is a rate — a change-over-time that fills or drains a stock. *Misclassifying these
+  is the central error.*
+- **Balancing (B)** loops are goal-seeking / stabilising; they oppose imposed change and produce
+  "homing" behaviour. **Reinforcing (R)** loops are self-enhancing; they produce exponential
+  growth or runaway collapse. "System structure is the source of system behaviour."
+- **Delays** in a balancing loop make a system oscillate / overshoot — flag them.
+- Name the **system boundary** (what's inside vs outside); boundaries are problem-dependent.
+
+## When to use
+After a causal chain is built, in Phase A — to expose accumulation dynamics and loops the linear
+chain hides.
+
+## Inputs
+Causal chain, operational axes, source evidence, method memory.
+
+## Outputs
+`SystemMap`, `Stock[]`, `Flow[]`, `FeedbackLoop[]`, `Delay[]`, behavior-over-time variables,
+observable variables.
+
+## Required fields
+System boundary; elements; interconnections; purpose/function; ≥1 stock if accumulation exists;
+≥1 flow if change-over-time exists; feedback loops where applicable; delays where applicable.
+
+## Validation rules
+- Distinguish stocks (levels, measurable at an instant) from flows (rates over time).
+- Do not describe everything as a feedback loop.
+- If there are no meaningful stocks/flows, say so explicitly.
+- Use source-derived variables where available.
+
+## Failure / blocked states
+- No accumulation and no rate → report "no meaningful stock/flow structure" (still a valid map).
+- A claimed loop with no closing path → drop it (not every arrow is a loop).
+
+## Example output (AI-credit illustration)
+- Stocks: outstanding DC/compute debt, index ownership, investor positioning, DC capacity.
+- Flows: new issuance, ETF/fund inflows, index-inclusion changes, secondary liquidity.
+- Loop R: performance → attention/inflows → spread tightening → more performance.
+- Loop B: issuance growth → cheapening → reduced demand / higher concession.
+- Delays: index-inclusion lag, construction/completion lag, secondary-liquidity lag.
+
+## Non-goals
+No ODE simulation, no numerical solver, no trades, no sizing.

@@ -115,3 +115,17 @@ Emit ONLY this JSON (engine.schema.BiasCritique shape):
   "lenses_examined":[str], "disconfirming_evidence":[str],
   "decision": "accept_model"|"challenge_model"|"reject_model", "rationale": str }
 """
+
+
+# Appended by LLMProvider to EVERY discovery prompt (never the expression seams). The relevant
+# METHOD skill card(s) are injected into the user content alongside this footer.
+DISCOVERY_PROMPT_FOOTER = """
+
+DISCOVERY CONTRACT (applies to this and every discovery seam):
+1. Follow the relevant METHOD skill card supplied below.
+2. Return JSON only — no prose outside the JSON object.
+3. Match the schema exactly (the keys given above).
+4. Do NOT output trades, legs, hedge ratios, sizing, curve points, or execution instructions.
+5. If required information is missing, return a blocked / watchlist / research_more signal
+   (e.g. axis=null + recommend_watchlist) — do not fabricate a series or a probability.
+"""

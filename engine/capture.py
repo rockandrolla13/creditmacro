@@ -36,6 +36,8 @@ class LiveRunRecord(BaseModel):
     method_pages_read: list[str] = []
     case_pages_refused: list[str] = []
     prompt_names: list[str] = []
+    skills_loaded: list[str] = []       # METHOD skill cards injected this run
+    skill_card_hashes: dict = {}        # skill slug → content hash (for replay/audit)
     validated_outputs: dict = {}        # seam → schema-valid JSON (e.g. {"axis": {...}})
     validation_errors: list[str] = []
     blocked_status: Optional[str] = None

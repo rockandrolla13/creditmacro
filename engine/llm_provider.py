@@ -22,9 +22,11 @@ from .prompts import (
     CRITIQUE_PROMPT,
     DEFINE_AXIS_PROMPT,
     DIAGNOSE_LOOPS_PROMPT,
+    DISCOVERY_PROMPT_FOOTER,
     SYSTEM_MAP_PROMPT,
 )
 from .protocols import RunContext
+from .skills import card_hash, condense_card, load_skills_for_seam, skills_for_seam
 from .schema import (
     AxisCandidate,
     BiasCritique,
@@ -71,6 +73,7 @@ class LLMProvider:
         author: str = "engine.llm_provider (live discovery)",
         current_input_axes: Optional[list[str]] = None,   # source-derived axis candidates
         current_sources: Optional[list[str]] = None,       # current-input source slugs/paths
+        skills_enabled: bool = True,                        # inject METHOD skill cards into prompts
     ) -> None:
         self._client = client
         self.model = model
@@ -82,6 +85,9 @@ class LLMProvider:
         self.author = author
         self.current_input_axes = list(current_input_axes or [])
         self.current_sources = list(current_sources or [])
+        self.skills_enabled = skills_enabled
+        self.skills_loaded: list[str] = []
+        self.skill_card_hashes: dict[str, str] = {}
         self.last_axis_selection: Optional[AxisCandidate] = None
 
     def _get_client(self):
@@ -92,11 +98,31 @@ class LLMProvider:
 
     # ── generic call + method-memory context ────────────────────────────────
     def _call_json(self, system_prompt: str, user_content: str) -> dict:
+        # Every discovery prompt carries the discovery contract footer (no trades, JSON only,
+        # missing→blocked/watchlist). Skill cards are injected into user_content per seam.
         response = self._get_client().messages.create(
-            model=self.model, max_tokens=self.max_tokens, system=system_prompt,
+            model=self.model, max_tokens=self.max_tokens,
+            system=system_prompt + DISCOVERY_PROMPT_FOOTER,
             messages=[{"role": "user", "content": user_content}],
         )
         return _parse_json_object(_extract_text(response))
+
+    def _skill_context(self, seam: str) -> str:
+        """Load the seam's METHOD skill card(s), record them for capture, and return condensed
+        text for the prompt. Fail closed: a missing required card raises (engine.skills)."""
+        if not self.skills_enabled:
+            return ""
+        slugs = skills_for_seam(seam)
+        if not slugs:
+            return ""
+        cards = load_skills_for_seam(seam)              # MissingSkillCard ⇒ fail closed
+        parts = []
+        for slug, card in zip(slugs, cards):
+            if slug not in self.skills_loaded:
+                self.skills_loaded.append(slug)
+            self.skill_card_hashes[slug] = card_hash(card)
+            parts.append(condense_card(card))
+        return "\n\n--- METHOD SKILLS (follow these) ---\n" + "\n\n".join(parts)
 
     def _method_context(self) -> str:
         """Pull METHOD pages only (fail-closed: the retriever never serves CASE in phase A)."""
@@ -163,7 +189,8 @@ class LLMProvider:
     ) -> tuple[Optional[CausalNode], Optional[CausalChain], Optional[str]]:
         obj = self._call_json(
             self.system_prompt,
-            f"Research text:\n{research_text}\n\nParsed theme: {parsed_theme}",
+            f"Research text:\n{research_text}\n\nParsed theme: {parsed_theme}"
+            + self._skill_context("expand_causal"),
         )
         for key in ("main_theme", "causal_chain", "shared_factor"):
             if key not in obj:
@@ -185,7 +212,8 @@ class LLMProvider:
         source-derived candidates carried on the thesis drivers."""
         candidates = "\n".join(f"- {d.proxy_observable}" for d in thesis.drivers if d.proxy_observable)
         user = (f"Source-derived axis candidates (prefer these):\n{candidates}\n\n"
-                f"Thesis direction: {thesis.direction_of_view}{self._method_context()}")
+                f"Thesis direction: {thesis.direction_of_view}{self._method_context()}"
+                + self._skill_context("define_axis"))
         cand = self._validate(AxisCandidate, self._call_json(DEFINE_AXIS_PROMPT, user), "define_axis")
         self.last_axis_selection = cand
         return cand
@@ -200,7 +228,7 @@ class LLMProvider:
     def build_system_map(self, thesis: Thesis, causal_chain: Optional[CausalChain]) -> Optional[SystemMap]:
         nodes = ", ".join(n.id for n in causal_chain.nodes) if causal_chain else ""
         user = (f"Causal chain nodes: {nodes}\nThesis: {thesis.direction_of_view}"
-                f"{self._method_context()}")
+                f"{self._method_context()}" + self._skill_context("build_system_map"))
         return self._validate(SystemMap, self._call_json(SYSTEM_MAP_PROMPT, user), "build_system_map")
 
     # ── DIAGNOSE_LOOPS ──────────────────────────────────────────────────────
@@ -208,13 +236,15 @@ class LLMProvider:
         if system_map is None:
             return None
         loops = "; ".join(f"{fl.id}:{fl.type}" for fl in system_map.feedback_loops)
-        user = f"System loops: {loops}\nStocks: {[s.name for s in system_map.stocks]}"
+        user = (f"System loops: {loops}\nStocks: {[s.name for s in system_map.stocks]}"
+                + self._skill_context("diagnose_loops"))
         return self._validate(LoopDiagnosis, self._call_json(DIAGNOSE_LOOPS_PROMPT, user), "diagnose_loops")
 
     # ── CRITIQUE_MENTAL_MODEL ───────────────────────────────────────────────
     def critique_mental_model(self, statement: str, causal_chain: Optional[CausalChain]) -> Optional[BiasCritique]:
         nodes = ", ".join(n.statement for n in causal_chain.nodes) if causal_chain else ""
-        user = f"Theme: {statement}\nCausal chain: {nodes}"
+        user = (f"Theme: {statement}\nCausal chain: {nodes}"
+                + self._skill_context("critique_mental_model"))
         return self._validate(BiasCritique, self._call_json(CRITIQUE_PROMPT, user), "critique_mental_model")
 
 

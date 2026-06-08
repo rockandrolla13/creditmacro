@@ -90,7 +90,10 @@ def run_live_discovery(
         input_hash=input_hash(research_text), source_slugs=list(current_sources or []),
         method_pages_read=mlog.get("method_pages_read", []),
         case_pages_refused=mlog.get("case_pages_refused", []),
-        prompt_names=_PROMPT_NAMES, validated_outputs=_validated_outputs(theme),
+        prompt_names=_PROMPT_NAMES,
+        skills_loaded=list(getattr(provider, "skills_loaded", [])),
+        skill_card_hashes=dict(getattr(provider, "skill_card_hashes", {})),
+        validated_outputs=_validated_outputs(theme),
         validation_errors=violations, blocked_status=theme.block_reason,
         final_strategy_families=[f.family for f in theme.strategy_families],
         no_trade_confirmation=(theme.pricing is None and theme.sizing is None
