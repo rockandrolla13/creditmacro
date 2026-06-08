@@ -173,7 +173,8 @@ def test_seams_read_method_memory_only():
 def test_no_expression_seams_on_llm_provider():
     assert not hasattr(LLMProvider, "enumerate_expressions")
     assert not hasattr(LLMProvider, "size_and_risk")
-    assert not hasattr(LLMProvider, "propose_scenarios")   # not wired (stays scripted)
+    # propose_scenarios exists but invents nothing (no scenarios / probabilities)
+    assert LLMProvider(research_text="x").propose_scenarios(None, None) == []
     # the discovery seams' outputs carry no pricing/sizing/expression fields
     for cls in (Axis, SystemMap, LoopDiagnosis, BiasCritique):
         fields = set(cls.model_fields)

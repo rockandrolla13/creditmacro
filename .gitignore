@@ -12,3 +12,6 @@ __pycache__/
 .playwright-mcp/
 raw/
 wiki/.fresh_reasoning_snapshot.json
+
+# Private live-run capture transcripts (never committed)
+runs/

@@ -1,13 +1,16 @@
 """LLMProvider — the LIVE generative counterpart to ScriptedProvider.
 
-Implements the DISCOVERY half only: expand_causal, define_axis, build_system_map,
-diagnose_loops, critique_mental_model. Each makes one Anthropic Messages call behind a
-purpose-specific prompt, then PARSES + VALIDATES the JSON into the existing engine schema.
-Expression seams (enumerate_expressions, size_and_risk, propose_scenarios) are deliberately
-NOT implemented here — they stay scripted.
+Implements the DISCOVERY half: context, parse, extract_drivers, expand_causal, define_axis,
+build_system_map, diagnose_loops, critique_mental_model, propose_scenarios (returns [] — no
+scenario/probability invention). Each generative seam makes one Anthropic Messages call behind
+a purpose-specific prompt, then PARSES + VALIDATES the JSON into the existing engine schema.
 
-Memory: an optional phase-A MemoryRetriever is injected; the seams pull METHOD pages only
-(the retriever is fail-closed on CASE in phase A), so no case memory enters fresh reasoning.
+Expression seams (enumerate_expressions, size_and_risk) are deliberately NOT implemented — they
+stay scripted, and run_workflow(mode="expression") must not use this provider.
+
+Memory: an optional phase-A MemoryRetriever is injected; the seams pull METHOD pages only (the
+retriever is fail-closed on CASE in phase A), so no case memory enters fresh reasoning. The
+current-input report/text may be read; archived CASE pages only after a FreshReasoningSnapshot.
 """
 from __future__ import annotations
 
@@ -21,16 +24,22 @@ from .prompts import (
     DIAGNOSE_LOOPS_PROMPT,
     SYSTEM_MAP_PROMPT,
 )
+from .protocols import RunContext
 from .schema import (
     AxisCandidate,
     BiasCritique,
     CausalChain,
+    CausalChainStep,
     CausalNode,
+    Driver,
     LoopDiagnosis,
+    Provenance,
+    Scenario,
     SystemMap,
     Thesis,
 )
 from .schema.causal import Axis
+from .stage0 import IngestionResult
 
 _DEFAULT_MODEL = "claude-sonnet-4-6"
 _DEFAULT_MAX_TOKENS = 4096
@@ -46,7 +55,9 @@ class NoCleanAxisError(ValueError):
 
 
 class LLMProvider:
-    """Live DISCOVERY seams backed by the Anthropic Messages API."""
+    """Live DISCOVERY provider backed by the Anthropic Messages API."""
+
+    confirm_axis = True   # opt-in: run_workflow calls define_axis to confirm/refine the axis
 
     def __init__(
         self,
@@ -55,12 +66,22 @@ class LLMProvider:
         max_tokens: int = _DEFAULT_MAX_TOKENS,
         system_prompt: str = CAUSAL_EXPANDER_PROMPT,
         retriever=None,                      # optional phase-A MemoryRetriever (METHOD-only)
+        research_text: str = "",
+        horizon: str = "6-12 months",
+        author: str = "engine.llm_provider (live discovery)",
+        current_input_axes: Optional[list[str]] = None,   # source-derived axis candidates
+        current_sources: Optional[list[str]] = None,       # current-input source slugs/paths
     ) -> None:
         self._client = client
         self.model = model
         self.max_tokens = max_tokens
         self.system_prompt = system_prompt
         self.retriever = retriever
+        self.research_text = research_text
+        self.horizon = horizon
+        self.author = author
+        self.current_input_axes = list(current_input_axes or [])
+        self.current_sources = list(current_sources or [])
         self.last_axis_selection: Optional[AxisCandidate] = None
 
     def _get_client(self):
@@ -88,6 +109,17 @@ class LLMProvider:
                 parts.append(f"[[{slug}]]: {page.body[:300]}")
         return ("\nMETHOD memory:\n" + "\n".join(parts)) if parts else ""
 
+    @property
+    def memory_log(self) -> dict:
+        """Phase-A memory access log (for capture / firewall audit)."""
+        reads = self.retriever.reads if self.retriever is not None else []
+        return {
+            "method_pages_read": [r["slug"] for r in reads
+                                  if r["access_class"] == "method" and r["allowed"]],
+            "case_pages_refused": (list(self.retriever.refusals) if self.retriever else []),
+            "current_input_sources_read": list(self.current_sources),
+        }
+
     @staticmethod
     def _validate(model_cls, obj: dict, seam: str):
         try:
@@ -97,6 +129,33 @@ class LLMProvider:
                 f"LLMProvider.{seam}: model output failed schema validation ({exc}). "
                 f"JSON: {json.dumps(obj)[:400]}"
             ) from exc
+
+    # ── non-generative discovery scaffolding (no LLM call) ──────────────────
+    def context(self) -> RunContext:
+        return RunContext(
+            statement=self.research_text, horizon=self.horizon, author=self.author,
+            x_mkt=None, prior=[], thesis_sign=1,
+            provenance=Provenance(evidence=list(self.current_sources), confidence=0.5),
+        )
+
+    def parse(self, raw: str) -> IngestionResult:
+        # Stage-0 ingestion is not generated here (parse_research_text is still a stub);
+        # discovery does not gate on streams. Return empty streams.
+        return IngestionResult(observations=[], candidate_themes=[],
+                               consensus_signals=[], ranked_candidates=[])
+
+    def extract_drivers(self, statement: str) -> Thesis:
+        """Minimal thesis carrying the source-derived axis candidates as driver observables
+        (the real causal object comes from expand_causal). No LLM call."""
+        axes = self.current_input_axes or [statement]
+        drivers = [Driver(name=f"driver: {a[:48]}", sign="+", proxy_observable=a,
+                          mechanism="from current input") for a in axes]
+        chain = [CausalChainStep(from_node=drivers[0].name, to_node=axes[0])]
+        return Thesis(drivers=drivers, causal_chain=chain, direction_of_view=statement)
+
+    def propose_scenarios(self, thesis: Thesis, axis: Axis, loop_diagnosis=None) -> list[Scenario]:
+        # No live scenario engine yet — discovery invents no scenarios / probabilities.
+        return []
 
     # ── EXPAND_CAUSAL ───────────────────────────────────────────────────────
     def expand_causal(
