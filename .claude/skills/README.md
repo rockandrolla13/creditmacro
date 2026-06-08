@@ -61,6 +61,49 @@ registry) but deliberately **not auto-wired** into any live seam — `SEAM_TO_SK
   Super-Thinker iceberg model + the engine's `stage0` taxonomy instead. Re-OCR the deck to
   enrich the taxonomy later.
 
+## Method-cards batch 3 (Tooley / monetary transmission)
+
+### Triage of the named sources
+All sources live in `markdowns/` (the task's `/mnt/project/` paths do not exist here; mapped below).
+
+| Source file (in `markdowns/`) | Bucket | Reason / disposition |
+|---|---|---|
+| `Time, Tense, and Causation (Michael Tooley) …md` | **METHOD** | Timeless philosophy of causation — causal asymmetry, direction of counterfactual dependence, counterfactual vs constant conjunction. Compiled into `causal-compiler` (upgrade). |
+| `Monetary Policy after the Great Recession  the role of interest rates (Arkadiusz Sieroń) …md` | **MIXED → METHOD extract** | Transmission *channel taxonomy* (interest-rate / credit / asset-price / risk-taking) is timeless mechanism → supplemented into `system-mapper` + `macro-regime-classifier` as a stock/flow system. Post-2008 narrative & dated calls EXCLUDED. |
+| `Monetary Policy in Times of Crisis … (Rostagno, Altavilla …) …md` | **MIXED → thin METHOD extract** | Adds the **duration / portfolio-rebalancing channel** (a *stock view*: extracted duration risk → term-premium compression) beyond Sieroń → thin-extracted into the same two cards. The two-decade ECB decision LOG is **CASE** and was NOT compiled. |
+| `Avramov-UnderstandingChangesCorporate-2007.md` | **SKIP (OCR gap)** | JSTOR cover-page stub only (title/authors/"content downloaded from…" repeated); body did not OCR. No method body present → not compiled. Logged as OCR gap; source PDF re-OCR unavailable. |
+| `Alaph Long Presentation Version July 2014.md` | **SPEC** | The fund's own four-step process (theme→valuation→trade selection→portfolio construction) that defines the discovery/expression split. Canonical **workflow reference**; compiled nothing. |
+| `XantimumBizPlan.md` | **SPEC** | Business plan (risk decomposition, liquidity scoring). Compiled nothing. |
+| `Taars.md` | **CASE / ingestion** | Dated DB TAARSS tactical/positioning note. No skill card — ingestion-fixture / case candidate only. |
+
+### Cards updated this batch
+- **`causal-compiler` (UPGRADE)** ← *Time, Tense, and Causation* (Tooley). New section
+  *"Causal asymmetry — what makes a causal object VALID"*: cause precedes / brings the effect into
+  being; **counterfactual dependence ≠ constant conjunction**; asymmetry of dependence
+  (`direction_unidentified` if the arrow reverses cleanly); causal (not temporal) backtracking.
+  Added `test_causal_asymmetry_counterfactual` to frontmatter; existing substrings
+  (hyperscaler/project/confounder/falsifier) and tests preserved.
+- **`system-mapper` (SUPPLEMENT)** ← Sieroń + ECB (Rostagno/Altavilla, mechanism only). New
+  section mapping rate→economy→asset **transmission as a stock/flow + feedback system**
+  (channels; stocks = outstanding credit/reserves/aggregate duration risk; flows = issuance /
+  lending / purchases; reach-for-yield R-loop; delayed credit-boom→fragility B-loop).
+- **`macro-regime-classifier` (SUPPLEMENT)** ← Sieroń + ECB. New *transmission primitive* section
+  (same chain + stock/flow + loops) framing regime-conditional cross-asset propagation.
+
+These edits are **method-text only** — no new registry wiring. `SEAM_TO_SKILLS` is unchanged; the
+golden-master numerical output is unchanged. No new card was created: per the "prefer supplementing"
+rule the monetary-transmission mechanism was folded into the existing macro/system cards.
+
+### OCR gaps (read-before-write rule)
+- `markdowns/Avramov-UnderstandingChangesCorporate-2007.md` — **JSTOR cover-page stub**, body not
+  OCR'd. Skipped (no method body); priced-in-estimator's credit-spread-attribution enrichment is
+  therefore deferred until the source PDF is re-OCR'd.
+
+### SPEC / CASE references (not skill cards)
+- **Alaph Long Presentation (July 2014)** — canonical four-step **workflow reference**.
+- **XantimumBizPlan** — business plan (SPEC).
+- **Taars** — dated TAARSS tactical note → **CASE / ingestion fixture** candidate.
+
 ## Pending skills (later PRs)
 - Carry Estimator (from *Riding Carry* — source PDF not present in repo; DEFERRED).
 - Rates Fair-Value / Cycle Estimator (from *Rates Puzzle Game / Quant Guide to Duration* —
