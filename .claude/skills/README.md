@@ -33,6 +33,27 @@ Each card was COMPILED (paraphrased process primitives, not verbatim text) from 
   propagation.
 - `scenario-pricing-engine` ← the engine's own max-entropy math (`engine/engine2.py`,
   `engine/probability.py`) + Cover–Thomas KL concepts.
+- `evidence-weighting` ← *Bayes and Base Rates* (Mauboussin & Callahan, MS Counterpoint Global)
+  — base-rate anchoring + likelihood-ratio updating.
+- `priced-in-estimator` ← *Investing Amid Low Expected Returns* (Ilmanen) — return building
+  blocks; separating valuation level from risk premium.
+- `edge-validity` ← *Finding Alphas* (Tulchinsky) — in/out-of-sample, overfitting, robustness checklist.
+- `trap-detector` **supplement** ← *How Not to Be Wrong* (Ellenberg) — regression to the mean,
+  survivorship/selection bias, false linearity, false patterns (added as a section to the existing card).
+
+### Registration vs wiring (this PR)
+The three new cards are **registered** (discoverable via `list_available_skills`, loadable via the
+registry) but deliberately **not auto-wired** into any live seam — `SEAM_TO_SKILLS` is unchanged:
+- `evidence-weighting` — **PENDING** the Q4 posterior≠prior derivation (separate PR). It must NOT
+  feed `ConfidenceComponents` yet (`engine.skills.PENDING_WIRING_SKILLS`).
+- `priced-in-estimator`, `edge-validity` — **readable** in discovery as method context, but not
+  injected, and must not change any golden-master numerical output
+  (`engine.skills.READABLE_DISCOVERY_SKILLS`).
+
+### Reviewed but intentionally NOT compiled
+- *Fed Up* (Lancaster) — **reviewed**; it is a trading memoir (narrative/case material, not
+  method). Compiling it would risk leaking case content across the method/case firewall, so no
+  card was produced. Skipped by design.
 
 ### Source gaps (noted per the read-before-write rule)
 - `markdowns/citi global theme book.md` is **image-only** — its text extracts as omitted

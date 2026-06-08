@@ -8,14 +8,15 @@ output_objects: [LoopDiagnosis, dominant_loop_now, possible_loop_shift, system_t
 gates_created: [name_the_balancing_limit, crowding_requires_evidence, qualitative_only_no_ode]
 allowed_to_influence: [loop dominance, trap flags, reversal conditions, early-warning indicators, invalidation evidence, decision]
 not_allowed_to_influence: [pricing, sizing, exact shorts/longs, hedge ratios, execution, scenario probabilities]
-failure_modes: [trap-as-trade, ignoring delays/overshoot, asserting crowding without evidence, no named limit on an R loop]
-tests: [test_trap_flags_success_to_successful_crowding, test_trap_qualitative_no_pricing]
+failure_modes: [trap-as-trade, ignoring delays/overshoot, asserting crowding without evidence, no named limit on an R loop, extrapolating a hot streak (regression to the mean), survivorship/selection bias, false linearity, texas-sharpshooter false patterns]
+tests: [test_trap_flags_success_to_successful_crowding, test_trap_qualitative_no_pricing, test_trap_card_has_ellenberg_supplement]
 ---
 
 # Trap Detector
 
 > **Compiled from** *Thinking in Systems* (Meadows): system archetypes/traps, loop dominance,
-> leverage points. METHOD card: no case conclusions, no trades.
+> leverage points; **supplemented from** *How Not to Be Wrong* (Ellenberg): statistical traps
+> (see the supplement section). METHOD card: no case conclusions, no trades.
 
 ## Purpose
 Diagnose **system traps, loop dominance, crowding, reversals, and failure modes** —
@@ -70,6 +71,20 @@ crowded trade / limits to arbitrage.
   return fades.
 - possible_loop_shift: flows turn → B loop dominates → reversal.
 - Decision: watchlist / challenge_model until evidence confirms.
+
+## Statistical traps (supplement — compiled from *How Not to Be Wrong*, Ellenberg)
+Beyond the system archetypes, screen for the statistical errors that masquerade as signal:
+- **Regression to the mean** — an extreme reading (a hot streak / record outperformance) tends to
+  revert. Do not extrapolate the recent best performers; the "success" may be luck about to mean-revert.
+- **Survivorship / selection bias** — you only see the survivors (the planes that returned, the
+  funds still open). Returns measured on survivors overstate the truth; ask "what's missing from
+  the sample?" (Wald's armour, dead funds).
+- **Linearity vs nonlinearity** — beware *false linearity* ("more is always better"). Many
+  relationships are curved with an optimum in the middle: **which way you should go depends on
+  where you already are**. A directional call that ignores the curvature is a trap.
+- **False patterns (Texas sharpshooter / multiple comparisons)** — pattern found after the fact, or
+  after many tries, is often noise; require a pre-stated mechanism.
+- **Expected-value reasoning** — weigh outcomes by probability and magnitude, not by vividness.
 
 ## Non-goals
 No exact shorts/longs, no hedge ratios, no sizing, no execution.
