@@ -15,9 +15,13 @@ tests: [test_macro_regime_card_exists, test_macro_seam_pending_method_context]
 # Macro Regime Classifier
 
 > **Compiled from** *Citi Views Macro Book* (`markdowns/CITI VIEWS MACRO BOOK.md`):
-> cross-asset regimes, scenario (bear/base/bull) framing, and macro→asset-class propagation.
-> METHOD card: no forecasts, no trades. **Seam status: pending** — until a macro-context seam is
-> added, this card is available as method context for any discovery seam.
+> cross-asset regimes, scenario (bear/base/bull) framing, and macro→asset-class propagation —
+> **supplemented** with the rate→economy→asset *transmission mechanism* from *Monetary Policy
+> after the Great Recession* (Sieroń, channel taxonomy) and the duration / portfolio-rebalancing
+> *mechanism* from *Monetary Policy in Times of Crisis* (Rostagno/Altavilla) — **mechanism only,
+> NOT the post-2008 narrative or the ECB's two-decade decision log**. METHOD card: no forecasts,
+> no trades. **Seam status: pending** — until a macro-context seam is added, this card is
+> available as method context for any discovery seam.
 
 ## Purpose
 Classify the **macro regime state** and determine how macro themes **propagate across asset
@@ -34,6 +38,21 @@ classes** — i.e. "high inflation + AI capex → which sectors, which curve sha
   opportunity.
 - Frame outcomes as **scenarios (bear / base / bull)** with the macro mechanism behind each;
   watch for **regime-transition** risk (don't assume one regime persists).
+
+## Transmission primitive — rate→economy→asset as stock/flow + loops (mechanism only)
+When the regime turns on policy, trace transmission as a *mechanism*, never a dated call:
+- **The chain.** policy rate → market / long-term rates (loose link via term premium, inflation
+  expectations, risk premia) → **asset prices** (Tobin's-q, wealth effect, portfolio-balance) →
+  **bank credit** (bank-lending + balance-sheet channels) → spending / output. Channels to name:
+  interest-rate, credit, asset-price (exchange-rate / Tobin's-q / wealth), risk-taking
+  (search-for-yield), and portfolio-balance / **duration** channel.
+- **Stock/flow framing.** Outstanding credit, reserves, and the *aggregate stock of duration risk*
+  are stocks; issuance, lending, inflows and central-bank purchases are flows. The duration /
+  portfolio-rebalancing mechanism is a **stock view**: extracting duration risk compresses the
+  term premium and propagates across risky assets as freed risk-bearing capacity is redeployed.
+- **Loops.** A reinforcing reach-for-yield loop (lower rates → search for yield → richer asset
+  prices → more risk-taking) and a delayed credit-boom→fragility balancing loop can flip a
+  directional regime call into a dispersion/basis one — and signal regime-transition risk.
 
 ## When to use
 As macro context for any discovery seam, when a theme has cross-asset reach (rates/credit/equity/FX).

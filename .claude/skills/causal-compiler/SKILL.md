@@ -9,14 +9,15 @@ gates_created: [no_causal_chain_blocks, no_axis_routes_to_watchlist, association
 allowed_to_influence: [causal chain structure, promotion to main_theme, operational-axis candidates, identification_status]
 not_allowed_to_influence: [effect-size estimation, pricing, sizing, expressions, scenario probabilities]
 failure_modes: [correlation-as-causation, promoting a hot topic, claiming an effect that is only associational, missing falsifier]
-tests: [test_causal_chain_hyperscaler_neocloud_project, test_causal_missing_chain_blocks, test_causal_missing_axis_watchlist]
+tests: [test_causal_chain_hyperscaler_neocloud_project, test_causal_missing_chain_blocks, test_causal_missing_axis_watchlist, test_causal_asymmetry_counterfactual]
 ---
 
 # Causal Compiler
 
 > **Compiled from** *Thinking in Systems and Mental Models* (Dawson) — iceberg structure layer
-> and behaviour-over-time — and *Thinking in Systems* (Meadows) — mediators / feedback;
-> with the engine's own causal method. METHOD card: no case conclusions, no trades.
+> and behaviour-over-time — *Thinking in Systems* (Meadows) — mediators / feedback — and
+> *Time, Tense, and Causation* (Tooley) — causal asymmetry and the direction of counterfactual
+> dependence; with the engine's own causal method. METHOD card: no case conclusions, no trades.
 
 ## Purpose
 Convert an investment narrative into a **causal object**: driver → transmission channel(s)
@@ -30,6 +31,25 @@ is only associational is not a causal theme. The causal method is:
 Separate **mediators** (on the causal path, channels) from **confounders** (common causes of
 both driver and outcome that create spurious association). Meadows' lens: the chain is a
 structure of stocks/flows/feedback; the outcome variable is the operational axis.
+
+## Causal asymmetry — what makes a causal object VALID
+A causal claim is more than co-movement. Three checks sharpen validity (compiled from Tooley):
+- **Direction / temporal priority.** A cause does not follow its effect: the driver must lead, or
+  at least not lag, the outcome. The cause *brings the effect into being*, not the reverse. A
+  series that only co-moves with the axis — or that trails it — is not a driver; flag it and
+  re-orient the arrow.
+- **Counterfactual dependence, not constant conjunction.** The weakest rung is *constant
+  conjunction* (driver and outcome are merely regularly observed together) — this is exactly what
+  spurious correlation looks like. Demand the **counterfactual**: *had the driver not moved, the
+  axis would differ.* If you cannot articulate that counterfactual, you have association, not a
+  causal theme.
+- **Asymmetry of dependence.** Counterfactual dependence runs forward: the effect depends on the
+  driver, not vice versa. If reversing the arrow reads equally well (the outcome could just as
+  plausibly be driving the "driver"), the direction is unidentified — mark `direction_unidentified`
+  rather than asserting causation.
+- **Causal, not temporal, backtracking.** When you reason "what if the driver were different",
+  hold fixed what is *causally prior* to the driver — not merely everything earlier in time — and
+  do not let the driver's own downstream consequences leak back into the counterfactual world.
 
 ## When to use
 Right after iceberg classification, on any promoted `CoreThemeCandidate`, in Phase A fresh reasoning.

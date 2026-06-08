@@ -15,7 +15,11 @@ tests: [test_system_map_issuance_is_flow_debt_is_stock, test_system_map_reinforc
 # System Mapper
 
 > **Compiled from** *Thinking in Systems* (Meadows): stocks, flows, balancing (B) and
-> reinforcing (R) feedback, delays, and system boundary. METHOD card: no case conclusions, no trades.
+> reinforcing (R) feedback, delays, and system boundary — **supplemented** with the
+> rate→economy→asset *transmission mechanism* as a stock/flow system from *Monetary Policy after
+> the Great Recession* (Sieroń, channel taxonomy) and *Monetary Policy in Times of Crisis*
+> (Rostagno/Altavilla, the duration / portfolio-rebalancing *mechanism* only — NOT its dated
+> decision log). METHOD card: no case conclusions, no trades, no dated policy calls.
 
 ## Purpose
 Convert a causal object into a **system map**: elements, interconnections, function/purpose,
@@ -62,6 +66,30 @@ System boundary; elements; interconnections; purpose/function; ≥1 stock if acc
 - Loop R: performance → attention/inflows → spread tightening → more performance.
 - Loop B: issuance growth → cheapening → reduced demand / higher concession.
 - Delays: index-inclusion lag, construction/completion lag, secondary-liquidity lag.
+
+## Supplement — rate→economy→asset transmission as a stock/flow system
+Monetary transmission is itself a stocks/flows/feedback system; map it the same way (mechanism
+only, no dated policy calls):
+- **The chain.** policy rate (a set *level*) → market / long-term rates (the link is *loose*, not
+  rigid — term premium, inflation expectations and risk premia sit in between) → **asset prices**
+  (Tobin's-q, wealth effect, portfolio-balance) → **bank credit** (bank-lending and balance-sheet
+  channels) → spending / investment / output. Named **channels**: interest-rate, credit
+  (bank-lending + balance-sheet), asset-price (exchange-rate / Tobin's-q / wealth effect),
+  risk-taking (search-for-yield), and portfolio-balance / **duration** channel.
+- **Stocks vs flows.** Outstanding credit/loans, bank reserves, and the **aggregate stock of
+  duration (interest-rate) risk** held by the market are *stocks* (levels). New **issuance**,
+  lending, deposit creation, fund inflows, and central-bank purchases are *flows* that fill or
+  drain them. Beware reverse causation vs the textbook: credit demand and deposit creation can
+  drive reserves, not the other way round (banks create deposits in the act of lending) — so a
+  reserves *flow* need not move the credit *stock*.
+- **Duration / portfolio-rebalancing mechanism (stock view).** Purchases that extract duration
+  risk shrink the *stock* of interest-rate risk the market must bear, compressing the term premium
+  and propagating across maturities and risky assets as freed risk-bearing capacity is redeployed.
+  It is the held stock relative to outstanding — not the act of buying — that sets the premium.
+- **Feedback loops & delays.** R: lower rates → reach-for-yield → higher asset prices / risk
+  tolerance → more risk-taking (self-reinforcing). B with **delay**: easy policy → credit growth
+  → later fragility / overshoot (a delayed, oscillation-prone balancing loop). A
+  sovereign↔bank↔firm "doom loop" is a vicious-circle (reinforcing-toward-collapse) structure.
 
 ## Non-goals
 No ODE simulation, no numerical solver, no trades, no sizing.
