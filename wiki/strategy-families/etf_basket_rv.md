@@ -20,9 +20,10 @@ typical_failure_modes: [basis is liquidity premium not mispricing]
 
 Credit ETF vs its underlying basket / NAV (create-redeem-driven basis).
 
-- **Routed from axis shape(s):** etf_nav_basis
-- **Not auto-routed by the engine yet** — taxonomy page; `etf_basket_rv` is not yet in the
-  `StrategyFamilyRec.family` Literal / `engine/discovery._route_family` rules.
+- **Routed from axis shape(s):** relative_value, sub-typed by ETF vocabulary (ETF / NAV /
+  basket tickers) in `engine/discovery._relative_value_subtype`.
+- **Auto-routed by the engine** — in the `StrategyFamilyRec.family` Literal; a relative-value
+  axis whose text carries ETF/NAV vocabulary routes here instead of `long_short`.
 - **Downstream model (out of discovery scope):** ETF vs underlying-basket / NAV construction
 - **Data needed to advance to legs:** ETF price + NAV, basket constituents/weights, create/redeem mechanics
 

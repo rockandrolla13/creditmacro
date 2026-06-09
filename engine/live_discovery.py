@@ -84,6 +84,14 @@ def run_live_discovery(
 
     mlog = getattr(provider, "memory_log", {})
     ts = timestamp or _now()
+    # Q4 PART-2c provenance: which CURRENT-INPUT source the phase-A posterior update consumed
+    # (kept SEPARATE from case_pages_refused), and the audit hash the routed families carry.
+    _ctx = provider.context() if hasattr(provider, "context") else None
+    _ci_slug = getattr(_ctx, "current_input_source_slug", None)
+    _phase_a_ok = getattr(_ctx, "phase_a_evidence_allowed", True)
+    _evidence_used = [_ci_slug] if (_ci_slug and _phase_a_ok) else []
+    _audit_hash = next((f.probability_update_audit_hash for f in theme.strategy_families
+                        if f.probability_update_audit_hash), None)
     record = LiveRunRecord(
         run_id=f"live-{input_hash(research_text)}", timestamp=ts,
         model_name=getattr(provider, "model", "n/a"), provider="llm",
@@ -98,6 +106,9 @@ def run_live_discovery(
         final_strategy_families=[f.family for f in theme.strategy_families],
         no_trade_confirmation=(theme.pricing is None and theme.sizing is None
                                and not theme.expressions),
+        evidence_sources_used_phase_a=_evidence_used,
+        case_evidence_refused_phase_a=list(mlog.get("case_pages_refused", [])),
+        probability_update_audit_hash=_audit_hash,
     )
 
     if violations:                                   # FAIL CLOSED — never freeze a bad output

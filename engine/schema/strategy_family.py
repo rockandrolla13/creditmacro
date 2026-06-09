@@ -19,12 +19,14 @@ class StrategyFamilyRec(BaseModel):
     """One ranked strategy FAMILY — the discovery half's deliverable. Routed from the"""
     model_config = ConfigDict(frozen=True)
     # Exactly the families the discovery router (engine/discovery._route_family) can produce.
-    # Re-add a family (curve, sector_rotation, capital_structure, etf_basket_rv,
-    # index_index_rv) only when its routing rule is implemented — the taxonomy must not
-    # overstate capability.
+    # Re-add a family only when its routing rule is implemented — the taxonomy must not
+    # overstate capability. etf_basket_rv / capital_structure / index_index_rv are routed as
+    # relative_value sub-types (engine/discovery._relative_value_subtype). Still wiki-taxonomy
+    # only (no routing rule): curve (parent of steepener/flattener), sector_rotation.
     family: Literal[
         "steepener", "flattener", "long_short", "outright", "cash_cds_basis",
         "credit_vs_equity", "credit_vs_rates", "volatility_convexity", "watchlist_only",
+        "etf_basket_rv", "capital_structure", "index_index_rv",
     ]
     direction: str                                   # the axis direction routed on (e.g. "steeper")
     rationale: str
@@ -33,3 +35,9 @@ class StrategyFamilyRec(BaseModel):
     required_downstream_model: str                   # what model turns this family into legs
     data_needed_next: str                            # what data to fetch to advance it
     confidence_components: ConfidenceComponents
+    # Q4 PART-2c provenance (audit metadata, NOT a second confidence score). probability_quality
+    # is the same number that floors confidence_components.data_confidence.
+    probability_update_method: Optional[str] = None
+    probability_quality: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    probability_warning: Optional[str] = None
+    probability_update_audit_hash: Optional[str] = None

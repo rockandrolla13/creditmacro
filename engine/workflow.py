@@ -9,6 +9,11 @@ from .discovery import select_strategy_families
 from .engine2 import run_pricing
 from .llm_provider import NoCleanAxisError
 from .probability import justify_probabilities
+from .probability_evidence import (
+    audit_hash,
+    map_evidence_to_scenarios,
+    update_probabilities_from_evidence,
+)
 from .scoring import compute_omega, score_expression
 from .protocols import Provider, RunContext
 from .schema import (
@@ -183,6 +188,30 @@ def _run_discovery(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObjec
     prob_just = _justify(scenarios, ctx, gate_case_evidence=True)
     pq = prob_just.probability_quality if prob_just else 1.0
 
+    # PART-2c: deterministic evidence→posterior audit. CURRENT-INPUT evidence only — the firewall
+    # keeps archived CASE evidence out of phase A, and live discovery supplies no evidence maps
+    # here, so this is posterior_equals_prior. It is surfaced in the output and stamped on the
+    # families as AUDIT METADATA; data_confidence still floors on pq above (no second score).
+    prob_audit = None
+    if scenarios:
+        # CURRENT-INPUT evidence only (the report/idea being processed now). It is Phase-A
+        # eligible — NOT archived CASE memory (that stays firewall-refused; we never read wiki
+        # case pages here). When the Phase-A gate is open AND current input supplies evidence:
+        #   • pre-built maps are used directly; else
+        #   • atoms are mapped to the SUPPLIED scenarios (causal_object = the chain, advisory).
+        # Otherwise (gate off, or no current input) ev_maps stays empty ⇒ posterior_equals_prior,
+        # so the scripted JPM case and the live LLM path keep UNCHANGED golden-master numbers.
+        ev_maps = []
+        if getattr(ctx, "phase_a_evidence_allowed", True):
+            if getattr(ctx, "current_input_evidence_maps", None):
+                ev_maps = ctx.current_input_evidence_maps
+            elif getattr(ctx, "current_input_evidence_atoms", None):
+                ev_maps = map_evidence_to_scenarios(
+                    scenarios, ctx.current_input_evidence_atoms, causal_object=cs.causal_chain)
+        prob_audit = update_probabilities_from_evidence(scenarios, ev_maps)
+        if prob_just is not None and prob_just.update_audit is None:
+            prob_just = prob_just.model_copy(update={"update_audit": prob_audit})
+
     # Promotion requires a falsifier: no falsifier ⇒ block promotion (stay at
     # discovery_complete, the causal object built but not routed to a family).
     has_falsifier = bool(cs.loop_diagnosis and cs.loop_diagnosis.invalidation_evidence)
@@ -191,6 +220,15 @@ def _run_discovery(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObjec
             cs.axis, scenarios, ctx, has_operational_axis=cs.main_theme.axis_operational,
             probability_quality=pq,
         )
+        if prob_audit is not None and families:
+            _warn = prob_audit.warnings[0] if prob_audit.warnings else None
+            _h = audit_hash(prob_audit)
+            families = [f.model_copy(update={
+                "probability_update_method": prob_audit.update_method,
+                "probability_quality": pq,
+                "probability_warning": _warn,
+                "probability_update_audit_hash": _h,
+            }) for f in families]
         status = "strategy_family_routed" if families else "discovery_complete"
     else:
         families = []

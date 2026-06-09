@@ -10,12 +10,14 @@ from .schema import (
     BiasCritique,
     CausalChain,
     CausalNode,
+    EvidenceAtom,
     Expression,
     MacroContext,
     PMGate,
     Provenance,
     Risk,
     Scenario,
+    ScenarioEvidenceMap,
     Sizing,
     LoopDiagnosis,
     Pricing,
@@ -51,6 +53,17 @@ class RunContext(BaseModel):
     # labels. The workflow firewall-gates these before justifying.
     probability_evidence: dict[str, list[ProbabilityEvidenceRef]] = {}
     prior_sources: dict[str, ProbabilitySource] = {}
+    # Q4 current-input evidence seam: evidence from the report/idea CURRENTLY being processed —
+    # allowed in Phase A (it is NOT archived CASE memory). Only evidence passed here is Phase-A
+    # eligible; wiki CASE evidence pages stay firewall-refused. The source slug is logged
+    # separately from archived case slugs (see engine.capture).
+    current_input_source_slug: Optional[str] = None
+    current_input_evidence_atoms: list[EvidenceAtom] = []
+    current_input_evidence_maps: list[ScenarioEvidenceMap] = []
+    current_input_evidence_source: Literal[
+        "current_report", "current_idea", "PM_supplied", "none"
+    ] = "none"
+    phase_a_evidence_allowed: bool = True
     provenance: Provenance
 
 @runtime_checkable

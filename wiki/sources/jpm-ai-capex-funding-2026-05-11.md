@@ -57,8 +57,9 @@ spread relationships between the legs — i.e. it supplies *operational-axis can
 - HPC outperformance (+9.99% vs +1.61%) ([[evidence:jpm-2026-05-11-013]]).
 
 ## Extracted facts
-See `wiki/evidence/evidence_atoms.jsonl` — atoms `jpm-2026-05-11-001 … 015`, each with a
-`page:N` location. Headline source facts: 27 issuers / >$450bn (p1); hyperscaler-to-IG-project
+See `wiki/evidence/` — atoms `jpm-2026-05-11-001 … 015` are materialized both as CASE pages
+(`jpm-2026-05-11-NNN.md`, so the theme-card evidence links resolve and the firewall covers them) and
+in `evidence_atoms.jsonl`, each with a `page:N` location. Headline source facts: 27 issuers / >$450bn (p1); hyperscaler-to-IG-project
 105bp, hyperscaler-to-HY-project 183bp (p1); Data Center sub-sector $49bn par, 4.8% of Tech,
 0.5% of JULI (p6); DC 181bp vs Tech 101bp (p7); HPC $26.6bn YTD = 43% of non-refi HY supply
 (p8); HPC 1.07%→2.68% of HY index, +9.99% vs HY +1.61%, tightened to 295bp (p2/p9).

@@ -24,7 +24,7 @@ Relative-value pair: exposed leg underperforms a control leg.
 - **Downstream model (out of discovery scope):** pair construction + beta/notional neutralisation
 - **Data needed to advance to legs:** live spreads on both legs, beta, borrow/financing
 
-This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema.py) and the
+This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema/strategy_family.py) and the
 `_DOWNSTREAM` routing templates (engine/discovery.py). Discovery stops at routing this
 family with a decomposed confidence; detailed legs/sizing/hedges are downstream.
 

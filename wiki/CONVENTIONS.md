@@ -148,8 +148,17 @@ typical_failure_modes: []
 ---
 ```
 
-`family_type` is exactly the engine's `StrategyFamilyRec.family` Literal (engine/schema.py).
-`downstream_model` / `typical_data_needed` mirror `engine/discovery.py` `_DOWNSTREAM`.
+`family_type` is the **human discovery vocabulary** — the 14-family menu a source/theme may
+hint at. It is a **superset** of the engine's auto-routable output set: the
+`StrategyFamilyRec.family` Literal (`engine/schema/strategy_family.py`) declares only the
+families `engine/discovery.py` `_route_family` can actually emit today (currently 12), because
+that Literal is test-enforced not to overstate capability
+(`tests/unit/test_strategy_families.py::test_family_literal_is_exactly_the_routable_set`).
+`etf_basket_rv`, `capital_structure`, and `index_index_rv` are routed as relative_value
+sub-types (`engine/discovery._relative_value_subtype`). The two remaining wiki-only families —
+`curve` (the parent label of steepener/flattener) and `sector_rotation` — are taxonomy/hint
+pages with no engine routing rule yet; each says so in its body. `downstream_model` /
+`typical_data_needed` mirror `engine/discovery.py` `_DOWNSTREAM` for the routable families.
 
 ---
 

@@ -24,7 +24,7 @@ Option / convexity expression of the view.
 - **Downstream model (out of discovery scope):** option structure + greeks
 - **Data needed to advance to legs:** implied vol surface, option chain, skew
 
-This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema.py) and the
+This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema/strategy_family.py) and the
 `_DOWNSTREAM` routing templates (engine/discovery.py). Discovery stops at routing this
 family with a decomposed confidence; detailed legs/sizing/hedges are downstream.
 

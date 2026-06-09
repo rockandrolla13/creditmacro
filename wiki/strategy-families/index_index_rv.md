@@ -20,9 +20,11 @@ typical_failure_modes: [inclusion difference is duration/quality not technical]
 
 Same economic exposure priced differently across index definitions (inclusion-rule technical).
 
-- **Routed from axis shape(s):** index_basis
-- **Not auto-routed by the engine yet** — taxonomy page; `index_index_rv` is not yet in the
-  `StrategyFamilyRec.family` Literal / `engine/discovery._route_family` rules (capability not overstated).
+- **Routed from axis shape(s):** relative_value, sub-typed by index-vs-index vocabulary
+  (CDX & iTraxx co-occurrence, series/index roll, on-the-run vs off-the-run) in
+  `engine/discovery._relative_value_subtype`.
+- **Auto-routed by the engine** — in the `StrategyFamilyRec.family` Literal; a relative-value
+  axis spanning two index definitions routes here instead of `long_short`.
 - **Downstream model (out of discovery scope):** matched-exposure construction across index definitions
 - **Data needed to advance to legs:** same-name spread in each index, index-tracking AUM by family, inclusion rules
 

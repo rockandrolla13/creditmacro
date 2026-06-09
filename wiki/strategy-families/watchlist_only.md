@@ -24,7 +24,7 @@ No tradeable family yet — route here when nothing clears confidence.
 - **Downstream model (out of discovery scope):** (none — not tradable yet)
 - **Data needed to advance to legs:** an operational axis, supplied scenarios, and a falsifier
 
-This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema.py) and the
+This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema/strategy_family.py) and the
 `_DOWNSTREAM` routing templates (engine/discovery.py). Discovery stops at routing this
 family with a decomposed confidence; detailed legs/sizing/hedges are downstream.
 

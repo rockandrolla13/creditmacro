@@ -54,3 +54,48 @@ Entry format:
   `workflow_status`) — preserved, flagged for a schema decision. No broken links, missing pages,
   stale sources lists, stubs, contradictions, or investment-process gaps in the linted set.
 - **Verification:** 0 real broken wikilinks and 0 slug collisions wiki-wide after fixes.
+
+## [2026-06-08] reconciliation | strategy-family count (schema vs docs)
+- **Contradiction resolved:** docs (CLAUDE.md, CONVENTIONS.md) claimed `family_type` "exactly"
+  equals the engine's `StrategyFamilyRec.family` Literal, but the Literal is 9 (the auto-routable
+  set, test-enforced by `test_family_literal_is_exactly_the_routable_set`) while the wiki menu is 14.
+- **Decision (user):** decouple, not extend the schema. The 14-family wiki list is the human
+  discovery vocabulary; the 9-member Literal is the auto-routable subset. The "must not overstate
+  capability" guardrail is preserved (test untouched, still 13/13 passing).
+- **Fixes made:** corrected the false "exactly mirrors" claim in CONVENTIONS.md and CLAUDE.md to
+  state the superset/subset relationship; fixed stale path `engine/schema.py` → `engine/schema/strategy_family.py`
+  in those docs and in the 9 routable family pages; created the 2 missing taxonomy pages
+  ([[sector_rotation]], [[capital_structure]]) so all 14 menu families now have pages; added both to
+  index.md taxonomy list.
+- **Remaining issues:** none from this reconciliation. `engines/` still absent from index.md (pre-existing, deferred).
+
+## [2026-06-08] feature | promoted 3 RV sub-type families to first-class routing
+- **Promoted (now auto-routed, in the Literal):** [[etf_basket_rv]], [[capital_structure]],
+  [[index_index_rv]] — implemented as relative_value SUB-TYPES via
+  `engine/discovery._relative_value_subtype` (mirrors the existing cross_asset equity/rates split;
+  no change to `AxisShape` or `_direction_from_sign`). Routable set: 9 → 12.
+- **Detection vocabulary:** ETF/NAV tickers → etf_basket_rv; subordination terms (subordinated,
+  AT1, tier 2, hybrid, holdco/opco) → capital_structure; CDX&iTraxx co-occurrence / series-roll /
+  on-the-run-vs-off → index_index_rv. Deliberately avoids bare "senior"/"sub" so a
+  senior-bank-vs-sovereign pair stays long_short (regression-tested).
+- **Still wiki-only (no routing rule):** [[curve]] (parent of steepener/flattener),
+  [[sector_rotation]] (detection too fragile — would misfire on ordinary pairs).
+- **Guardrail preserved:** `test_family_literal_is_exactly_the_routable_set` updated to the new
+  12-set; +4 routing tests added. Full suite 325 passed, 0 regressions (golden masters + JPM
+  fixture intact). Updated CONVENTIONS.md, CLAUDE.md, index.md, and the 3 promoted family pages.
+
+## [2026-06-08] materialization | Q4 PART-2a — JPM evidence atoms as CASE pages
+- **Materialized** all 15 JPM evidence atoms (`jpm-2026-05-11-001 … 015`) as CASE markdown pages
+  in `wiki/evidence/`, derived from the committed `evidence_atoms.jsonl` (single source of truth)
+  + added `claim_kind` (from `is_synthesis`), `access_class: case`, `source_date`, `page_number`.
+  Closes the dangling theme-card evidence links (a JSONL can't resolve page links) and the audit's
+  "evidence atoms = 0 pages" finding.
+- **Firewall hardened:** `engine/memory._CASE_TYPES` now includes `evidence` + `outcome`, so an
+  evidence page defaults to CASE even without an explicit `access_class` (fail-closed).
+- **Tested (TDD, +7 tests):** every theme-card evidence link resolves; every atom carries source_slug
+  + `page:N` + claim_kind + source_date + access_class:case; headline figures present; no ≥25-word
+  verbatim run vs the JPM raw markdown (leak guard); Phase-A `MemoryRetriever` refuses archived
+  evidence on **real on-disk pages** (closes "firewall realism untested on disk"), readable in Phase B.
+- **Single source of truth:** pages regenerated from the JSONL so the committed `test_jpm_case_fixture`
+  assertions stay green. Full suite 352 passed, 0 regressions. No golden-master change; no scenarios/
+  probabilities/fair-values/legs/sizing produced. Bridge engine (atoms→map→posterior) = PART-2b, not built.

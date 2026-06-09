@@ -109,11 +109,29 @@ def justify_probabilities(
     scenarios: list[Scenario],
     evidence_bundle: Optional[ProbabilityEvidenceBundle] = None,
     policy: Optional[ProbabilityPolicy] = None,
+    *,
+    evidence_atoms=None,
+    evidence_maps=None,
+    causal_object=None,
+    update_policy=None,
 ) -> ProbabilitySetJustification:
     """Label each supplied p_s with provenance/evidence/confidence; tilt only when evidence is
     supplied (else wrap). `theme_object` is reserved context (may be None — the workflow has no
-    theme yet when it calls this). Never invents or generates p_s."""
+    theme yet when it calls this). Never invents or generates p_s.
+
+    PART-2c bridge: when `evidence_atoms` or `evidence_maps` are supplied, route them through the
+    deterministic evidence→posterior engine and return a justification carrying the
+    ProbabilityUpdateAudit (the legacy ProbabilityEvidenceRef path is otherwise unchanged)."""
     policy = policy or ProbabilityPolicy()
+
+    if evidence_atoms is not None or evidence_maps is not None:
+        from .probability_evidence import map_evidence_to_scenarios, update_probabilities_from_evidence
+        maps = evidence_maps
+        if maps is None:
+            maps = map_evidence_to_scenarios(scenarios, evidence_atoms or [], causal_object)
+        audit = update_probabilities_from_evidence(scenarios, maps, update_policy)
+        return _assemble_from_audit(scenarios, audit)
+
     if not scenarios:
         return _assemble([], True, [], [])
 
@@ -198,6 +216,36 @@ def _quality(rows, sums_to_one) -> float:
     contra_share = (contra / total) if total else 0.0
     q = min(floor, mean_conf) * (1.0 - 0.5 * contra_share)
     return _clip01(q if sums_to_one else min(q, 0.25))
+
+
+def _assemble_from_audit(scenarios, audit) -> ProbabilitySetJustification:
+    """Wrap a ProbabilityUpdateAudit (PART-2c) as a ProbabilitySetJustification. Posterior is an
+    audit artifact; per-scenario rows carry prior→posterior with evidence_weighted provenance
+    where the scenario received mapped impacts."""
+    rows = []
+    for i, s in enumerate(scenarios):
+        has_ev = bool(audit.evidence_maps[i].impacts)
+        rows.append(ScenarioProbabilityJustification(
+            scenario_name=s.name,
+            prior_probability=_clip01(audit.prior_vector[i]), prior_source="PM_assumption",
+            posterior_probability=round(_clip01(audit.posterior_vector[i]), 12),
+            posterior_source="evidence_weighted" if has_ev else "PM_assumption",
+            evidence_for=[], evidence_against=[],
+            confidence=_clip01(audit.probability_quality),
+            confidence_cap_reason=(audit.warnings[0] if audit.warnings else None),
+            rationale=f"posterior via {audit.update_method}",
+            unresolved_questions=[],
+        ))
+    vec = list(audit.posterior_vector)
+    return ProbabilitySetJustification(
+        scenario_probabilities=rows,
+        sums_to_one=(abs(sum(vec) - 1.0) <= 1e-6) if vec else True,
+        probability_quality=_clip01(audit.probability_quality),
+        probability_source_summary=audit.update_method,
+        effective_probability_vector=[round(_clip01(v), 12) for v in vec],
+        warnings=list(audit.warnings),
+        update_audit=audit,
+    )
 
 
 def _assemble(rows, sums_to_one, vector, warnings) -> ProbabilitySetJustification:

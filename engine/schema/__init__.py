@@ -17,11 +17,18 @@ from .expression import Expression, ScenarioPnL
 from .macro import MacroContext, MacroRegimeTag
 from .pricing import EdgeContribution, PricedIn, Pricing, Scenario
 from .probability import (
+    EvidenceAtom,
+    EvidenceClaimKind,
     EvidenceDirection,
+    EvidenceImpactDirection,
     ProbabilityEvidenceBundle,
     ProbabilityEvidenceRef,
     ProbabilitySetJustification,
     ProbabilitySource,
+    ProbabilityUpdateAudit,
+    ProbabilityUpdateMethod,
+    ScenarioEvidenceImpact,
+    ScenarioEvidenceMap,
     ScenarioProbabilityJustification,
 )
 from .risk import Falsifier, PMGate, Provenance, Risk, Sizing, StopLoss
@@ -53,6 +60,9 @@ __all__ = [
     "ProbabilitySource", "EvidenceDirection", "ProbabilityEvidenceRef",
     "ScenarioProbabilityJustification", "ProbabilitySetJustification",
     "ProbabilityEvidenceBundle",
+    # Q4 evidence-to-posterior bridge (PART 1 schema + PART 2 mapper input)
+    "EvidenceImpactDirection", "EvidenceClaimKind", "ProbabilityUpdateMethod",
+    "EvidenceAtom", "ScenarioEvidenceImpact", "ScenarioEvidenceMap", "ProbabilityUpdateAudit",
     # expression
     "ScenarioPnL", "Expression",
     # strategy_family

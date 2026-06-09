@@ -23,6 +23,19 @@ _CROSS_ASSET_KEYS = ("vs equity", "credit vs equity", "vs rates", "vs treasury",
 _CURVE_KEYS = ("slope", "5s30s", "2s10s", "2s5s", "10s30s", "steepen", "flatten", "curve")
 _RELATIVE_KEYS = ("−", " minus ", " vs ", "differential", "spread between", "basket")
 
+# Relative-value SUB-TYPE signatures — checked ONLY inside the relative_value branch (the axis
+# SHAPE stays relative_value, direction wider/tighter; these only refine WHICH RV family it is,
+# mirroring the cross_asset equity/rates split). Most-specific vocabulary wins; a plain
+# name-vs-name pair falls through to long_short. Deliberately avoids bare "senior"/"sub" so a
+# senior-bank-vs-sovereign pair stays long_short, not capital_structure.
+_ETF_KEYS = ("etf", "nav", "net asset value", "creation/redemption", "creation unit",
+             "lqd", "hyg", "jnk", "ishares")
+_CAPSTRUCT_KEYS = ("subordinated", "subordination", "sub-senior", "senior-sub", "senior vs sub",
+                   "sub vs senior", "at1", "additional tier 1", "tier 2", "hybrid",
+                   "holdco vs opco", "opco vs holdco", "capital structure")
+_INDEX_INDEX_KEYS = ("on-the-run vs off-the-run", "otr vs off-the-run", "series roll",
+                     "index roll", "old series vs new", "index vs index")
+
 # (shape, direction) → strategy family. direction enters only where it disambiguates.
 _ROUTE: dict[tuple[str, str], str] = {
     ("curve", "steeper"): "steepener",
@@ -33,6 +46,7 @@ _ROUTE: dict[tuple[str, str], str] = {
 # tracks a level less cleanly than a curve trade tracks a slope).
 _AXIS_FIT: dict[str, float] = {
     "steepener": 1.0, "flattener": 1.0, "long_short": 1.0, "cash_cds_basis": 1.0,
+    "etf_basket_rv": 0.95, "index_index_rv": 0.95, "capital_structure": 0.9,
     "credit_vs_equity": 0.9, "credit_vs_rates": 0.9, "volatility_convexity": 0.9,
     "outright": 0.7, "watchlist_only": 0.0,
 }
@@ -42,7 +56,8 @@ _AXIS_FIT: dict[str, float] = {
 # monetisation series so `purity` (R² of that series on the axis moves) genuinely varies.
 _TRACKING_FIDELITY: dict[str, float] = {
     "steepener": 0.95, "flattener": 0.95, "long_short": 0.90, "cash_cds_basis": 0.85,
-    "outright": 0.80, "credit_vs_rates": 0.75, "credit_vs_equity": 0.70,
+    "etf_basket_rv": 0.85, "outright": 0.80, "index_index_rv": 0.80, "capital_structure": 0.80,
+    "credit_vs_rates": 0.75, "credit_vs_equity": 0.70,
     "volatility_convexity": 0.65, "watchlist_only": 0.0,
 }
 
@@ -76,6 +91,13 @@ _DOWNSTREAM: dict[str, tuple[str, str]] = {
                         "asset-swap/z-spread, live rates, DV01 map"),
     "volatility_convexity": ("option structure + greeks",
                              "implied vol surface, option chain, skew"),
+    "etf_basket_rv": ("ETF vs underlying-basket / NAV construction",
+                      "ETF price + NAV, basket constituents/weights, create/redeem mechanics"),
+    "capital_structure": ("intra-issuer subordination pair construction (subordination-adjusted ratios)",
+                          "per-tranche spreads (senior/sub/AT1/hybrid), recovery & subordination "
+                          "assumptions, matched-tenor financing"),
+    "index_index_rv": ("matched-exposure construction across index definitions",
+                       "same-name spread in each index, index-tracking AUM by family, inclusion rules"),
     "outright": ("instrument selection + sizing",
                  "live level, instrument liquidity, carry"),
     "watchlist_only": ("(none — not tradable yet)",
@@ -121,7 +143,7 @@ def _route_family(shape: AxisShape, direction: AxisDirection, axis: Axis) -> str
     if (shape, direction) in _ROUTE:
         return _ROUTE[(shape, direction)]
     if shape == "relative_value":
-        return "long_short"
+        return _relative_value_subtype(axis)
     if shape == "basis":
         return "cash_cds_basis"
     if shape == "volatility":
@@ -130,6 +152,21 @@ def _route_family(shape: AxisShape, direction: AxisDirection, axis: Axis) -> str
         text = f"{axis.definition} {axis.measurement}".lower()
         return "credit_vs_equity" if "equity" in text else "credit_vs_rates"
     return "outright"  # level (and any curve direction not steeper/flatter)
+
+def _relative_value_subtype(axis: Axis) -> str:
+    """Refine a relative_value axis into a concrete RV family (mirrors the cross_asset split).
+
+    Most-specific vocabulary wins; a plain name-vs-name pair falls through to long_short. An
+    index-vs-index axis is also recognised when two index families co-occur (e.g. CDX & iTraxx).
+    """
+    text = f"{axis.definition} {axis.measurement}".lower()
+    if any(k in text for k in _ETF_KEYS):
+        return "etf_basket_rv"
+    if any(k in text for k in _CAPSTRUCT_KEYS):
+        return "capital_structure"
+    if any(k in text for k in _INDEX_INDEX_KEYS) or ("cdx" in text and "itraxx" in text):
+        return "index_index_rv"
+    return "long_short"
 
 def _light_residual_edge(
     scenarios: list[Scenario], prior: list[float], x_mkt: float

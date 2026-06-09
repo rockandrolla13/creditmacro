@@ -12,7 +12,7 @@ VALID_ACCESS_CLASSES = ("method", "case")
 # type → default access_class for backfill/derivation. Concepts/entities and book/paper
 # sources teach method; themes/scenarios and recorded analyses are case.
 _METHOD_TYPES = {"concept", "entity", "model"}
-_CASE_TYPES = {"theme", "scenario"}
+_CASE_TYPES = {"theme", "scenario", "evidence", "outcome"}
 
 class WikiPage(BaseModel):
     """One parsed wiki page. access_class may be None/invalid on a malformed page — the"""

@@ -65,8 +65,14 @@ causal chains, operational axes, falsifiers, scenarios, and ranked strategy fami
 It mirrors the engine lifecycle: research → wiki memory → developments/events/themes/hot
 topics → causal object → ranked strategy families with confidence → STOP (no detailed
 legs/sizing/hedge ratios in discovery mode). Page frontmatter + investment-process lint
-checks live in `wiki/CONVENTIONS.md`. The 14 strategy-family pages mirror
-`StrategyFamilyRec.family` (engine/schema.py) and `_DOWNSTREAM` (engine/discovery.py).
+checks live in `wiki/CONVENTIONS.md`. The 14 strategy-family pages are the human discovery
+vocabulary (the hint menu); they are a **superset** of the engine's auto-routable output set.
+`StrategyFamilyRec.family` (`engine/schema/strategy_family.py`) declares only the families the
+router can actually emit today (currently 12, test-enforced not to overstate capability), and
+`_DOWNSTREAM` (`engine/discovery.py`) carries downstream models for that routable subset.
+`etf_basket_rv` / `capital_structure` / `index_index_rv` route as relative_value sub-types
+(`_relative_value_subtype`). The two remaining wiki-only families (`curve`, `sector_rotation`)
+are taxonomy pages with no routing rule yet.
 
 ## Memory access firewall (two-phase)
 

@@ -24,7 +24,7 @@ Cash bond vs CDS basis (cash vs derivative).
 - **Downstream model (out of discovery scope):** cash-CDS basis construction
 - **Data needed to advance to legs:** bond asset-swap spread, matched-tenor CDS, repo/financing
 
-This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema.py) and the
+This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema/strategy_family.py) and the
 `_DOWNSTREAM` routing templates (engine/discovery.py). Discovery stops at routing this
 family with a decomposed confidence; detailed legs/sizing/hedges are downstream.
 

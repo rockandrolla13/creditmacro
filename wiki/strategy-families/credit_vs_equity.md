@@ -24,7 +24,7 @@ Cross-asset: credit vs equity / equity-vol.
 - **Downstream model (out of discovery scope):** cross-asset hedge-ratio model
 - **Data needed to advance to legs:** credit-equity betas, live credit + equity/vol levels
 
-This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema.py) and the
+This page mirrors the engine taxonomy: `StrategyFamilyRec.family` (engine/schema/strategy_family.py) and the
 `_DOWNSTREAM` routing templates (engine/discovery.py). Discovery stops at routing this
 family with a decomposed confidence; detailed legs/sizing/hedges are downstream.
 

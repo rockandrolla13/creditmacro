@@ -44,6 +44,11 @@ class LiveRunRecord(BaseModel):
     snapshot_hash: Optional[str] = None
     final_strategy_families: list[str] = []
     no_trade_confirmation: bool = True  # no legs / sizing / hedge ratios emitted
+    # Q4 PART-2c provenance: which evidence the phase-A posterior update used, what CASE evidence
+    # the firewall refused, and the hash of the initial (phase-A) ProbabilityUpdateAudit.
+    evidence_sources_used_phase_a: list[str] = []
+    case_evidence_refused_phase_a: list[str] = []
+    probability_update_audit_hash: Optional[str] = None
 
 
 def write_run_record(record: LiveRunRecord, base_dir: str = "runs/live_discovery",

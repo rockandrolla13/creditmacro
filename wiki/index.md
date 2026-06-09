@@ -12,6 +12,10 @@ Each entry should eventually carry: a wikilink, a one-line description, a source
 <!-- [[slug]] — one-line — N sources — status -->
 - [[jpm-ai-capex-funding-2026-05-11]] — JPM AI-capex funding credit data — **case** — ingested
 
+## Evidence atoms
+<!-- materialized source-backed atoms; CASE memory; theme-card evidence links resolve here -->
+- [[evidence:jpm-2026-05-11-001]] … [[evidence:jpm-2026-05-11-015]] — 15 JPM atoms (`wiki/evidence/`, mirrored in `evidence_atoms.jsonl`) — **case**
+
 ## Entities
 <!-- [[slug]] — one-line — status -->
 
@@ -39,9 +43,9 @@ Each entry should eventually carry: a wikilink, a one-line description, a source
 - [[memory-map]] — active developments / themes / family priors / readiness — active
 
 ## Strategy Families
-The 9 families the discovery router can currently produce (mirrors `StrategyFamilyRec.family`).
-Additional families (curve, sector_rotation, capital_structure, etf_basket_rv, index_index_rv)
-will be added back as their routing rules are implemented.
+The 12 families the discovery router can currently produce (mirrors `StrategyFamilyRec.family`).
+Remaining wiki-only families (curve, sector_rotation) will be added back as their routing rules
+are implemented.
 - [[steepener]] — long the curve slope (curve, steeper) — active
 - [[flattener]] — short the curve slope (curve, flatter) — active
 - [[long_short]] — relative-value pair (exposed vs control) — active
@@ -50,12 +54,14 @@ will be added back as their routing rules are implemented.
 - [[credit_vs_equity]] — cross-asset credit vs equity — active
 - [[credit_vs_rates]] — cross-asset credit vs rates — active
 - [[volatility_convexity]] — option / convexity expression — active
+- [[etf_basket_rv]] — ETF vs underlying basket / NAV (relative_value sub-type) — active
+- [[capital_structure]] — within one issuer: senior/sub/AT1/hybrid (relative_value sub-type) — active
+- [[index_index_rv]] — same exposure across index definitions (relative_value sub-type) — active
 - [[watchlist_only]] — no tradeable family yet (route, don't fail) — active
 
 Taxonomy pages (knowledge only; **not yet auto-routed** by `engine/discovery._route_family`):
-- [[index_index_rv]] — same exposure across index definitions — taxonomy
-- [[etf_basket_rv]] — ETF vs underlying basket / NAV — taxonomy
 - [[curve]] — generic curve slope (engine routes explicit steepener/flattener) — taxonomy
+- [[sector_rotation]] — relative value across credit sectors — taxonomy
 
 ## Models
 <!-- [[slug]] — one-line — status -->

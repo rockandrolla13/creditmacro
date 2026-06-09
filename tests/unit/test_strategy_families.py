@@ -47,12 +47,15 @@ def _select(axis, scenarios, sign=1, x_mkt=55.0, **kw):
 
 def test_family_literal_is_exactly_the_routable_set():
     # The declared taxonomy must not overstate capability: every Literal member is reachable
-    # by _route_family (re-add a family only when its routing rule lands).
+    # by _route_family (re-add a family only when its routing rule lands). The three RV
+    # sub-types below route via _relative_value_subtype; curve / sector_rotation remain
+    # wiki-taxonomy-only (no routing rule) and are deliberately absent here.
     import typing
     fams = set(typing.get_args(StrategyFamilyRec.model_fields["family"].annotation))
     assert fams == {
         "steepener", "flattener", "long_short", "outright", "cash_cds_basis",
         "credit_vs_equity", "credit_vs_rates", "volatility_convexity", "watchlist_only",
+        "etf_basket_rv", "capital_structure", "index_index_rv",
     }
 
 def test_curve_steeper_routes_to_steepener():
@@ -83,6 +86,50 @@ def test_basis_routes_to_cash_cds_basis():
     ]
     f = _select(_basis_axis(), scen, x_mkt=12.0)[0]  # E_p[X]=13.6 > 12 ⇒ directional edge
     assert f.family == "cash_cds_basis"
+
+# ── relative-value SUB-TYPES (refined inside the relative_value branch) ───────
+
+def _etf_axis() -> Axis:
+    return Axis(
+        definition="LQD ETF price − underlying IG basket NAV differential, bps",
+        measurement="ETF close vs basket-weighted OAS, daily",
+        current_value=40.0,
+        history=AxisHistory(mean=70.0, vol=30.0, percentile=10.0, regime_tags=[]),
+    )
+
+def _capital_structure_axis() -> Axis:
+    return Axis(
+        definition="Issuer X subordinated vs senior CDS differential (subordination spread), bps",
+        measurement="5Y sub CDS minus 5Y senior CDS mid, daily close",
+        current_value=40.0,
+        history=AxisHistory(mean=70.0, vol=30.0, percentile=10.0, regime_tags=[]),
+    )
+
+def _index_index_axis() -> Axis:
+    return Axis(
+        definition="Same-name 5Y spread: CDX IG vs iTraxx Main differential, bps",
+        measurement="matched-name index OAS differential, daily close",
+        current_value=40.0,
+        history=AxisHistory(mean=70.0, vol=30.0, percentile=10.0, regime_tags=[]),
+    )
+
+def test_etf_basket_axis_routes_to_etf_basket_rv():
+    f = _select(_etf_axis(), _widening_scenarios(), x_mkt=40.0)[0]
+    assert f.family == "etf_basket_rv"
+
+def test_subordination_axis_routes_to_capital_structure():
+    f = _select(_capital_structure_axis(), _widening_scenarios(), x_mkt=40.0)[0]
+    assert f.family == "capital_structure"
+
+def test_index_vs_index_axis_routes_to_index_index_rv():
+    f = _select(_index_index_axis(), _widening_scenarios(), x_mkt=40.0)[0]
+    assert f.family == "index_index_rv"
+
+def test_plain_name_pair_still_routes_to_long_short():
+    # The French-banks RV axis (senior bank vs sovereign) must NOT be captured by the
+    # capital_structure 'senior' wording — only subordination vocabulary promotes it.
+    f = _select(_relative_axis(), _widening_scenarios(), x_mkt=55.0)[0]
+    assert f.family == "long_short"
 
 # ── decomposed confidence ────────────────────────────────────────────────────
 
