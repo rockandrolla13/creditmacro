@@ -16,3 +16,9 @@ wiki/.fresh_reasoning_snapshot.json
 # Private live-run capture transcripts (never committed)
 runs/
 papers/
+
+# Thesis Tracker live DB — may contain private investment notes (never committed).
+# Schema/migrations/code/tests/docs ARE tracked; the .sqlite data file is not.
+data/*.sqlite
+data/*.sqlite-shm
+data/*.sqlite-wal

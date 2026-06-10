@@ -42,6 +42,11 @@ from .streams import (
 )
 from .system_map import Delay, FeedbackLoop, Flow, Stock, SystemMap
 from .theme import ThemeObject
+from .thesis_tracker import (
+    ComputedThesisTrackerRecord,
+    MarketDataRecord,
+    ThesisTrackerRecord,
+)
 from .trap import BiasCritique, LeveragePoint, LoopDiagnosis, TrapImplications
 
 __all__ = [
@@ -73,4 +78,6 @@ __all__ = [
     "MacroContext", "MacroRegimeTag",
     # theme
     "ThemeObject",
+    # thesis tracker (standalone persistence sidecar — not wired into discovery/firewall)
+    "MarketDataRecord", "ThesisTrackerRecord", "ComputedThesisTrackerRecord",
 ]
