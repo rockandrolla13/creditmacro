@@ -1,7 +1,7 @@
 # Source PDFs (large; copyrighted / confidential — never commit)
 *.pdf
-# Extracted markdowns (include STRICTLY CONFIDENTIAL Citi / Alaph material)
-markdowns/
+# Extracted markdowns: now TRACKED in this PRIVATE repo (owner's decision). Contains copyrighted /
+# STRICTLY CONFIDENTIAL Citi / Alaph material — keep this repository private.
 # Python
 __pycache__/
 *.pyc
