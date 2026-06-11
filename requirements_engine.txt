@@ -3,3 +3,5 @@ scipy>=1.11
 numpy>=1.25
 anthropic>=0.40
 pyyaml>=6.0   # thesis-tracker CLI: YAML placeholder ingestion (--json *.yaml)
+requests>=2.31        # investor-memo fetcher: download memo pages
+beautifulsoup4>=4.12  # investor-memo fetcher: HTML → markdown extraction

@@ -1,0 +1,12 @@
+# Investor memo sources. The skill appends new investors here after confirming the memo
+# index URL with the user (via web search). Each entry:
+#   name          human label
+#   index_urls    page(s) listing the memos
+#   link_selector CSS selector matching memo links on the index page
+#   aliases       alternate names that resolve to this entry
+oaktree:
+  name: "Oaktree Capital — Howard Marks memos"
+  index_urls:
+    - "https://www.oaktreecapital.com/insights/memos"
+  link_selector: "a[href*='/insights/memo/']"
+  aliases: ["howard-marks", "howard marks", "marks", "oaktree capital"]
