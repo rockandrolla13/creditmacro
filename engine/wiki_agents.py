@@ -433,6 +433,54 @@ class TemporalContextAgent(WikiAgent):
                                      forecast_horizons=horizons, warnings=warnings)
 
 
+# ── PART 6: Multi-Source Theme Aggregator agent ──────────────────────────────────
+
+class MultiSourceThemeAggregatorInput(BaseModel):
+    bundles: list[EvidenceExtractionBundle]
+    source_classifications: list[SourceClassification]
+    temporal_contexts: list[TemporalContext] = []
+    current_input_slugs: Optional[list[str]] = None   # CASE sources eligible as current input
+
+
+class MultiSourceThemeAggregatorAgent(WikiAgent):
+    """Stage-0 multi-source deduplicate + rank. Deterministic v1 (no provider seam). Reads only
+    current-input bundles + method memory; writes nothing. The access/temporal firewall lives in
+    engine.theme_aggregation (archived CASE blocked, METHOD = taxonomy only, historical CASE →
+    historical/outcome)."""
+    contract = AgentContract(
+        agent_name="MultiSourceThemeAggregatorAgent",
+        purpose="Deduplicate and rank theme candidates across a current source batch into one "
+                "source-attributed, ranked MultiSourceThemeSet. STOP at discovery handoff.",
+        input_objects=["EvidenceExtractionBundle[]", "SourceClassification[]", "TemporalContext[]"],
+        output_objects=["MultiSourceThemeSet"],
+        allowed_paths_to_read=["current input bundles", "method memory"],
+        allowed_paths_to_write=[],
+        access_class_rules=[
+            "archived CASE blocked in Phase A",
+            "METHOD allowed for taxonomy only (not market evidence)",
+            "historical CASE marked historical/outcome candidate (cannot corroborate current)",
+        ],
+        provider_seams_used=[],  # deterministic v1
+        non_goals=["no trades", "no sizing", "no scenario probabilities", "no execution"],
+        tests_required=["dedup", "no overmerge", "access firewall", "temporal firewall",
+                        "multi-asset generalization"],
+    )
+
+    def run(self, input):  # noqa: A002
+        # lazy import: theme_aggregation imports SourceClassification from this module
+        from engine.theme_aggregation import (
+            ThemeAggregationPolicy,
+            aggregate_theme_candidates,
+        )
+        inp = (input if isinstance(input, MultiSourceThemeAggregatorInput)
+               else MultiSourceThemeAggregatorInput.model_validate(input))
+        policy = ThemeAggregationPolicy(
+            current_input_slugs=(frozenset(inp.current_input_slugs)
+                                 if inp.current_input_slugs else None))
+        return aggregate_theme_candidates(
+            inp.bundles, inp.source_classifications, inp.temporal_contexts or None, policy)
+
+
 # ── registry ────────────────────────────────────────────────────────────────────
 
 class AgentRegistry:
@@ -475,4 +523,10 @@ REGISTRY = AgentRegistry([
     WikiIntegratorAgent(),
     WikiLintAgent(),
     DiscoveryRunnerAgent(),
+    MultiSourceThemeAggregatorAgent(),
 ])
+
+
+def run_agent(agent_name: str, input):  # noqa: A002
+    """Module-level convenience: run a registered agent by name via the default REGISTRY."""
+    return REGISTRY.run_agent(agent_name, input)

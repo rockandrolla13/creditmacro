@@ -19,6 +19,7 @@ from engine.wiki_agents import (
 EXPECTED_AGENTS = {
     "SourceIntakeAgent", "EvidenceExtractionAgent", "TemporalContextAgent",
     "SkillCompilerAgent", "WikiIntegratorAgent", "WikiLintAgent", "DiscoveryRunnerAgent",
+    "MultiSourceThemeAggregatorAgent",
 }
 _ALL_CONTRACT_FIELDS = (
     "agent_name", "purpose", "input_objects", "output_objects",
