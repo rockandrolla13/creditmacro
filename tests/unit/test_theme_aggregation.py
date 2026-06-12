@@ -236,6 +236,26 @@ def test_similarity_uses_shared_market_variables():
     assert len(res.clusters) == 1
 
 
+def test_evidence_bullets_are_formatted_with_kind_location_id():
+    atom = EvidenceAtom(evidence_id="ev-001", source_slug="src-a", source_location="page:3",
+                        claim="direct-lending default rate rose to X",
+                        claim_kind="source_fact", themes=["private credit risk is mispriced"])
+    b = _bundle("src-a", themes=["Private credit risk is mispriced"], atoms=[atom])
+    res = _run([b], [_sc("src-a")], [_tc("src-a")])
+    bullets = res.clusters[0].evidence_bullets
+    assert any(bl.text.startswith("[source_fact | page:3 | ev-001]") for bl in bullets)
+    assert any("direct-lending default rate rose" in bl.text for bl in bullets)
+
+
+def test_source_attribution_rationale_describes_contribution():
+    res = _run([_bundle("src-a", themes=["X theme"], atoms=[_atom("e1", "src-a", themes=["x theme"])]),
+                _bundle("buzz", hot=["x theme"])],
+               [_sc("src-a"), _sc("buzz")], [_tc("src-a"), _tc("buzz")])
+    rats = {a.source_slug: a.rationale.lower() for a in res.clusters[0].source_attributions}
+    assert "support" in rats["src-a"]
+    assert "attention" in rats["buzz"] or "mention" in rats["buzz"]
+
+
 def test_no_trade_confirmation_and_no_trade_fields():
     res = _run([_bundle("src-a", themes=["x theme"])], [_sc("src-a")])
     assert res.no_trade_confirmation

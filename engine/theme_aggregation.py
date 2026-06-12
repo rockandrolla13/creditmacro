@@ -172,6 +172,9 @@ def _eligibility(slug: str, sc, tc, policy: "ThemeAggregationPolicy") -> tuple:
 
 
 # ── raw item collection ──────────────────────────────────────────────────────
+_CONTENT_LINK_MIN = 0.5   # overlap to link an atom to a theme by content (PART 7.1 fallback)
+
+
 def _tok_set(strings) -> frozenset:
     """Flatten a list of phrase strings into one normalised token set (for the
     concept / entity / market-variable similarity signals)."""
@@ -179,6 +182,13 @@ def _tok_set(strings) -> frozenset:
     for s in strings or []:
         toks |= _normalize(s, {})[1]
     return frozenset(toks)
+
+
+def _atom_tokens(atom) -> frozenset:
+    """All content tokens of an atom (themes + concepts + entities + market_variables + claim)
+    — used to link an atom to a theme when the atom did not declare the theme explicitly."""
+    return (_tok_set(atom.themes) | _tok_set(atom.concepts) | _tok_set(atom.entities)
+            | _tok_set(atom.market_variables) | _normalize(atom.claim or "", {})[1])
 
 
 @dataclass
@@ -223,6 +233,14 @@ def _collect_items(bundle: EvidenceExtractionBundle, alias_map: dict) -> list[_I
         if not toks:
             continue
         ev = list(explicit) if explicit else list(atoms_by_theme.get(norm, []))
+        # PART 7.1 fallback: link atoms that did NOT declare this theme but whose content
+        # (entities/market_variables/claim) strongly overlaps it — so real extraction output
+        # (atoms carry no `themes`) still gives each theme its source-backed evidence IDs.
+        if not explicit:
+            for a in bundle.evidence_atoms:
+                if (a.evidence_id and a.evidence_id not in ev
+                        and _overlap(toks, _atom_tokens(a)) >= _CONTENT_LINK_MIN):
+                    ev.append(a.evidence_id)
         evset = set(ev)
         concepts: set = set()
         entities: set = set()
@@ -384,18 +402,21 @@ def _build_cluster(idx, cl, classes, temporals, bundles_by_slug, slug_cluster_co
             weight = policy.historical_source_discount
         elif contrib == "mentions_only":
             weight = policy.same_publisher_discount
+        rationale = {
+            "supports": f"supports via {len(ev)} source-backed evidence atom(s)",
+            "mentions_only": "mentions only; high attention but weak (no source-backed) evidence",
+            "historical_analogue": "historical analogue; cannot corroborate a current theme",
+            "method_context": "method/taxonomy context only; not market evidence",
+            "contradicts": "contradicts the theme",
+        }.get(contrib, f"{slug} [{klass}] contributes {len(items)} candidate(s)")
         attrs.append(SourceAttribution(
             source_slug=slug, source_type=(sc.source_type if sc else "other"),
             access_class=(sc.access_class if sc else "method"),
             temporal_role=role, is_current_input=cur, evidence_ids=ev,
             contribution_type=contrib,
             independence_group=policy.publisher_groups.get(slug),
-            source_weight=weight,
-            rationale=f"{slug} [{klass}] contributes {len(items)} candidate(s)",
+            source_weight=weight, rationale=rationale,
         ))
-        if ev:
-            bullets.append(EvidenceBullet(
-                text=f"{slug}: {items[0].raw_name}", evidence_ids=ev, source_slugs=[slug]))
         # enrichment from this source's bundle when it feeds this cluster. Attach an item when
         # its evidence/tokens link to the cluster OR the source feeds exactly ONE cluster (then
         # attribution is unambiguous — e.g. a proxy axis that shares no surface tokens). v1 rule.
@@ -417,6 +438,17 @@ def _build_cluster(idx, cl, classes, temporals, bundles_by_slug, slug_cluster_co
                 falsifiers.update(b.falsifiers)
 
     # ── PART 4 scores (deterministic; all weights on policy) ──
+    # Evidence bullets — one per linked atom, formatted [claim_kind | location | evidence_id] claim.
+    for eid in sorted(evidence_ids):
+        a = atoms_by_id.get(eid)
+        if a is None:
+            continue
+        kind = a.claim_kind or a.claim_type or "claim"
+        loc = a.source_location or "source"
+        bullets.append(EvidenceBullet(
+            text=f"[{kind} | {loc} | {eid}] {a.claim}",
+            evidence_ids=[eid], source_slugs=[a.source_slug] if a.source_slug else []))
+
     # PART 5: corroboration counts only CURRENT-input sources (method/historical excluded).
     current_slugs = {a.source_slug for a in attrs if a.contribution_type == "supports"
                      and a.is_current_input}

@@ -246,3 +246,20 @@ def print_ranked_candidates(result: IngestionResult) -> None:
             f"{c.evidence_score:>9.3f} {c.attention_score:>10.3f}  {stmt}"
         )
     print()
+
+
+# ── Multi-source path (additive; does NOT replace rank_candidates) ────────────
+def rank_multi_source_theme_clusters(theme_set):
+    """Stage-0 MULTI-SOURCE entry point: rank a MultiSourceThemeSet's clusters discovery-first.
+
+    Additive to the single-text rank_candidates() above — this consumes the deduplicated,
+    source-attributed clusters from engine.theme_aggregation.aggregate_theme_candidates and
+    orders them by (promotion_score, corroboration_score, divergence) so the discovery runner
+    can take the top clusters and run each through discovery individually. No trades.
+    """
+    return sorted(
+        theme_set.clusters,
+        key=lambda c: (c.promotion_score, c.corroboration_score,
+                       c.evidence_attention_divergence),
+        reverse=True,
+    )

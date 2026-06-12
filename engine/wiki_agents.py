@@ -309,10 +309,15 @@ class SkillCompilerAgent(WikiAgent):
 
 
 class WikiIntegratorAgent(WikiAgent):
+    # PART 7.2 (future): when implemented, this agent persists a MultiSourceThemeSet into
+    # wiki/theme-clusters/, and updates wiki/memory-map.md, wiki/index.md, wiki/log.md. NOT
+    # implemented in this build — the aggregator returns the theme set in-memory only; no wiki
+    # pages are written here.
     contract = AgentContract(
         agent_name="WikiIntegratorAgent",
         purpose="Integrate compiled outputs into the wiki: source page, theme/concept/entity pages, "
-                "scenario candidates (only if explicitly supplied), and index/log/memory-map updates.",
+                "theme clusters (MultiSourceThemeSet), scenario candidates (only if explicitly "
+                "supplied), and index/log/memory-map updates.",
         input_objects=["SourceClassification", "EvidenceAtom[]", "compiled_cards"],
         output_objects=["wiki/sources", "wiki/themes", "wiki/concepts", "wiki/entities",
                         "wiki/scenarios", "index.md", "log.md", "memory-map.md"],
