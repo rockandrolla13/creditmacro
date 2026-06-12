@@ -1,7 +1,7 @@
 ---
 type: theme
 access_class: case
-title: Round #46: Apollo + Blackstone: GPU-Backed Loans
+title: "Round #46: Apollo + Blackstone: GPU-Backed Loans"
 slug: debt-serious-round-46-apollo-blackstone-gpu-backed-loans-2026
 status: stub
 theme_status: core_theme_candidate

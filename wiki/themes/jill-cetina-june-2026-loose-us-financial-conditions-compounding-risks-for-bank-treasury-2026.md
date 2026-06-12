@@ -1,7 +1,7 @@
 ---
 type: theme
 access_class: case
-title: June 2026: Loose US Financial Conditions, Compounding Risks for Bank Treasury
+title: "June 2026: Loose US Financial Conditions, Compounding Risks for Bank Treasury"
 slug: jill-cetina-june-2026-loose-us-financial-conditions-compounding-risks-for-bank-treasury-2026
 status: stub
 theme_status: core_theme_candidate

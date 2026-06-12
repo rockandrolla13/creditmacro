@@ -1,7 +1,7 @@
 ---
 type: theme
 access_class: case
-title: Roundup #83: I told you so!
+title: "Roundup #83: I told you so!"
 slug: noahpinion-roundup-83-i-told-you-so-2026
 status: stub
 theme_status: core_theme_candidate

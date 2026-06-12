@@ -309,26 +309,39 @@ class SkillCompilerAgent(WikiAgent):
 
 
 class WikiIntegratorAgent(WikiAgent):
-    # PART 7.2 (future): when implemented, this agent persists a MultiSourceThemeSet into
-    # wiki/theme-clusters/, and updates wiki/memory-map.md, wiki/index.md, wiki/log.md. NOT
-    # implemented in this build — the aggregator returns the theme set in-memory only; no wiki
-    # pages are written here.
+    """Durable wiki-persistence layer. Persists source, evidence, theme, temporal, and
+    theme-cluster objects into wiki memory via the deterministic planner/applier in
+    engine.wiki_integration. Plans first (WikiUpdatePlan), then applies (WikiIntegrationResult)."""
     contract = AgentContract(
         agent_name="WikiIntegratorAgent",
-        purpose="Integrate compiled outputs into the wiki: source page, theme/concept/entity pages, "
-                "theme clusters (MultiSourceThemeSet), scenario candidates (only if explicitly "
-                "supplied), and index/log/memory-map updates.",
-        input_objects=["SourceClassification", "EvidenceAtom[]", "compiled_cards"],
-        output_objects=["wiki/sources", "wiki/themes", "wiki/concepts", "wiki/entities",
-                        "wiki/scenarios", "index.md", "log.md", "memory-map.md"],
-        allowed_paths_to_read=["wiki/"],
-        allowed_paths_to_write=["wiki/"],
-        access_class_rules=["stamp access_class per page", "never write trades/sizing/hedge ratios",
-                            "scenarios only when explicitly present in the source"],
+        purpose="persist source, evidence, theme, temporal, and theme-cluster objects into durable "
+                "wiki memory",
+        input_objects=["SourceClassification", "EvidenceExtractionBundle", "TemporalContext (optional)",
+                       "MultiSourceThemeSet (optional)"],
+        output_objects=["WikiUpdatePlan", "WikiIntegrationResult"],
+        allowed_paths_to_read=["current input bundle", "wiki index/log/memory-map",
+                               "existing relevant wiki pages"],
+        allowed_paths_to_write=["wiki/sources/", "wiki/evidence/", "wiki/themes/",
+                                "wiki/theme-clusters/", "wiki/concepts/", "wiki/entities/",
+                                "wiki/scenarios/", "wiki/outcomes/", "wiki/index.md", "wiki/log.md",
+                                "wiki/memory-map.md"],
+        access_class_rules=["METHOD pages may be read in Phase A",
+                            "CASE pages remain blocked in Phase A unless current input",
+                            "historical CASE remains historical/outcome candidate, not current "
+                            "recommendation",
+                            "old CASE cannot become METHOD"],
         provider_seams_used=[],
-        non_goals=["generate trades/scenarios/probabilities", "overwrite contradicting claims silently"],
-        tests_required=["links resolve", "frontmatter valid", "no trade legs emitted"],
+        non_goals=["no trades", "no sizing", "no scenario probabilities", "no execution"],
+        tests_required=["dry-run", "apply", "idempotency", "access_class", "link resolution",
+                        "no trade leakage", "no copyright leakage"],
     )
+
+    def run(self, input):  # noqa: A002
+        # lazy import to avoid a circular import (wiki_integration imports from this module)
+        from engine.wiki_integration import WikiIntegratorInput, integrate
+        inp = (input if isinstance(input, WikiIntegratorInput)
+               else WikiIntegratorInput.model_validate(input))
+        return integrate(inp)
 
 
 class WikiLintAgent(WikiAgent):

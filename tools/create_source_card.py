@@ -51,8 +51,10 @@ def _card_body(fm: SourceFrontmatter, atoms: list[EvidenceAtom]) -> str:
 
 
 def _theme_card(slug: str, title: str) -> str:
+    import json
+    safe_title = json.dumps(title, ensure_ascii=False)  # valid YAML double-quoted scalar
     return (
-        f"---\ntype: theme\naccess_class: case\ntitle: {title}\nslug: {slug}\n"
+        f"---\ntype: theme\naccess_class: case\ntitle: {safe_title}\nslug: {slug}\n"
         f"status: stub\ntheme_status: core_theme_candidate\n"
         f"main_developments: []\nkey_events: []\nhot_topics: []\ncausal_chain: []\n"
         f"operational_axes: []\nconfounders: []\nfalsifiers: []\nstrategy_families: []\n"

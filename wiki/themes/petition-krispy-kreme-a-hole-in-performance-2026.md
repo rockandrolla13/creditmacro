@@ -1,7 +1,7 @@
 ---
 type: theme
 access_class: case
-title: 💥Krispy Kreme: A Hole in Performance💥
+title: "💥Krispy Kreme: A Hole in Performance💥"
 slug: petition-krispy-kreme-a-hole-in-performance-2026
 status: stub
 theme_status: core_theme_candidate

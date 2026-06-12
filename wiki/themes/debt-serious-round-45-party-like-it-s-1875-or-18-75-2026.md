@@ -1,7 +1,7 @@
 ---
 type: theme
 access_class: case
-title: Round #45: Party Like It’s 1875… or 18.75%
+title: "Round #45: Party Like It’s 1875… or 18.75%"
 slug: debt-serious-round-45-party-like-it-s-1875-or-18-75-2026
 status: stub
 theme_status: core_theme_candidate
