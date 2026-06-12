@@ -99,3 +99,36 @@ Entry format:
 - **Single source of truth:** pages regenerated from the JSONL so the committed `test_jpm_case_fixture`
   assertions stay green. Full suite 352 passed, 0 regressions. No golden-master change; no scenarios/
   probabilities/fair-values/legs/sizing produced. Bridge engine (atoms→map→posterior) = PART-2b, not built.
+- 2026-06-12 WikiIntegrator: integrated `applied-macro-1-nominal-gdp-the-long-term-driver-of-equity-returns-2026` (case) — 32 page(s); 2 theme(s), 29 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `applied-macro-2-nominal-gdp-is-not-the-only-thing-that-matters-2026` (case) — 11 page(s); 10 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `applied-macro-3-earnings-as-a-share-of-gdp-2026` (case) — 8 page(s); 7 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `applied-macro-4-pe-ratio-2026` (case) — 14 page(s); 13 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `applied-macro-5-bringing-it-together-2026` (case) — 10 page(s); 9 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `applied-macro-the-2026-stock-market-bubble-2026` (case) — 9 page(s); 8 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `applied-macro-the-50-to-1-shot-2026` (case) — 19 page(s); 18 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `applied-macro-what-will-happen-in-equity-markets-2026` (case) — 19 page(s); 18 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `apricitas-america-s-1t-ai-gamble-2026` (case) — 43 page(s); 42 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `apricitas-america-s-electricity-gap-2026` (case) — 38 page(s); 37 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `apricitas-taiwan-s-modern-miracle-2026` (case) — 19 page(s); 18 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `apricitas-the-supreme-court-ruled-against-trump-s-tariffs-now-what-2026` (case) — 30 page(s); 29 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `debt-serious-podcast-episode-7-how-lenders-value-private-credit-loans-ron-kahn-co-head-of-global-valuations-and-opinion-group-at-lincoln-international-2026` (case) — 6 page(s); 5 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `debt-serious-round-45-party-like-it-s-1875-or-18-75-2026` (case) — 82 page(s); 81 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `debt-serious-round-46-apollo-blackstone-gpu-backed-loans-2026` (case) — 81 page(s); 80 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `debt-serious-round-47-altice-lenders-it-s-complicated-2026` (case) — 89 page(s); 88 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `jill-cetina-how-long-can-above-target-us-inflation-last-2026` (case) — 11 page(s); 10 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `jill-cetina-june-2026-loose-us-financial-conditions-compounding-risks-for-bank-treasury-2026` (case) — 5 page(s); 4 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `jill-cetina-team-transitory-2-0-2026` (case) — 9 page(s); 8 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `net-interest-griffin-s-doors-2026` (case) — 8 page(s); 7 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `net-interest-strategy-follows-structure-2026` (case) — 18 page(s); 17 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `net-interest-when-the-ducks-are-quacking-2026` (case) — 27 page(s); 26 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `noahpinion-are-you-finally-ready-to-admit-it-s-the-phones-2026` (case) — 18 page(s); 17 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `noahpinion-insurers-aren-t-the-main-villain-of-the-u-s-health-care-system-2026` (case) — 26 page(s); 25 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `noahpinion-roundup-83-i-told-you-so-2026` (case) — 18 page(s); 17 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `noahpinion-why-europe-should-put-up-trade-barriers-against-chinese-goods-2026` (case) — 11 page(s); 10 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `petition-krispy-kreme-a-hole-in-performance-2026` (case) — 62 page(s); 61 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `petition-new-chapter-11-bankruptcy-filing-brewster-heights-packing-orchards-lp-2026` (case) — 8 page(s); 7 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `petition-new-chapter-11-bankruptcy-filing-simply-interior-homes-llc-2026` (case) — 31 page(s); 30 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `petition-wake-us-when-it-s-over-2026` (case) — 19 page(s); 18 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `the-overshoot-russia-s-underwhelming-oil-revenue-windfall-2026` (case) — 5 page(s); 4 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `the-overshoot-the-u-s-job-market-is-still-inflationary-2026` (case) — 11 page(s); 10 theme(s), 0 cluster(s).
+- 2026-06-12 WikiIntegrator: integrated `the-overshoot-yes-living-standards-have-grown-slower-in-northwest-europe-than-in-the-u-s-2026` (case) — 16 page(s); 15 theme(s), 0 cluster(s).

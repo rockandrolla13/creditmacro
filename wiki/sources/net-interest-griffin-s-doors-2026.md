@@ -1,67 +1,99 @@
 ---
 type: source
-title: Griffin’s Doors
-slug: net-interest-griffin-s-doors-2026
+classification: source
+workflow_status: discovery_complete
 access_class: case
-source_type: memo
-aliases: []
-tags: []
-sources: []
-status: draft
-raw_source_path: raw/memos/net-interest-griffin-s-doors-2026.html
-ingestion_status: draft
-copyright: true
-created: '2026-06-12'
-updated: '2026-06-12'
+source_type: report
+source_date: unknown
+temporal_role: current_report
+current_update_required: false
+author_or_publisher: Net Interest — Marc Rubinstein
+raw_source_path: raw/net-interest-griffin-s-doors-2026.md
+normalized_markdown_path: markdowns/net-interest-griffin-s-doors-2026.md
+ingestion_status: ingested
+evidence_atoms: 
+  - "net-interest-griffin-s-doors-2026-001"
+  - "net-interest-griffin-s-doors-2026-002"
+  - "net-interest-griffin-s-doors-2026-003"
+  - "net-interest-griffin-s-doors-2026-004"
+  - "net-interest-griffin-s-doors-2026-005"
+  - "net-interest-griffin-s-doors-2026-006"
+themes: 
+  - "net-interest-griffin-s-doors-2026-software-credit"
+theme_clusters: []
+concepts: []
+entities: []
+created: 2026-06-12
+updated: 2026-06-12
 ---
 
-# Griffin’s Doors
+# Source Summary
 
 ## What this source is
+A report source (Net Interest — Marc Rubinstein), classified `case`. Durable memory record of the
+structured fields extracted from it.
 
-<!-- TODO: fill from the source; do not invent facts -->
+## Temporal status
+Source date unknown; temporal role **current_report**; current update required: false.
 
 ## Why it matters
-
-<!-- TODO: fill from the source; do not invent facts -->
+- software credit
 
 ## Main developments mentioned
-
-<!-- TODO: fill from the source; do not invent facts -->
+- His flagship fund has generated positive returns in more than 80% of the months it has
 
 ## Key events mentioned
-
-<!-- TODO: fill from the source; do not invent facts -->
+- It launched a quantitative strategies group in 2012 and employs around 270 PhDs from fields including computer engineering and statistics.
 
 ## Core theme candidates mentioned
-
-<!-- TODO: fill from the source; do not invent facts -->
+- software credit
 
 ## Hot topics mentioned
-
-<!-- TODO: fill from the source; do not invent facts -->
+- technology
+- software
 
 ## Extracted facts
-
-<!-- TODO: fill from the source; do not invent facts -->
+- I haven’t had a chance to visit Citadel’s new global headquarters in Miami, and it’s a while since
+- Since founding the firm in 1990, Griffin has delivered net gains to investors of $90.4 billion after fees
+- His flagship fund has generated positive returns in more than 80% of the months it has been going,
+- With $68 billion under management, Citadel isn’t the largest hedge fund manager out there but it is adept
+- It launched a quantitative strategies group in 2012 and employs around 270 PhDs from fields including computer engineering
+- Griffin instructed his team to abandon 195 of the 200 projects they had been working on and a
 
 ## Extracted causal claims
-<!-- TODO -->
+- … I have to tell you, I went home one Friday actually -> you could just see how this was going to …
+- Griffin’s experience -> a prediction made by Anthropic, the AI lab most focused on finance (reflects)
 
-## Operational axes
-<!-- TODO -->
+## Extracted operational axes
+- (none)
 
-## Confounders
-<!-- TODO -->
+## Extracted confounders
+- standing credit risk premium (a wide spread is not by itself mispricing)
 
-## Falsifiers
-<!-- TODO -->
+## Extracted falsifiers
+- the forecasted driver variable fails to move
+- an alternative explanation (a listed confounder) fully explains the gap
+- the flow/liquidity effect is absent
+- fundamentals improve and the differential closes
+- the relationship proves non-stationary
+
+## Forecast horizons / outcome candidates
+- (none)
 
 ## Strategy-family hints
-<!-- TODO -->
+- watchlist_only: no clean operational axis detected
+
+## Links created or updated
+- [[net-interest-griffin-s-doors-2026-software-credit]]
+- [[net-interest-griffin-s-doors-2026-001]]
+- [[net-interest-griffin-s-doors-2026-002]]
+- [[net-interest-griffin-s-doors-2026-003]]
+- [[net-interest-griffin-s-doors-2026-004]]
+- [[net-interest-griffin-s-doors-2026-005]]
+- [[net-interest-griffin-s-doors-2026-006]]
 
 ## Open questions
-<!-- TODO -->
+- Is the axis a clean differential or contaminated by standing credit risk premium (a wide spread is not by itself mispricing)?
 
-## Case themes updated
-<!-- TODO -->
+## No-trade boundary
+This page is durable memory only — no trades, sizing, hedge ratios, or execution.
