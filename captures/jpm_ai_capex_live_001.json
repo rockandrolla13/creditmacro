@@ -1,0 +1,91 @@
+{
+  "capture_id": "jpm_ai_capex_live_001",
+  "kind": "live_discovery_diagnostic",
+  "created": "2026-06-08",
+  "run_completed": false,
+  "run_status": "BLOCKED",
+  "block_class": "infrastructure_credential",
+  "summary": "Live discovery on the JPM AI Capex Funding input was attempted with the live LLM provider and the opt-in guard enabled. The opt-in guard passed; the run died at the FIRST generative seam (expand_causal) because no Anthropic credential is available in the environment. Zero discovery stages executed. Per instruction, no fallback to the scripted provider was performed.",
+
+  "invocation": {
+    "module": "engine.example_live_discovery",
+    "provider": "llm",
+    "mode": "discovery",
+    "opt_in_env": "ALLOW_LIVE_LLM_DISCOVERY=1",
+    "input": "AI capex funding is creating RV opportunities across hyperscalers, data-center project bonds and HY HPC issuers.",
+    "current_source": "wiki/sources/jpm-ai-capex-funding-2026-05-11.md",
+    "input_kind": "jpm_report",
+    "axes_passed": [
+      "hyperscaler_IG_OAS_minus_IG_data_center_project_OAS",
+      "Data_Centers_OAS_minus_Technology_OAS"
+    ]
+  },
+
+  "environment": {
+    "python": "3.12.3",
+    "anthropic_sdk": "0.86.0",
+    "ANTHROPIC_API_KEY": "<unset>",
+    "ANTHROPIC_AUTH_TOKEN": "<unset>",
+    "ALLOW_LIVE_LLM_DISCOVERY": "1 (set for the attempt)",
+    "note": "A Claude Code OAuth credential exists at ~/.claude/.credentials.json but is a subscription token scoped to the CLI client. It was deliberately NOT repurposed to drive programmatic SDK calls (credential misuse; the engine's live provider expects an ANTHROPIC_API_KEY)."
+  },
+
+  "failure": {
+    "opt_in_guard": "PASSED (ALLOW_LIVE_LLM_DISCOVERY=1 accepted; LiveDiscoveryNotEnabled not raised)",
+    "failure_point": "engine/llm_provider.py:105  LLMProvider._call_json -> messages.create(...)",
+    "first_seam_reached": "expand_causal (the causal expander — the first generative seam)",
+    "call_path": [
+      "engine.example_live_discovery.run",
+      "engine.live_discovery.run_live_discovery",
+      "engine.provider_select.run_discovery",
+      "engine.workflow.run_workflow(mode='discovery')",
+      "engine.workflow._run_discovery",
+      "engine.workflow._causal_stage(fallback_axis=False)",
+      "engine.llm_provider.LLMProvider.expand_causal",
+      "engine.llm_provider.LLMProvider._call_json",
+      "anthropic ... messages.create",
+      "anthropic._client._validate_headers"
+    ],
+    "error_type": "TypeError",
+    "error_message": "Could not resolve authentication method. Expected either api_key or auth_token to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted",
+    "exit_code": 1,
+    "capture_record_written": false,
+    "capture_record_note": "No LiveRunRecord was written: the failure is an uncaught auth TypeError raised BEFORE validate_discovery_output / freeze. Capture is only written inside run_live_discovery after the contract gate; the auth error short-circuits that path."
+  },
+
+  "stage_outputs": {
+    "IcebergClassification": {"status": "BLOCKED", "value": null},
+    "CausalChain": {"status": "BLOCKED", "value": null},
+    "SystemMap": {"status": "BLOCKED", "value": null},
+    "LoopDiagnosis": {"status": "BLOCKED", "value": null},
+    "StrategyFamilyRec[]": {"status": "BLOCKED", "value": []},
+    "ConfidenceComponents": {"status": "BLOCKED", "value": null},
+    "MacroContext": {"status": "BLOCKED", "value": null},
+    "status": {"status": "BLOCKED", "value": null},
+    "block_reason": {"status": "BLOCKED", "value": "auth_credential_missing (engine-level: never reached needs_causal_object / no_clean_operational_axis)"},
+    "FreshReasoningSnapshot": {"status": "BLOCKED", "value": null, "note": "freeze() never reached; no content_hash produced"}
+  },
+
+  "firewall_state_at_block": {
+    "phase_A_memory": "MemoryRetriever(phase='A') constructed METHOD-only and fail-closed on CASE; no case page was served (run died before any retrieval mattered).",
+    "current_source_path": "wiki/sources/jpm-ai-capex-funding-2026-05-11.md carries access_class: case but is supplied as current_input (a separate allowed path), not retrieved from memory.",
+    "trade_leakage_gate": "Not exercised (validate_discovery_output never ran). Output is empty, so trivially no pricing/sizing/expressions present.",
+    "snapshot_frozen": false
+  },
+
+  "structural_capability_notes_even_with_a_key": [
+    "IcebergClassification: LLMProvider implements NO classify_iceberg seam (0 defs) and LLMProvider.parse() returns empty streams. A successful live run would still emit NO IcebergClassification under the current wiring.",
+    "Ranked families: engine.discovery.select_strategy_families returns at most a ONE-element list, and _run_discovery builds exactly ONE main_theme/axis. A ranked list of 4 families (basis > GPU-dispersion > index-inclusion > HPC-watchlist) cannot be produced by a single run.",
+    "Scenarios: LLMProvider.propose_scenarios returns []. priced_in_available is therefore always False -> edge_survival='unknown', data_confidence capped 0.5, ceilings 0.45/0.60. Every live family confidence is dominated by structural ceilings (<=0.45), not by the actual edge-vs-crowding distinction.",
+    "macro_context seam IS wired and would run (macro-regime-classifier card present)."
+  ],
+
+  "instruction_compliance": {
+    "engine_modified": false,
+    "features_added": false,
+    "golden_master_changed": false,
+    "firewalls_weakened": false,
+    "trades_sizing_legs_produced": false,
+    "scripted_fallback_used": false
+  }
+}

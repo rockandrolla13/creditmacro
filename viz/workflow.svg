@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1604" viewBox="0 0 1000 1604">
+<rect x="0" y="0" width="1000" height="1604" fill="#FFFFFF"/>
+<text x="500.0" y="48" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="24" font-weight="800" fill="#11181F">Theme-to-Trade Engine — Workflow</text>
+<text x="500.0" y="74" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="12.5" fill="#5A636C">A disciplined, falsifiable pipeline: research → causal theme → priced-in edge → ranked strategy families → PM decision. Chips = method skills (firewall-safe).</text>
+<rect x="120" y="108" width="760" height="60" rx="10" fill="#EEF1F4" stroke="#94A0AB" stroke-width="2"/>
+<text x="138" y="132" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="15" font-weight="700" fill="#2B3138">RAW SOURCES  (immutable)</text>
+<text x="138" y="152" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">markdowns/ · research books · papers — never modified</text>
+<rect x="120" y="214" width="760" height="60" rx="10" fill="#EEF1F4" stroke="#94A0AB" stroke-width="2"/>
+<text x="138" y="238" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="15" font-weight="700" fill="#2B3138">WIKI MEMORY</text>
+<text x="138" y="258" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">method pages (how to reason)  ·  case pages (past themes/outcomes)</text>
+<rect x="120" y="320" width="760" height="110" rx="10" fill="#E7F0FB" stroke="#3B82C4" stroke-width="2"/>
+<text x="138" y="344" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="15" font-weight="700" fill="#15324F">STAGE 0 — INGESTION</text>
+<text x="138" y="364" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">Observation (facts) · CandidateTheme (narratives) · ConsensusSignal (attention)</text>
+<text x="138" y="382" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">nominate themes RANKED BY divergence(evidence, attention) = pre-screen on (p − q)</text>
+<rect x="138" y="406" width="126" height="17" rx="8.5" fill="#FFFFFF" stroke="#3B82C4" stroke-width="1"/>
+<text x="201" y="418" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#15324F">iceberg-classifier</text>
+<rect x="272.0" y="406" width="126" height="17" rx="8.5" fill="#FFFFFF" stroke="#3B82C4" stroke-width="1"/>
+<text x="335" y="418" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#15324F">macro-state-parser</text>
+<rect x="406.0" y="406" width="156" height="17" rx="8.5" fill="#FFFFFF" stroke="#3B82C4" stroke-width="1"/>
+<text x="484" y="418" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#15324F">macro-regime-classifier</text>
+<rect x="120" y="476" width="760" height="44" rx="8" fill="#FFF4E0" stroke="#E0A53A" stroke-width="1.5" stroke-dasharray="7 4"/>
+<text x="500.0" y="494" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="12.5" font-weight="700" fill="#5A4410">MEMORY FIREWALL</text>
+<text x="500.0" y="512" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="10.5" fill="#5A4410">Phase A — fresh reasoning, METHOD pages only   ▶   FREEZE (SHA-256 snapshot)   ▶   Phase B — CASE pages: analogue + calibration only</text>
+<rect x="120" y="566" width="760" height="92" rx="10" fill="#E8F5EC" stroke="#3A9D5D" stroke-width="2"/>
+<text x="138" y="590" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="15" font-weight="700" fill="#163E27">ENGINE 1 — Driver + Axis</text>
+<text x="138" y="610" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">Q1 theme · Q2 universe · Q3 operational axis (a named, computable series)</text>
+<rect x="138" y="634" width="108" height="17" rx="8.5" fill="#FFFFFF" stroke="#3A9D5D" stroke-width="1"/>
+<text x="192" y="646" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#163E27">causal-compiler</text>
+<rect x="254.0" y="634" width="96" height="17" rx="8.5" fill="#FFFFFF" stroke="#3A9D5D" stroke-width="1"/>
+<text x="302" y="646" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#163E27">system-mapper</text>
+<rect x="358.0" y="634" width="120" height="17" rx="8.5" fill="#FFFFFF" stroke="#3A9D5D" stroke-width="1"/>
+<text x="418" y="646" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#163E27">global-io-network</text>
+<rect x="486.0" y="634" width="192" height="17" rx="8.5" fill="#FFFFFF" stroke="#3A9D5D" stroke-width="1"/>
+<text x="582" y="646" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#163E27">backdoor-identifiability-gate</text>
+<rect x="686.0" y="634" width="96" height="17" rx="8.5" fill="#FFFFFF" stroke="#3A9D5D" stroke-width="1"/>
+<text x="734" y="646" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#163E27">trap-detector</text>
+<rect x="120" y="704" width="760" height="116" rx="10" fill="#E2F4F2" stroke="#2FA39B" stroke-width="2"/>
+<text x="138" y="728" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="15" font-weight="700" fill="#0E3F3B">ENGINE 2 — Scenario Pricing</text>
+<text x="138" y="748" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">Q4 normal FV · Q5 scenario FV = Σ pₛ Xₛ · Q6 priced-in q (max-entropy) · Q7 edge = ⟨p − q, X⟩</text>
+<rect x="138" y="772" width="156" height="17" rx="8.5" fill="#FFFFFF" stroke="#2FA39B" stroke-width="1"/>
+<text x="216" y="784" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#0E3F3B">scenario-pricing-engine</text>
+<rect x="302.0" y="772" width="126" height="17" rx="8.5" fill="#FFFFFF" stroke="#2FA39B" stroke-width="1"/>
+<text x="365" y="784" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#0E3F3B">evidence-weighting</text>
+<rect x="436.0" y="772" width="174" height="17" rx="8.5" fill="#FFFFFF" stroke="#2FA39B" stroke-width="1"/>
+<text x="523" y="784" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#0E3F3B">outcome-calibration-engine</text>
+<rect x="618.0" y="772" width="132" height="17" rx="8.5" fill="#FFFFFF" stroke="#2FA39B" stroke-width="1"/>
+<text x="684" y="784" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#0E3F3B">priced-in-estimator</text>
+<rect x="138" y="796" width="150" height="17" rx="8.5" fill="#FFFFFF" stroke="#2FA39B" stroke-width="1"/>
+<text x="213" y="808" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#0E3F3B">term-premium-estimator</text>
+<rect x="120" y="866" width="760" height="110" rx="10" fill="#EFE9FA" stroke="#7C5CC4" stroke-width="2"/>
+<text x="138" y="890" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="15" font-weight="700" fill="#2E2153">DISCOVERY OUTPUT</text>
+<text x="138" y="910" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">ranked strategy families + decomposed confidence</text>
+<text x="138" y="928" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">status: strategy_family_routed   ◀ DISCOVERY STOPS HERE (no legs / sizing / hedges)</text>
+<rect x="138" y="952" width="96" height="17" rx="8.5" fill="#FFFFFF" stroke="#7C5CC4" stroke-width="1"/>
+<text x="186" y="964" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#2E2153">edge-validity</text>
+<rect x="242.0" y="952" width="114" height="17" rx="8.5" fill="#FFFFFF" stroke="#7C5CC4" stroke-width="1"/>
+<text x="299" y="964" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#2E2153">factor-r2-router</text>
+<rect x="120" y="1022" width="760" height="44" rx="8" fill="#EEF1F4" stroke="#94A0AB" stroke-width="1.5" stroke-dasharray="7 4"/>
+<text x="500.0" y="1040" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="12.5" font-weight="700" fill="#2B3138">EXPRESSION MODE  (separate pass — only on request)</text>
+<text x="500.0" y="1058" text-anchor="middle" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="10.5" fill="#2B3138">the discovery firewall does NOT produce expression_complete; the human re-enters</text>
+<rect x="120" y="1112" width="760" height="60" rx="10" fill="#EEF1F4" stroke="#94A0AB" stroke-width="2"/>
+<text x="138" y="1136" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="15" font-weight="700" fill="#2B3138">ENGINE 3 — Expression Scoring</text>
+<text x="138" y="1156" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">Q8 candidates · Q9 best = gated score ρ²·Ω·(1+a·cvx)·liq·e^(−g·crowd)/(1+cap)</text>
+<rect x="120" y="1218" width="760" height="60" rx="10" fill="#EEF1F4" stroke="#94A0AB" stroke-width="2"/>
+<text x="138" y="1242" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="15" font-weight="700" fill="#2B3138">ENGINE 4 — Sizer + Risk</text>
+<text x="138" y="1262" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">Q10 size (Alaph grid) · Q11 stop (on the axis) · Q12 falsifiers (observable+threshold)</text>
+<rect x="120" y="1324" width="760" height="60" rx="10" fill="#FBE9E9" stroke="#C0392B" stroke-width="2"/>
+<text x="138" y="1348" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="15" font-weight="700" fill="#5A1812">PM GATE</text>
+<text x="138" y="1368" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">Q13 open questions  →  STOP · hands control to the human (epistemic engine ends here)</text>
+<rect x="120" y="1438" width="760" height="96" rx="10" fill="#EAEEF2" stroke="#5B6B7B" stroke-width="2"/>
+<text x="138" y="1462" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="15" font-weight="700" fill="#22303C">THESIS TRACKER  (SQLite sidecar — standalone)</text>
+<text x="138" y="1482" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">one row per ticker · computes probability-weighted price + upside · audit log</text>
+<text x="138" y="1500" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">seeded by create_thesis_stub_from_theme() — copies thesis/links/kill-criteria,</text>
+<text x="138" y="1518" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="11" fill="#3A424B">invents NO prices, probabilities, weights, or recommendations</text>
+<line x1="500.0" y1="168" x2="500.0" y2="205" stroke="#6B7280" stroke-width="2"/><polygon points="494.0,205 506.0,205 500.0,214" fill="#6B7280"/>
+<line x1="500.0" y1="274" x2="500.0" y2="311" stroke="#6B7280" stroke-width="2"/><polygon points="494.0,311 506.0,311 500.0,320" fill="#6B7280"/>
+<line x1="500.0" y1="430" x2="500.0" y2="467" stroke="#6B7280" stroke-width="2"/><polygon points="494.0,467 506.0,467 500.0,476" fill="#6B7280"/>
+<line x1="500.0" y1="520" x2="500.0" y2="557" stroke="#6B7280" stroke-width="2"/><polygon points="494.0,557 506.0,557 500.0,566" fill="#6B7280"/>
+<line x1="500.0" y1="658" x2="500.0" y2="695" stroke="#6B7280" stroke-width="2"/><polygon points="494.0,695 506.0,695 500.0,704" fill="#6B7280"/>
+<line x1="500.0" y1="820" x2="500.0" y2="857" stroke="#6B7280" stroke-width="2"/><polygon points="494.0,857 506.0,857 500.0,866" fill="#6B7280"/>
+<line x1="500.0" y1="976" x2="500.0" y2="1013" stroke="#6B7280" stroke-width="2"/><polygon points="494.0,1013 506.0,1013 500.0,1022" fill="#6B7280"/>
+<line x1="500.0" y1="1066" x2="500.0" y2="1103" stroke="#6B7280" stroke-width="2"/><polygon points="494.0,1103 506.0,1103 500.0,1112" fill="#6B7280"/>
+<line x1="500.0" y1="1172" x2="500.0" y2="1209" stroke="#6B7280" stroke-width="2"/><polygon points="494.0,1209 506.0,1209 500.0,1218" fill="#6B7280"/>
+<line x1="500.0" y1="1278" x2="500.0" y2="1315" stroke="#6B7280" stroke-width="2"/><polygon points="494.0,1315 506.0,1315 500.0,1324" fill="#6B7280"/>
+<line x1="500.0" y1="1384" x2="500.0" y2="1429" stroke="#6B7280" stroke-width="2" stroke-dasharray="6 4"/><polygon points="494.0,1429 506.0,1429 500.0,1438" fill="#6B7280"/><text x="510.0" y="1414.0" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="9.5" fill="#6B7280">thesis stub</text>
+<text x="120" y="1556" font-family="Helvetica, Arial, 'Liberation Sans', sans-serif" font-size="10.5" fill="#5A636C">Solid arrow = data/control flow   ·   Dashed = optional / sidecar   ·   Dashed band = cross-cutting (firewall / mode switch)   ·   15 method skills shown as chips at the phase they fire</text>
+</svg>

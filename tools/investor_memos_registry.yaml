@@ -17,3 +17,39 @@ applied-macro:
   name: "Applied Macro — Colm O'Shea"
   substack: "https://colmjoshea.substack.com"
   aliases: ["colm oshea", "colm o'shea", "colmjoshea", "applied macro", "oshea"]
+
+# ── Macro substacks ──
+noahpinion:
+  name: "Noahpinion — Noah Smith"
+  substack: "https://www.noahpinion.blog"
+  aliases: ["noah smith", "noahpinion"]
+apricitas:
+  name: "Apricitas Economics — Joseph Politano"
+  substack: "https://www.apricitas.io"
+  aliases: ["joseph politano", "apricitas"]
+the-overshoot:
+  name: "The Overshoot — Matthew Klein"
+  substack: "https://theovershoot.co"
+  aliases: ["matthew klein", "the overshoot", "overshoot"]
+
+# ── Credit / fixed-income substacks ──
+net-interest:
+  name: "Net Interest — Marc Rubinstein"
+  substack: "https://www.netinterest.co"
+  aliases: ["marc rubinstein", "net interest"]
+petition:
+  name: "PETITION — distressed / restructuring"
+  substack: "https://petition.substack.com"
+  aliases: ["petition"]
+debt-serious:
+  name: "DEBT SERIOUS — private credit / leveraged finance"
+  substack: "https://debtserious.substack.com"
+  aliases: ["debt serious"]
+jill-cetina:
+  name: "Macro-Financial Analysis & Banking — Jill Cetina"
+  substack: "https://jillcetina.substack.com"
+  aliases: ["jill cetina", "mfab", "macro-financial"]
+
+# NOT auto-fetchable via the Substack archive API (custom CMS / not Substack-hosted):
+#   Doomberg (doomberg.com), The Kobeissi Letter (thekobeissiletter.com),
+#   Behind the Balance Sheet (behindthebalancesheet.com).
