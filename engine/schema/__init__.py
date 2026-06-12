@@ -42,6 +42,13 @@ from .streams import (
 )
 from .system_map import Delay, FeedbackLoop, Flow, Stock, SystemMap
 from .theme import ThemeObject
+from .theme_aggregation import (
+    EvidenceBullet,
+    MultiSourceThemeSet,
+    SourceAttribution,
+    ThemeCluster,
+    ThemeClusterMember,
+)
 from .thesis_tracker import (
     ComputedThesisTrackerRecord,
     MarketDataRecord,
@@ -80,4 +87,7 @@ __all__ = [
     "ThemeObject",
     # thesis tracker (standalone persistence sidecar — not wired into discovery/firewall)
     "MarketDataRecord", "ThesisTrackerRecord", "ComputedThesisTrackerRecord",
+    # Stage-0 multi-source theme aggregator
+    "SourceAttribution", "EvidenceBullet", "ThemeClusterMember", "ThemeCluster",
+    "MultiSourceThemeSet",
 ]
