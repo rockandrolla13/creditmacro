@@ -10,3 +10,10 @@ oaktree:
     - "https://www.oaktreecapital.com/insights/memos"
   link_selector: "a[href*='/insights/memo/']"
   aliases: ["howard-marks", "howard marks", "marks", "oaktree capital"]
+
+# Substack entries: set `substack` to the publication root; posts are listed via the
+# archive API (no link_selector needed). Macro/investment newsletters go here.
+applied-macro:
+  name: "Applied Macro — Colm O'Shea"
+  substack: "https://colmjoshea.substack.com"
+  aliases: ["colm oshea", "colm o'shea", "colmjoshea", "applied macro", "oshea"]

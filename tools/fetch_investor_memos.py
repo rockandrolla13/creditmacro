@@ -26,7 +26,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Optional, Union
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 # Allow direct-script invocation (python tools/fetch_investor_memos.py ...).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -91,6 +91,38 @@ def fetch_url(url: str, *, timeout: float = 20.0) -> FetchResult:
 
 
 Fetcher = Callable[..., FetchResult]
+
+
+# ── Substack adapter ─────────────────────────────────────────────────────────
+# Every Substack shares one structure, so a single adapter covers all of them:
+# posts at <pub>.substack.com/p/<slug>, listed via the archive JSON API.
+def _clean_url(url: str) -> str:
+    """Drop tracking query/fragment (utm_*, isFreemail, triedRedirect, r=...) from a URL."""
+    p = urlsplit(url)
+    return urlunsplit((p.scheme, p.netloc, p.path, "", ""))
+
+
+def is_substack_url(url: str) -> bool:
+    return ".substack.com" in urlsplit(url).netloc.lower()
+
+
+def _substack_root(pub_url: str) -> str:
+    p = urlsplit(pub_url if "//" in pub_url else "https://" + pub_url)
+    return urlunsplit((p.scheme or "https", p.netloc, "", "", ""))
+
+
+def list_substack_posts(pub_url: str, limit: int = 10, fetcher: Fetcher = fetch_url) -> list:
+    """List a publication's recent posts via the Substack archive API (newest first)."""
+    api = f"{_substack_root(pub_url)}/api/v1/archive?sort=new&search=&offset=0&limit={limit}"
+    data = json.loads(fetcher(api).content)
+    posts: list[MemoLink] = []
+    for item in data:
+        url = item.get("canonical_url") or item.get("slug")
+        if not url:
+            continue
+        posts.append(MemoLink(url=_clean_url(url), title=item.get("title") or url,
+                              date=item.get("post_date")))
+    return posts
 
 
 # ── registry resolution ──────────────────────────────────────────────────────
@@ -209,6 +241,7 @@ def ingest_memo(
     for d in (raw_md_dir, memos_dir, manifests_dir):
         d.mkdir(parents=True, exist_ok=True)
 
+    memo = MemoLink(url=_clean_url(memo.url), title=memo.title, date=memo.date)  # drop tracking
     res = fetcher(memo.url)
     if res.is_pdf:
         return _ingest_pdf_memo(res, memo, investor, access_class, out_root, wiki_root, force)
@@ -277,19 +310,34 @@ def run(
     """Resolve the investor, gather memo links (from explicit urls or the registry index),
     and ingest each. Unknown investor with no explicit urls -> reported error, never silent."""
     summary = RunSummary(investor=name)
+    investor_label = name
 
     if urls:
-        memos = [MemoLink(url=u, title=u.rstrip("/").rsplit("/", 1)[-1]) for u in urls]
+        memos = []
+        for u in urls:
+            cu = _clean_url(u)
+            # a bare Substack publication URL → list its posts; a /p/ post → ingest directly
+            if is_substack_url(cu) and "/p/" not in urlsplit(cu).path:
+                memos.extend(list_substack_posts(cu, limit or 10, fetcher))
+            else:
+                memos.append(MemoLink(url=cu, title=cu.rstrip("/").rsplit("/", 1)[-1]))
     else:
         entry = resolve_investor(name, registry)
         if entry is None:
             summary.errors.append(
                 f"no registry entry for '{name}' and no --url given; "
-                f"the skill should web-search the memo index, confirm it, and add it."
+                f"the skill should web-search the source (memo index or Substack), confirm it, "
+                f"and add it."
             )
             return summary
+        investor_label = next((k for k, v in registry.items() if v is entry), name)
         memos = []
-        for index_url in entry.get("index_urls", []):
+        if entry.get("substack"):       # Substack publication → archive API
+            try:
+                memos.extend(list_substack_posts(entry["substack"], limit or 10, fetcher))
+            except Exception as e:  # noqa: BLE001
+                summary.errors.append(f"substack archive fetch failed: {e}")
+        for index_url in entry.get("index_urls", []):   # classic memo index page(s)
             try:
                 idx = fetcher(index_url)
                 memos.extend(extract_memo_links(idx.content, entry, base_url=index_url))
@@ -301,7 +349,7 @@ def run(
 
     for memo in memos:
         try:
-            slug = ingest_memo(memo, name, access_class=access_class, out_root=out_root,
+            slug = ingest_memo(memo, investor_label, access_class=access_class, out_root=out_root,
                                wiki_root=wiki_root, fetcher=fetcher, force=force)
             if slug is None:
                 summary.skipped += 1

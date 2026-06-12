@@ -2,10 +2,11 @@
 name: fetch-investor-memos
 description: >
   Use when the user wants to find or download a specific investor's published investment
-  memos / letters BY NAME so they can be ingested for later analysis. Triggers: "fetch
-  oaktree memos", "download Howard Marks memos", "find Klarman's letters", "get <investor>
-  memos", "pull <firm>'s investor letters". Do NOT trigger for analysing memos already in
-  wiki/sources, for the thesis tracker, or for running the discovery engine.
+  memos / letters / Substack posts BY NAME OR URL so they can be ingested and synthesised.
+  Triggers: "fetch oaktree memos", "download Howard Marks memos", "find Klarman's letters",
+  "get <investor> memos", "pull <firm>'s investor letters", "ingest this Substack post
+  <url>", "get the latest from <macro substack>", "<*.substack.com> post". Do NOT trigger for
+  analysing memos already in wiki/sources, for the thesis tracker, or for running discovery.
 ---
 
 # Fetch Investor Memos
@@ -60,6 +61,49 @@ genuinely timeless framework pieces, and say why.
 
 5. **Report**: list the slugs ingested and where they landed. STOP. If the user wants
    analysis, that is a separate, explicit step (engine run or manual review of the new cards).
+
+## Substacks (macro / investment newsletters)
+
+Every Substack shares one structure, so a single adapter covers all of them — no per-author
+CSS selectors. Tracking params (`utm_*`, `isFreemail`, `triedRedirect`, `r=...`) are stripped
+automatically.
+
+- **A single post URL** (e.g. an emailed link): ingest it directly.
+  ```bash
+  python tools/fetch_investor_memos.py --investor colmjoshea \
+      --url "https://colmjoshea.substack.com/p/7-the-50-to-1-shot?utm_source=...&triedRedirect=true"
+  ```
+- **A whole publication** (latest N posts via the archive API): add a registry entry with a
+  `substack:` key (no `link_selector` needed), then run by name:
+  ```yaml
+  applied-macro:
+    name: "Applied Macro — Colm O'Shea"
+    substack: "https://colmjoshea.substack.com"
+    aliases: ["colm oshea", "colmjoshea", "applied macro"]
+  ```
+  ```bash
+  python tools/fetch_investor_memos.py "colm oshea" --limit 10
+  ```
+- Or pass the publication root as a URL: `--url https://<pub>.substack.com` lists its posts.
+- Paywalled (paid-only) posts can't be fetched; free posts work. Posts ingest as
+  `source_type: memo`, `access_class: case` (dated market opinion).
+
+## Synthesise across sources (the point of ingesting several)
+
+Ingesting one Substack post is just acquisition. To **synthesise across** several macro
+sources, hand the ingested batch to the Stage-0 aggregator you already have:
+
+1. Fetch several posts (one publication, or several macro Substacks) → `wiki/sources/` cards
+   + `raw/normalized-md/` text.
+2. Run `EvidenceExtractionAgent` on each to get `EvidenceExtractionBundle`s.
+3. Run `MultiSourceThemeAggregatorAgent` (`run_agent("MultiSourceThemeAggregatorAgent", ...)`)
+   over the bundles **as a current-input batch** (`current_input_slugs` = the fetched slugs)
+   → one deduplicated, corroboration-ranked `MultiSourceThemeSet`. That is the cross-source
+   synthesis: which themes multiple newsletters agree on (high corroboration, low attention =
+   edge) vs. which are just crowded buzz.
+
+The aggregator's firewall treats these CASE Substack posts as Phase-A eligible only because
+they are passed as the explicit current-input batch.
 
 ## Guardrails
 - Never invent a memo URL — confirm with the user or web search.

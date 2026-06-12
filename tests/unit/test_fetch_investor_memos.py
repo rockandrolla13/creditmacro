@@ -13,9 +13,12 @@ from tools.fetch_investor_memos import (
     extract_memo_links,
     html_to_markdown,
     ingest_memo,
+    is_substack_url,
+    list_substack_posts,
     resolve_investor,
     run,
     slugify,
+    _clean_url,
 )
 
 FIX = Path(__file__).resolve().parent.parent / "fixtures" / "memos"
@@ -124,3 +127,69 @@ def test_run_unknown_investor_reports_no_registry_entry(tmp_path):
                   wiki_root=tmp_path / "wiki", fetcher=_fake_fetcher)
     assert summary.fetched == 0
     assert summary.errors  # surfaced, not silently empty
+
+
+# ── Substack support ─────────────────────────────────────────────────────────
+_TRACKED = ("https://colmjoshea.substack.com/p/7-the-50-to-1-shot"
+            "?utm_source=post-email-title&publication_id=8207680&isFreemail=true"
+            "&r=f2rdb&triedRedirect=true&utm_medium=email")
+
+_ARCHIVE_JSON = (
+    '[{"title":"The 50-to-1 Shot","slug":"7-the-50-to-1-shot",'
+    '"canonical_url":"https://colmjoshea.substack.com/p/7-the-50-to-1-shot",'
+    '"post_date":"2026-05-01T10:00:00Z"},'
+    '{"title":"What Will Happen in Equity Markets","slug":"6-what-will-happen",'
+    '"canonical_url":"https://colmjoshea.substack.com/p/6-what-will-happen",'
+    '"post_date":"2026-04-01T10:00:00Z"}]'
+)
+_POST_HTML = ("<html><head><title>The 50-to-1 Shot</title></head><body><article>"
+              "<h1>The 50-to-1 Shot</h1><p>AI bull and market sceptic thesis.</p>"
+              "</article></body></html>")
+
+
+def _substack_fetcher(url, **_):
+    if "/api/v1/archive" in url:
+        return FetchResult(content=_ARCHIVE_JSON, content_type="application/json",
+                           is_pdf=False, url=url)
+    return FetchResult(content=_POST_HTML, content_type="text/html", is_pdf=False, url=url)
+
+
+def test_clean_url_strips_tracking_params():
+    assert _clean_url(_TRACKED) == "https://colmjoshea.substack.com/p/7-the-50-to-1-shot"
+
+
+def test_is_substack_url():
+    assert is_substack_url(_TRACKED)
+    assert not is_substack_url("https://www.oaktreecapital.com/insights/memo/x")
+
+
+def test_list_substack_posts_parses_archive_json():
+    posts = list_substack_posts("https://colmjoshea.substack.com", limit=5,
+                                fetcher=_substack_fetcher)
+    urls = [p.url for p in posts]
+    assert "https://colmjoshea.substack.com/p/7-the-50-to-1-shot" in urls
+    assert any(p.title == "The 50-to-1 Shot" for p in posts)
+    assert any(p.date and p.date.startswith("2026") for p in posts)
+
+
+def test_ingest_substack_post_url_is_cleaned(tmp_path):
+    from tools.fetch_investor_memos import MemoLink
+    slug = ingest_memo(MemoLink(url=_TRACKED, title="The 50-to-1 Shot", date="2026-05-01"),
+                       "colmjoshea", access_class="case", out_root=tmp_path,
+                       wiki_root=tmp_path / "wiki", fetcher=_substack_fetcher)
+    assert slug == "colmjoshea-the-50-to-1-shot-2026"
+    # the raw saved under the CLEAN slug (no tracking junk)
+    assert (tmp_path / "raw" / "memos" / f"{slug}.html").exists()
+
+
+def test_run_substack_publication_via_registry(tmp_path):
+    reg = Registry({"applied-macro": {
+        "name": "Applied Macro — Colm O'Shea",
+        "substack": "https://colmjoshea.substack.com",
+        "aliases": ["colm oshea", "colmjoshea"],
+    }})
+    summary = run("colm oshea", registry=reg, out_root=tmp_path, wiki_root=tmp_path / "wiki",
+                  fetcher=_substack_fetcher)
+    assert summary.fetched >= 2
+    cards = list((tmp_path / "wiki" / "sources").glob("applied-macro-*.md"))
+    assert len(cards) >= 2
