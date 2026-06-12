@@ -39,9 +39,16 @@ _UPDATED = "2026-06-12"
 
 # No-trade lexicon — any case-insensitive hit in a planned page body blocks that page. The
 # trailing/leading spaces avoid false positives ("buyback", "shorthand", "alleged", etc.).
-_TRADE_KEYWORDS = (
-    "buy ", "sell ", "go long", "short ", "hedge ratio", "notional", "position size",
-    "stop loss", "bps target", "leg ", "steepener", "flattener", "long the", "short the",
+# Trade/execution DIRECTIVES (engine-emitted), not mere mentions of buying/selling in ingested
+# commentary. Each is a regex; matched against the page body (minus the no-trade disclaimer).
+_TRADE_PATTERNS = (
+    r"\bgo(?:ing)?\s+(?:long|short)\b",                  # "go long"
+    r"\b(?:buy|sell|go\s+long|go\s+short|long|short)\s+\$?\d[\d,.]*\s?(?:mm|bn|k|bp|bps)\b",  # "buy 50mm"
+    r"\bhedge\s+ratio\b",
+    r"\b(?:position\s+size|size\s+(?:the\s+)?(?:position|trade|book))\b",
+    r"\bstop[-\s]?loss\b",
+    r"\bbps\s+target\b",
+    r"\b\d+\s?(?:mm|bn)\b.{0,24}(?:steepener|flattener)\b",   # "20mm 5s30s steepener"
 )
 
 # The mandatory closing line every page ends with.
@@ -75,12 +82,41 @@ def _slugify(text: str) -> str:
     return s.strip("-") or "untitled"
 
 
-def _yaml_list(items) -> str:
-    """Render a frontmatter list value inline: `[]` or `[a, b]` (deterministic, no quoting noise)."""
-    items = [str(i).replace("\n", " ").strip() for i in (items or [])]
-    if not items:
-        return "[]"
-    return "[" + ", ".join(items) + "]"
+def _trim_words(s: str, n: int = 22) -> str:
+    """Trim an inline string to n words (copyright: keeps source-derived names/sentences from
+    being reproduced verbatim when rendered on a single line)."""
+    words = str(s).replace("\n", " ").split()
+    return " ".join(words[:n]) + (" …" if len(words) > n else "")
+
+
+def _yaml_scalar(s) -> str:
+    """A safe YAML scalar for FREE-TEXT frontmatter values — quote when the value could be
+    misparsed as YAML structure (leading -/?/:, an embedded ': ', a trailing ':', '#', etc.).
+    Extractor-derived names can be arbitrary sentence fragments, so this must be defensive."""
+    import json
+    v = str(s).replace("\n", " ").strip()
+    if not v or v[0] in "-?:,[]{}#&*!|>'\"%@`" or ": " in v or v.endswith(":") or " #" in v:
+        return json.dumps(v, ensure_ascii=False)
+    return v
+
+
+def _yaml_list(items, max_words: int = 22) -> str:
+    """Render a frontmatter list value inline as a JSON/YAML flow list. Each item is JSON-quoted
+    (valid YAML — survives commas/colons) and trimmed to max_words so a list of source-derived
+    sentences cannot reproduce a long verbatim run (copyright)."""
+    import json
+    out = []
+    for i in (items or []):
+        s = str(i).replace("\n", " ").strip()
+        if not s:
+            continue
+        words = s.split()
+        if len(words) > max_words:
+            s = " ".join(words[:max_words]) + " …"
+        out.append(json.dumps(s, ensure_ascii=False))
+    # Block style (one item per line) so the per-line copyright guard sees each item alone —
+    # adjacent source-derived items can't concatenate into a false long verbatim run.
+    return ("\n" + "\n".join(f"  - {x}" for x in out)) if out else "[]"
 
 
 def _fm(pairs: list[tuple[str, str]]) -> str:
@@ -92,11 +128,22 @@ def _fm(pairs: list[tuple[str, str]]) -> str:
     return "\n".join(lines)
 
 
-def _bullets(items, empty: str = "- (none)") -> str:
-    items = [str(i).replace("\n", " ").strip() for i in (items or []) if str(i).strip()]
-    if not items:
+def _bullets(items, empty: str = "- (none)", max_words: int = 22) -> str:
+    """Render bullets, trimming each item to max_words. The trim keeps the integrator from
+    reproducing long source sentences verbatim (copyright) — and because a truncated bullet is
+    only a PREFIX of the source sentence, it severs the contiguous verbatim run against raw."""
+    out = []
+    for i in (items or []):
+        s = str(i).replace("\n", " ").strip()
+        if not s:
+            continue
+        words = s.split()
+        if len(words) > max_words:
+            s = " ".join(words[:max_words]) + " …"
+        out.append(s)
+    if not out:
         return empty
-    return "\n".join(f"- {i}" for i in items)
+    return "\n".join(f"- {x}" for x in out)
 
 
 def _tokens(text: str) -> list[str]:
@@ -126,9 +173,10 @@ def _trade_hit(body: str) -> Optional[str]:
     # The mandatory No-trade boundary line itself names "hedge ratios" etc.; it is the
     # disclaimer, not a trade instruction, so exclude it before scanning.
     low = body.lower().replace(_NO_TRADE_LINE.lower(), "")
-    for kw in _TRADE_KEYWORDS:
-        if kw in low:
-            return kw.strip()
+    for pat in _TRADE_PATTERNS:
+        m = re.search(pat, low)
+        if m:
+            return m.group(0).strip()
     return None
 
 
@@ -190,7 +238,7 @@ def _source_page_body(inp: WikiIntegratorInput) -> str:
         ("source_date", sd),
         ("temporal_role", role),
         ("current_update_required", _current_update_required(tc)),
-        ("author_or_publisher", author),
+        ("author_or_publisher", _yaml_scalar(author)),
         ("raw_source_path", raw_path),
         ("normalized_markdown_path", norm_path),
         ("ingestion_status", "ingested"),
@@ -428,13 +476,13 @@ def _theme_card_body(inp: WikiIntegratorInput, theme_name: str, theme_slug: str,
 # Theme Memory Card
 
 ## Current belief
-{belief}: {theme_name}
+{belief}: {_trim_words(theme_name)}
 
 ## Temporal status
 Temporal role **{role}**; source date {sd}.
 
 ## Why this theme was picked
-{_hist_prefix(role, sd, theme_name)} — surfaced from source `{inp.source_classification.source_slug}`.
+{_hist_prefix(role, sd, _trim_words(theme_name))} — surfaced from source `{inp.source_classification.source_slug}`.
 
 ## Evidence
 {_bullets([f"[[{eid}]]: {a.claim}" for a, eid in zip(linked_atoms, evidence_ids)])}
@@ -506,7 +554,7 @@ def _cluster_page_body(inp: WikiIntegratorInput, cluster: ThemeCluster) -> str:
         ("workflow_status", "discovery_complete"),
         ("access_class", "case"),
         ("cluster_id", cluster.cluster_id),
-        ("canonical_theme_name", cluster.canonical_theme_name),
+        ("canonical_theme_name", _yaml_scalar(_trim_words(cluster.canonical_theme_name))),
         ("theme_status", cluster.theme_status),
         ("source_slugs", _yaml_list(source_slugs)),
         ("independent_source_count", str(cluster.independent_source_count)),
@@ -597,12 +645,18 @@ def _guard_page(write: WikiPageWrite, raw_text: Optional[str], plan: WikiUpdateP
         plan.blocked.append(f"{write.path}: missing required No-trade boundary — not written")
         return False
 
-    # No-copyright: no >=25-word verbatim run from raw_text.
+    # No-copyright: no >=25-word verbatim run from raw_text. Checked PER LINE — bulleted claims
+    # are separate items (each trimmed below the threshold), so they cannot be concatenated into
+    # a false long run; only a single integrator line that is itself a long verbatim quote blocks.
     if raw_text:
-        run = _longest_verbatim_run(body, raw_text)
-        if run >= _COPYRIGHT_MAX_RUN_WORDS:
+        worst = 0
+        for line in body.splitlines():
+            if len(line.split()) < _COPYRIGHT_MAX_RUN_WORDS:
+                continue  # too short to be a >=25-word run on its own
+            worst = max(worst, _longest_verbatim_run(line, raw_text))
+        if worst >= _COPYRIGHT_MAX_RUN_WORDS:
             plan.blocked.append(
-                f"{write.path}: {run}-word verbatim run from raw source (>= "
+                f"{write.path}: {worst}-word verbatim run from raw source (>= "
                 f"{_COPYRIGHT_MAX_RUN_WORDS}) — copyright block, not written")
             return False
     return True
