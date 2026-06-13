@@ -381,6 +381,23 @@ class WikiLintAgent(WikiAgent):
             theme_slugs=inp.theme_slugs, raw_text=inp.raw_text)
 
 
+class DiscoveryRunnerInput(BaseModel):
+    """Drive a discovery run. Supply EITHER a ready `provider` (+ `policy`) OR a `case` (a CaseSpec,
+    from which a ScriptedProvider + its resolved policy are built). The provider encapsulates the
+    current-input seam (its `RunContext` carries `current_input_source_slug` + evidence atoms)."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    provider: Optional[object] = None
+    policy: Optional[object] = None
+    case: Optional[object] = None
+
+
+class DiscoveryRunResult(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    theme: object               # ThemeObject (frozen pydantic; kept loose to avoid a heavy import)
+    memo: str
+    status: str
+
+
 class DiscoveryRunnerAgent(WikiAgent):
     contract = AgentContract(
         agent_name="DiscoveryRunnerAgent",
@@ -398,6 +415,28 @@ class DiscoveryRunnerAgent(WikiAgent):
         tests_required=["stops at strategy_family_routed", "posterior tilts only on supplied evidence",
                         "no trade output"],
     )
+
+    def run(self, input):  # noqa: A002
+        # Thin, faithful wrapper around the existing discovery pipeline. GM-neutral: the golden
+        # master already calls run_workflow directly; this only drives it through the registry and
+        # asserts the discovery STOP. NEVER runs expression mode.
+        from engine.workflow import run_workflow
+        inp = (input if isinstance(input, DiscoveryRunnerInput)
+               else DiscoveryRunnerInput.model_validate(input))
+        provider, policy = inp.provider, inp.policy
+        if provider is None:
+            if inp.case is None:
+                raise ValueError("DiscoveryRunnerAgent: supply either provider+policy or a case")
+            from engine.scripted_provider import ScriptedProvider
+            provider = ScriptedProvider(inp.case)
+            if policy is None:
+                policy = inp.case.resolved_policy()
+        if policy is None:
+            raise ValueError("DiscoveryRunnerAgent: policy is required when a provider is supplied")
+        theme, memo = run_workflow(provider, policy, mode="discovery")   # discovery STOP enforced upstream
+        if theme.status == "expression_complete":  # defensive: discovery must never reach expression
+            raise RuntimeError("DiscoveryRunnerAgent produced expression_complete — firewall breach")
+        return DiscoveryRunResult(theme=theme, memo=memo, status=theme.status)
 
 
 # ── TemporalContextAgent (PART 2) ───────────────────────────────────────────────
