@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Optional, Protocol, runtime_checkable
 
+from .outcomes import ThemeOutcomeRecord
 from .schema import EvidenceAtom
 from .surveillance import (
     BlindScoringContext,
@@ -25,6 +26,7 @@ from .surveillance import (
     Tick,
     WatchAlert,
     is_terminal,
+    realized_fraction,
     transition,
 )
 
@@ -128,3 +130,27 @@ class ThemeMonitorAgent:
         alert = alert_for(watch, now)
         watch.alerts.append(alert)
         return upd, alert
+
+
+# ── (S10) terminal watch → outcome record (feeds the Phase-6 calibration corpus) ──────
+
+def outcome_record_from_watch(
+    watch: ThemeWatch, *, p: list[float], q: list[float], X_s: list[float], X_mkt: float,
+    predicted_edge: float, edge_std: float,
+) -> ThemeOutcomeRecord:
+    """Build a ThemeOutcomeRecord from a TERMINAL watch. The discovery p/q/X_s/edge come from the
+    persisted theme; the realized axis value comes from the watch. Raises if the watch is not
+    terminal (there is no outcome to record on a live thesis)."""
+    if not is_terminal(watch.status):
+        raise ValueError(
+            f"watch {watch.theme_id} is not terminal (status={watch.status}); no outcome to record")
+    ax = watch.axis_state
+    realized = ax.realized_move if ax.realized_move is not None else (ax.current - ax.entry_level)
+    return ThemeOutcomeRecord(
+        theme_id=watch.theme_id, p=list(p), q=list(q), X_s=list(X_s), X_mkt=X_mkt,
+        predicted_edge=predicted_edge, edge_std=edge_std, realized_axis_at_horizon=realized)
+
+
+def realized_fraction_of(watch: ThemeWatch) -> float:
+    """The fraction of the modeled target move realized at close (for the outcome page)."""
+    return realized_fraction(watch.axis_state)

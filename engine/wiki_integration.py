@@ -1216,3 +1216,105 @@ def persist_theme_object(inp: ThemeObjectPersistInput) -> WikiIntegrationResult:
     if inp.dry_run:
         return WikiIntegrationResult(plan=plan, applied=False, warnings=list(plan.warnings))
     return apply_wiki_update_plan(plan, inp.wiki_root, force=inp.force)
+
+
+# ── (S10) closed-watch write-back — a terminal ThemeWatch → CASE outcome page ────────────
+
+class ClosedWatchPersistInput(BaseModel):
+    """Persist a TERMINAL ThemeWatch as its own CASE outcome page (a closed-thesis record), folded
+    into the persistence layer (§10 Q6) so it feeds Phase-6 calibration + outcome-weighted memory."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    watch: object                      # a terminal ThemeWatch
+    terminal_reason: str = ""
+    outcome: Optional[object] = None   # a ThemeOutcomeRecord (optional)
+    wiki_root: str = "wiki"
+    dry_run: bool = False
+    force: bool = False
+
+
+def _closed_watch_page_body(inp: ClosedWatchPersistInput) -> str:
+    w = inp.watch
+    ax = getattr(w, "axis_state", None)
+    fh = getattr(w, "forward_horizon", None)
+    fal = getattr(w, "falsifier", None)
+    realized = None
+    if ax is not None:
+        realized = ax.realized_move if ax.realized_move is not None else (ax.current - ax.entry_level)
+    oc = inp.outcome
+
+    fm = _fm([
+        ("type", "outcome"),
+        ("classification", "outcome"),
+        ("workflow_status", "watch_closed"),
+        ("access_class", "case"),
+        ("theme_id", _yaml_scalar(getattr(w, "theme_id", "unknown"))),
+        ("terminal_status", _yaml_scalar(getattr(w, "status", "unknown"))),
+        ("snapshot_hash", _yaml_scalar(getattr(w, "snapshot_hash", "unknown"))),
+        ("outcome_check_required", "true"),
+        ("realized_axis_at_horizon", str(realized) if realized is not None else "unknown"),
+        ("forward_horizon_label", _yaml_scalar(fh.window_label) if fh else "none"),
+        ("created", _CREATED),
+        ("updated", _UPDATED),
+    ])
+
+    oc_line = "(no quantitative outcome record supplied)"
+    if oc is not None:
+        oc_line = (f"predicted_edge {getattr(oc, 'predicted_edge', '?')}, "
+                   f"realized_axis {getattr(oc, 'realized_axis_at_horizon', '?')}")
+    alerts = [f"{a.alert_type}: {a.message}" for a in getattr(w, "alerts", [])]
+    logs = [f"{e.kind}: {e.reason}" for e in getattr(w, "log", [])]
+
+    body = f"""{fm}
+
+# Closed Theme Watch — Outcome Record
+
+## Terminal status
+**{getattr(w, 'status', 'unknown')}** — {inp.terminal_reason or '(reason not supplied)'}.
+
+## Realized axis
+Series `{getattr(ax, 'series', 'unknown')}`: entry {getattr(ax, 'entry_level', '?')}, close
+{getattr(ax, 'current', '?')}, modeled target {getattr(ax, 'modeled_target', '?')}; realized move
+{realized if realized is not None else 'unknown'}.
+
+## Pre-registered falsifier
+{getattr(fal, 'observable', 'unknown')} {getattr(fal, 'direction', '')} {getattr(fal, 'threshold', '?')}
+(breached: {getattr(fal, 'breached', False)}).
+
+## Outcome record (calibration corpus)
+{oc_line}
+
+## Alerts emitted
+{_bullets(alerts, empty="- (none)")}
+
+## Watch log
+{_bullets(logs, empty="- (none)")}
+
+## Snapshot binding
+Closed thesis bound to frozen reasoning `{getattr(w, 'snapshot_hash', 'unknown')}`. Historical
+outcome candidate — NOT a current recommendation.
+
+{_NO_TRADE_HEADER}
+{_NO_TRADE_LINE}
+"""
+    return body
+
+
+def persist_closed_watch(inp: ClosedWatchPersistInput) -> WikiIntegrationResult:
+    """Write a terminal ThemeWatch as a CASE outcome page. Idempotent + no-trade guarded. Raises if
+    the watch is not terminal."""
+    if isinstance(inp, dict):
+        inp = ClosedWatchPersistInput.model_validate(inp)
+    status = getattr(inp.watch, "status", None)
+    if status not in ("falsified", "horizon_expired", "played_out"):
+        raise ValueError(f"persist_closed_watch: watch is not terminal (status={status})")
+    root = inp.wiki_root.rstrip("/")
+    slug = "closed-" + _slugify(getattr(inp.watch, "theme_id", "watch"))
+    plan = WikiUpdatePlan()
+    write = WikiPageWrite(path=f"{root}/outcomes/{slug}.md", kind="outcome", action="create",
+                          access_class="case", content=_closed_watch_page_body(inp))
+    if not _guard_page(write, None, plan):
+        return WikiIntegrationResult(plan=plan, applied=False, warnings=list(plan.warnings))
+    plan.writes.append(write)
+    if inp.dry_run:
+        return WikiIntegrationResult(plan=plan, applied=False, warnings=list(plan.warnings))
+    return apply_wiki_update_plan(plan, inp.wiki_root, force=inp.force)
