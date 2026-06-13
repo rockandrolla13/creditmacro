@@ -344,13 +344,21 @@ class WikiIntegratorAgent(WikiAgent):
         return integrate(inp)
 
 
+class WikiLintInput(BaseModel):
+    """Input for WikiLintAgent. `wiki_root` may also be passed bare as a string."""
+    wiki_root: str = "wiki"
+    source_slug: Optional[str] = None
+    theme_slugs: Optional[list[str]] = None
+    raw_text: Optional[str] = None
+
+
 class WikiLintAgent(WikiAgent):
     contract = AgentContract(
         agent_name="WikiLintAgent",
         purpose="Validate wiki health: access_class present, links resolve, sources lists current, "
                 "no verbatim leak, no trade/sizing leakage, investment-process fields present.",
         input_objects=["wiki_root"],
-        output_objects=["lint_findings", "lint-scratch.md", "log.md"],
+        output_objects=["ValidationReport"],
         allowed_paths_to_read=["wiki/", "markdowns/"],
         allowed_paths_to_write=["wiki/lint-scratch.md", "wiki/log.md"],
         access_class_rules=["read-only over content pages; only writes lint scratch/log"],
@@ -358,6 +366,19 @@ class WikiLintAgent(WikiAgent):
         non_goals=["produce trades", "delete contradictions", "web search"],
         tests_required=["flags broken links", "flags missing access_class", "flags verbatim leak"],
     )
+
+    def run(self, input):  # noqa: A002
+        # lazy import: wiki_validators imports wiki_integration which imports from this module.
+        from engine.wiki_validators import validate_all
+        if isinstance(input, WikiLintInput):
+            inp = input
+        elif isinstance(input, str):
+            inp = WikiLintInput(wiki_root=input)
+        else:
+            inp = WikiLintInput.model_validate(input)
+        return validate_all(
+            wiki_root=inp.wiki_root, source_slug=inp.source_slug,
+            theme_slugs=inp.theme_slugs, raw_text=inp.raw_text)
 
 
 class DiscoveryRunnerAgent(WikiAgent):

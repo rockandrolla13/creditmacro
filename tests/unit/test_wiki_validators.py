@@ -305,18 +305,11 @@ def test_index_links_all_missing_index_file(tmp_path):
 
 # ── 13. log single entry (KNOWN Part-9/Part-8 format mismatch) ──────────────────────
 
-@pytest.mark.xfail(
-    reason="PART-9 BUG: check_log_single_entry matches 'WikiIntegrator: integrated `<slug>`' but "
-           "the PART-8 integrator writes '## [<date>] ingest | <slug>'. The two siblings disagree "
-           "on the log-line contract; the validator therefore reports a false 'no entry' error "
-           "against real integrator output. Flagged for the human to reconcile (do not patch "
-           "production from a test).",
-    strict=True,
-)
 def test_log_single_entry_matches_real_integrator_log(tmp_path):
+    # L2 fix: check_log_single_entry now matches the PART-8 '## [<date>] ingest | <slug>' format,
+    # so a real integrator-produced log.md yields exactly one entry -> no findings.
     inp = _input(tmp_path)
     integrate(inp)
-    # EXPECTED (correct) behavior: exactly one ingest entry for the source -> no findings.
     assert check_log_single_entry(inp.wiki_root, "acme-credit-report-2026-05-01") == []
 
 
@@ -327,13 +320,12 @@ def test_log_single_entry_missing_file(tmp_path):
 
 
 def test_log_single_entry_counts_matching_format(tmp_path):
-    """The validator's counting logic IS correct against its OWN expected line shape
-    (``WikiIntegrator: integrated `<slug>` ``): one match -> ok, two -> idempotency error. This
-    isolates the bug to the FORMAT mismatch with Part-8, not the counting."""
+    """Counting logic against the PART-8 line shape (``## [<date>] ingest | <slug>``):
+    one match -> ok, two -> idempotency error."""
     log = tmp_path / "log.md"
-    log.write_text("WikiIntegrator: integrated `s` ...\n")
+    log.write_text("## [2026-06-12] ingest | s\n- Source: s (report)\n")
     assert check_log_single_entry(str(tmp_path), "s") == []
-    log.write_text("WikiIntegrator: integrated `s`\nWikiIntegrator: integrated `s`\n")
+    log.write_text("## [2026-06-12] ingest | s\n## [2026-06-13] ingest | s\n")
     findings = check_log_single_entry(str(tmp_path), "s")
     assert findings and "expected exactly 1" in findings[0].message
 
@@ -363,9 +355,29 @@ def test_memory_map_updated_unreferenced_source(tmp_path):
 # ── top-level aggregator over a real integration ────────────────────────────────────
 
 def test_validate_all_plan_and_disk_clean(tmp_path):
-    """Aggregate pass that AVOIDS source_slug (which would trigger the buggy log check). Plan-level
-    + on-disk checks over a real integration must be clean."""
+    """Aggregate pass over a real integration — now INCLUDING source_slug (the L2 log-format fix
+    means the log check passes). Plan-level + on-disk checks must be clean."""
     inp = _input(tmp_path)
     res = integrate(inp)
-    report = validate_all(wiki_root=inp.wiki_root, plan_or_result=res, raw_text=None)
+    report = validate_all(wiki_root=inp.wiki_root, plan_or_result=res, raw_text=None,
+                          source_slug="acme-credit-report-2026-05-01")
+    assert report.ok, [f.message for f in report.errors()]
+
+
+# ── L2: WikiLintAgent orchestration over the registry ───────────────────────────────
+
+def test_wikilint_agent_runs_validate_all_via_registry(tmp_path):
+    from engine.wiki_agents import REGISTRY, WikiLintInput
+    inp = _input(tmp_path)
+    integrate(inp)
+    report = REGISTRY.run_agent("WikiLintAgent", WikiLintInput(
+        wiki_root=inp.wiki_root, source_slug="acme-credit-report-2026-05-01"))
+    assert report.ok, [f.message for f in report.errors()]
+
+
+def test_wikilint_agent_accepts_bare_wiki_root_string(tmp_path):
+    from engine.wiki_agents import run_agent
+    inp = _input(tmp_path)
+    integrate(inp)
+    report = run_agent("WikiLintAgent", inp.wiki_root)   # bare string path
     assert report.ok, [f.message for f in report.errors()]

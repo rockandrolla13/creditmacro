@@ -714,10 +714,11 @@ def check_log_single_entry(
             check="log_single_entry", severity="error", path="log.md",
             message="log.md does not exist — integration was not recorded")]
     text = _read(log)
-    # Match the integrator's line shape, anchored on the backtick-quoted slug, tolerant of
-    # surrounding wording; require the WikiIntegrator marker to avoid matching unrelated lines.
+    # Match the PART-8 integrator's append format: a header line ``## [<date>] ingest | <slug>``
+    # (one per integration; idempotent re-runs skip). Anchored on the slug at end-of-line so a
+    # slug that is a prefix of another cannot double-count.
     pat = re.compile(
-        r"WikiIntegrator:\s*integrated\s+`" + re.escape(source_slug) + r"`", re.I)
+        r"^##\s*\[[^\]]*\]\s*ingest\s*\|\s*" + re.escape(source_slug) + r"\s*$", re.I | re.M)
     n = len(pat.findall(text))
     if n == 1:
         return []
