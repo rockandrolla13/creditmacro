@@ -44,17 +44,36 @@ Status: ⬜ PENDING · 🔵 IN PROGRESS · ✅ DONE · ⛔ BLOCKED
 | P0 | S2 L1 `DiscoveryRunnerAgent` wraps `run_workflow` | ✅ | `8c21a51` | 5 tests; 741→746; GM intact |
 | P0 | S3 L2 `WikiLintAgent` orchestrates 14 validators | ✅ | `2f66cd3` | +xfail fix; 738→741, 0 xfailed |
 | P0 | S4 L3 aggregator parent-cap + demote-tail + log | ✅ | `62e645b` | 4 tests; 746→750; GM intact |
-| P0 | S5 L4 type strategy-family hints to routable Literal | 🔵 | | schema + validator — NEXT |
-| P0 | S6 L5 require `current_date` (fail-closed for discovery) | ⬜ | | `engine/temporal.py`, `workflow.py` |
-| P1 | S7 `ForwardHorizon` on `ThemeObject` (Optional default) | ⬜ | | §3.2 |
-| P1 | S8 D3a discovery-output persistence → CASE page | ⬜ | | `engine/wiki_integration.py` |
-| P3 | S9 `ThemeMonitorAgent` + `BlindScoringContext` blind scorer | ⬜ | | `engine/surveillance_agent.py` |
-| P3 | S10 terminal watch → `ThemeOutcomeRecord` + CASE page write-back | ⬜ | | §10 Q6 |
-| P2 | S11 `ThemeCompressionAgent` + `AnalystThemeMap` (10 tests) | ⬜ | | `engine/compression.py`; discovery flow only |
-| P4 | S12 `parse_research_text` LLM seam (fake-client tested) | ⬜ | | highest risk; deterministic/cached |
-| P5 | S13 news critic + memory categorization + sufficiency gate | ⬜ | | `engine/news_critic.py` |
-| P6 | S14 `calibration_report`/`edge_realization` | ⬜ | | corpus-gated — may BLOCK pending corpus |
-| FINISH | S15 demo CLI + verification report | ⬜ | | `engine/cli.py` or `demo/` |
+| P0 | S5 L4 type strategy-family hints to routable Literal | ✅ | `8a…` | 5 tests; 750→755 |
+| P0 | S6 L5 require `current_date` (fail-closed for discovery) | ✅ | | 5 tests; 755→760 |
+| P1 | S7 `ForwardHorizon` on `ThemeObject` (Optional default) | ✅ | `ba7838f` | hash-excluded; 760→764 |
+| P1 | S8 D3a discovery-output persistence → CASE page | ✅ | | keystone; 5 tests; 764→769 |
+| P3 | S9 `ThemeMonitorAgent` + provider-generic blind scorer | ✅ | | 9 tests; 769→778 |
+| P3 | S10 terminal watch → `ThemeOutcomeRecord` + CASE write-back | ✅ | | 6 tests; 778→784 |
+| FINISH | S15 demo (`demo/surveillance_demo.py`) + verification report | ✅ | | full loop demonstrated |
+| P2 | S11 `ThemeCompressionAgent` + `AnalystThemeMap` | ⬜ SCAFFOLD | | out of spine scope (user) |
+| P4 | S12 `parse_research_text` LLM seam (provider-generic) | ⬜ SCAFFOLD | | out of spine scope (user) |
+| P5 | S13 news critic + memory categorization + sufficiency gate | ⬜ SCAFFOLD | | out of spine scope (user) |
+| P6 | S14 `calibration_report`/`edge_realization` | ⛔ BLOCKED | | corpus-gated (no closed-thesis corpus) |
+
+## Verification Report (FINISH)
+
+**Verdict: COMPLETE for the agreed scope (spine S2→S10 + finish demo). 10/10 in-scope steps DONE.**
+
+- **All 8 invariants green** (2026-06-13): I1 golden master 11 passed (byte-identical) · I2 full
+  suite **784 passed, 0 xfailed** · I3 no engine-emitted trade directives (clean) · I4 firewalls 22 ·
+  I5 no wall-clock (clean) · I6 frozen-field optionality (forward_horizon Optional + hash-excluded) ·
+  I7 temporal firewall 33 · I8 surveillance simulator-faithfulness 16.
+- **Diff vs Step-0 snapshot:** 722 → **784 passed** (+62; pre-existing xfail resolved in L2). New
+  modules: `engine/surveillance.py`, `engine/surveillance_agent.py`, `engine/schema/horizon.py` +
+  `demo/`. 9 new test files.
+- **Demonstration (`python demo/surveillance_demo.py`):** discover→persist (routed `steepener`,
+  snapshot `265572ab…`, CASE page) · surveillance path `confirming → falsified_pending →
+  (whipsaw_averted) confirming → … → falsified` · `played_out` run (alert `priced_in`) · close →
+  `ThemeOutcomeRecord(realized=80.0)` + CASE outcome page.
+- **Out of scope (per user "spine to green"):** S11/S12/S13 = SCAFFOLD (not built). S14 calibration =
+  **BLOCKED** — needs a closed-thesis corpus that does not exist yet (the new close-out loop now
+  *produces* the records that will seed it).
 
 ## Verification criteria (Done when — prompt FINISH)
 
