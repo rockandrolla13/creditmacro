@@ -41,10 +41,10 @@ Status: ⬜ PENDING · 🔵 IN PROGRESS · ✅ DONE · ⛔ BLOCKED
 | Phase | Step | Status | Commit | Notes |
 |---|---|---|---|---|
 | P3-core | S1 `engine/surveillance.py` — schemas + `SurveillancePolicy` + pure `transition()`/`derive()` (mirrors simulator) + `test_surveillance.py` (§5.10 1-11 pure-core) | ✅ | `b7c3fad` | 16 tests; 722→738; GM intact |
-| P0 | S2 L1 `DiscoveryRunnerAgent` wraps `run_workflow` | ⬜ | | `engine/wiki_agents.py`; needs workflow.py read |
+| P0 | S2 L1 `DiscoveryRunnerAgent` wraps `run_workflow` | ✅ | `8c21a51` | 5 tests; 741→746; GM intact |
 | P0 | S3 L2 `WikiLintAgent` orchestrates 14 validators | ✅ | `2f66cd3` | +xfail fix; 738→741, 0 xfailed |
-| P0 | S4 L3 aggregator parent-cap + demote-tail + log | ⬜ | | `engine/theme_aggregation.py` |
-| P0 | S5 L4 type strategy-family hints to routable Literal | ⬜ | | schema + validator |
+| P0 | S4 L3 aggregator parent-cap + demote-tail + log | ✅ | `62e645b` | 4 tests; 746→750; GM intact |
+| P0 | S5 L4 type strategy-family hints to routable Literal | 🔵 | | schema + validator — NEXT |
 | P0 | S6 L5 require `current_date` (fail-closed for discovery) | ⬜ | | `engine/temporal.py`, `workflow.py` |
 | P1 | S7 `ForwardHorizon` on `ThemeObject` (Optional default) | ⬜ | | §3.2 |
 | P1 | S8 D3a discovery-output persistence → CASE page | ⬜ | | `engine/wiki_integration.py` |
@@ -101,3 +101,14 @@ Status: ⬜ PENDING · 🔵 IN PROGRESS · ✅ DONE · ⛔ BLOCKED
   → S9/S10 (ThemeMonitorAgent + write-back) → S11 (compression) → S12 (ingestion) → S13 (news/sufficiency)
   → S14 (calibration, corpus-gated) → S15 (demo CLI + verification report).
 - Suite: **741 passed, 0 xfailed**. Branch `surveillance-build`, 3 commits atop base.
+
+### 2026-06-13 #3 — User scope directives (answered)
+- **Scope = SPINE TO GREEN:** build S2→S10 (Phase 0 wiring · Phase 1 persistence keystone ·
+  Phase 3 `ThemeMonitorAgent` + terminal write-back) fully green, then STOP and report.
+  Phase 2/4/5/6 = scaffold only; **Phase 6 calibration → BLOCKED** pending a closed-thesis corpus.
+- **LLM = provider-generic:** every LLM seam goes behind a generic interface so Anthropic OR OpenAI
+  can be plugged in. For S9 the blind valence scorer takes an injectable `ValenceScorer` Protocol
+  with a deterministic default (tests never call a live API), mirroring `ScriptedProvider`/`LLMProvider`.
+- **Revised step list (spine):** S2/L1 → S4/L3 → S5/L4 → S6/L5 → S7 ForwardHorizon → S8 persistence
+  (keystone) → S9 ThemeMonitorAgent (generic scorer) → S10 terminal→ThemeOutcomeRecord + CASE write-back
+  → STOP. (S11 compression / S12 ingestion / S13 hardening = scaffold; S14 calibration = BLOCKED.)
