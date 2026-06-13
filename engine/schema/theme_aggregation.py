@@ -26,6 +26,27 @@ SourceScope = Literal[
     "explicit_current_batch", "all_method_sources", "historical_case_batch", "mixed_batch",
 ]
 
+# (L4) Strategy-family hint vocabulary. ROUTABLE_FAMILIES (12) is exactly what StrategyFamilyRec
+# can emit today (kept in sync by a test). curve + sector_rotation are wiki-taxonomy only (no
+# routing rule). `relative_value` is the parent the router resolves into the RV sub-types
+# (etf_basket_rv / capital_structure / index_index_rv). A hint outside this set fails validation.
+ROUTABLE_FAMILIES: tuple[str, ...] = (
+    "steepener", "flattener", "long_short", "outright", "cash_cds_basis",
+    "credit_vs_equity", "credit_vs_rates", "volatility_convexity", "watchlist_only",
+    "etf_basket_rv", "capital_structure", "index_index_rv",
+)
+WIKI_ONLY_FAMILIES: tuple[str, ...] = ("curve", "sector_rotation")
+StrategyFamilyName = Literal[
+    # routable (12) — what the router can emit
+    "steepener", "flattener", "long_short", "outright", "cash_cds_basis",
+    "credit_vs_equity", "credit_vs_rates", "volatility_convexity", "watchlist_only",
+    "etf_basket_rv", "capital_structure", "index_index_rv",
+    # wiki-taxonomy only (no routing rule)
+    "curve", "sector_rotation",
+    # parent the router resolves into RV sub-types
+    "relative_value",
+]
+
 
 class SourceAttribution(BaseModel):
     """How ONE source contributes to ONE theme cluster, with its independence + weight."""
@@ -57,7 +78,7 @@ class ThemeClusterMember(BaseModel):
     original_theme_description: Optional[str] = None
     evidence_ids: list[str] = Field(default_factory=list)
     axis_candidates: list[str] = Field(default_factory=list)
-    strategy_family_hints: list[str] = Field(default_factory=list)
+    strategy_family_hints: list[StrategyFamilyName] = Field(default_factory=list)
     temporal_role: Optional[str] = None
     similarity_score: float = Field(default=1.0, ge=0.0, le=1.0)
     rationale: str = ""
@@ -89,7 +110,7 @@ class ThemeCluster(BaseModel):
     causal_claims: list[str] = Field(default_factory=list)
     confounders: list[str] = Field(default_factory=list)
     falsifiers: list[str] = Field(default_factory=list)
-    strategy_family_hints: list[str] = Field(default_factory=list)
+    strategy_family_hints: list[StrategyFamilyName] = Field(default_factory=list)
     missing_data: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
