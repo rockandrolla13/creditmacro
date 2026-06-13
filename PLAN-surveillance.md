@@ -40,9 +40,9 @@ Status: ⬜ PENDING · 🔵 IN PROGRESS · ✅ DONE · ⛔ BLOCKED
 
 | Phase | Step | Status | Commit | Notes |
 |---|---|---|---|---|
-| P3-core | S1 `engine/surveillance.py` — schemas + `SurveillancePolicy` + pure `transition()`/`derive()` (mirrors simulator) + `test_surveillance.py` (§5.10 1-11 pure-core) | 🔵 | | keystone-independent; zero GM risk |
-| P0 | S2 L1 `DiscoveryRunnerAgent` wraps `run_workflow` | ⬜ | | `engine/wiki_agents.py` |
-| P0 | S3 L2 `WikiLintAgent` orchestrates 14 validators | ⬜ | | resolves the known xfail |
+| P3-core | S1 `engine/surveillance.py` — schemas + `SurveillancePolicy` + pure `transition()`/`derive()` (mirrors simulator) + `test_surveillance.py` (§5.10 1-11 pure-core) | ✅ | `b7c3fad` | 16 tests; 722→738; GM intact |
+| P0 | S2 L1 `DiscoveryRunnerAgent` wraps `run_workflow` | ⬜ | | `engine/wiki_agents.py`; needs workflow.py read |
+| P0 | S3 L2 `WikiLintAgent` orchestrates 14 validators | ✅ | `2f66cd3` | +xfail fix; 738→741, 0 xfailed |
 | P0 | S4 L3 aggregator parent-cap + demote-tail + log | ⬜ | | `engine/theme_aggregation.py` |
 | P0 | S5 L4 type strategy-family hints to routable Literal | ⬜ | | schema + validator |
 | P0 | S6 L5 require `current_date` (fail-closed for discovery) | ⬜ | | `engine/temporal.py`, `workflow.py` |
@@ -80,3 +80,24 @@ Status: ⬜ PENDING · 🔵 IN PROGRESS · ✅ DONE · ⛔ BLOCKED
 - **Decision:** §5.3 `transition()` is the single source of truth; Python mirrors the simulator's
   `derive()`/`transition()` exactly (attention-only events excluded from net valence; recency decay
   `0.5^(age/half_life)`; disconfirm asymmetry; terminal states absorbing).
+
+### 2026-06-13 #1 — S1 surveillance core (commit `b7c3fad`)
+- Added `engine/surveillance.py` + `tests/unit/test_surveillance.py` (16 tests: §5.10 1-11 + §9
+  simulator-faithfulness). All green. Golden master byte-identical. No wall-clock. 722→738 passed.
+- Invariants I1,I2,I5,I8 green.
+
+### 2026-06-13 #2 — S3 / L2 WikiLintAgent (commit `2f66cd3`)
+- Wired `WikiLintAgent.run()` → `validate_all`; added `WikiLintInput`.
+- Resolved the known xfail: `check_log_single_entry` now matches PART-8 `## [<date>] ingest | <slug>`.
+  Former `strict=xfail` is now a real passing check; `validate_all` test includes `source_slug`.
+- 738→741 passed, **0 xfailed** (was 1). Golden master byte-identical. Invariants I1,I2,I4 green.
+- **Note:** L1 (`DiscoveryRunnerAgent`) deferred to next session step — needs `engine/workflow.py` +
+  `engine/protocols.py` (current-input seam) read to wire slug→seam→`run_workflow` correctly.
+
+### Checkpoint status (2026-06-13)
+- **DONE:** S1 (Phase 3 surveillance core — the prioritized centerpiece), S3/L2.
+- **NEXT (spine):** S2/L1 (DiscoveryRunnerAgent) → S4/L3 (aggregator cap) → S5/L4 (typed family hints)
+  → S6/L5 (require current_date) → S7 (ForwardHorizon on ThemeObject) → S8 (discovery→CASE persistence)
+  → S9/S10 (ThemeMonitorAgent + write-back) → S11 (compression) → S12 (ingestion) → S13 (news/sufficiency)
+  → S14 (calibration, corpus-gated) → S15 (demo CLI + verification report).
+- Suite: **741 passed, 0 xfailed**. Branch `surveillance-build`, 3 commits atop base.
