@@ -18,7 +18,10 @@ from .workflow import run_workflow
 
 # Volatile identity/timestamp fields excluded from the content hash so that two runs of
 # IDENTICAL fresh reasoning fingerprint equal (the hash is over CONTENT, not provenance).
-_HASH_EXCLUDE = {"id": True, "created_at": True, "provenance": {"last_updated": True}}
+_HASH_EXCLUDE = {"id": True, "created_at": True, "provenance": {"last_updated": True},
+                 # forward_horizon is an additive Phase-1 field; exclude it so existing snapshot
+                 # hashes stay byte-identical (the frozen causal-reasoning identity is unchanged).
+                 "forward_horizon": True}
 
 class FrozenSnapshot(BaseModel):
     """Immutable record of the phase-A fresh reasoning."""

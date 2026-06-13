@@ -24,6 +24,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from .schema import EvidenceAtom
+from .schema.horizon import ForwardHorizon  # canonical definition; re-exported here
 
 # ── status taxonomy (§5.2) ──────────────────────────────────────────────────────────
 
@@ -41,15 +42,8 @@ def is_terminal(status: str) -> bool:
     return status in _TERMINAL
 
 
-# ── forward horizon (§3.2) — also imported onto ThemeObject in Phase 1 ───────────────
-
-class ForwardHorizon(BaseModel):
-    """The 3–4-month window a theme is given at discovery. The single number every clock keys
-    off is `window_days`; `opened`/`expected_close` are caller-supplied (no wall-clock)."""
-    opened: date                 # discovery date
-    expected_close: date         # opened + window
-    window_label: str            # "3w" | "6w" | "3m" | "4m" | ...
-    window_days: int             # derived; the clock key
+# ForwardHorizon (§3.2) is defined in engine.schema.horizon (a leaf module, so ThemeObject can also
+# import it without a cycle) and re-exported above.
 
 
 # ── policy (§5.4 — defaults verbatim) ────────────────────────────────────────────────

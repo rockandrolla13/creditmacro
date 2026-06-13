@@ -14,6 +14,7 @@ from .causal import (
     _chain_is_connected,
 )
 from .expression import Expression, ScenarioPnL
+from .horizon import ForwardHorizon
 from .macro import MacroContext, MacroRegimeTag
 from .pricing import EdgeContribution, PricedIn, Pricing, Scenario
 from .probability import (
@@ -84,7 +85,7 @@ __all__ = [
     # macro context (discovery context classifier)
     "MacroContext", "MacroRegimeTag",
     # theme
-    "ThemeObject",
+    "ThemeObject", "ForwardHorizon",
     # thesis tracker (standalone persistence sidecar — not wired into discovery/firewall)
     "MarketDataRecord", "ThesisTrackerRecord", "ComputedThesisTrackerRecord",
     # Stage-0 multi-source theme aggregator
