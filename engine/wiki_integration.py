@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .evidence_extraction import EvidenceExtractionBundle
 from .schema.theme_aggregation import MultiSourceThemeSet, ThemeCluster
@@ -1088,6 +1088,131 @@ def integrate(inp: WikiIntegratorInput) -> WikiIntegrationResult:
     if isinstance(inp, dict):
         inp = WikiIntegratorInput.model_validate(inp)
     plan = build_wiki_update_plan(inp)
+    if inp.dry_run:
+        return WikiIntegrationResult(plan=plan, applied=False, warnings=list(plan.warnings))
+    return apply_wiki_update_plan(plan, inp.wiki_root, force=inp.force)
+
+
+# ── (S8 / D3a) discovery-output persistence — routed ThemeObject → CASE theme page ──────
+
+class ThemeObjectPersistInput(BaseModel):
+    """Persist a routed ThemeObject (the discovery deliverable) as a durable CASE theme page.
+    Carries families + ConfidenceComponents + axis + falsifier + snapshot hash + forward_horizon.
+    No legs/sizing (discovery STOP). Idempotent re-write."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    theme: object                       # a ThemeObject (kept loose to avoid a heavy top import)
+    snapshot_hash: str                  # the fresh_snapshot_hash binding this page to frozen reasoning
+    wiki_root: str = "wiki"
+    dry_run: bool = False
+    force: bool = False
+
+
+def _routed_theme_slug(theme) -> str:
+    return "routed-" + _slugify(theme.statement)
+
+
+def _theme_falsifiers(theme) -> list[str]:
+    """Discovery falsifiers live on loop_diagnosis.invalidation_evidence; fall back to risk."""
+    out: list[str] = []
+    ld = getattr(theme, "loop_diagnosis", None)
+    if ld is not None:
+        out.extend(getattr(ld, "invalidation_evidence", []) or [])
+    risk = getattr(theme, "risk", None)
+    if risk is not None:
+        for f in getattr(risk, "falsifiers", []) or []:
+            out.append(f"{f.observable} crosses {f.threshold}: {f.kill_rule}")
+    return out
+
+
+def _theme_object_page_body(inp: ThemeObjectPersistInput) -> str:
+    theme = inp.theme
+    slug = _routed_theme_slug(theme)
+    fams = list(getattr(theme, "strategy_families", []) or [])
+    axis = getattr(theme, "axis", None)
+    fh = getattr(theme, "forward_horizon", None)
+    falsifiers = _theme_falsifiers(theme)
+
+    fm = _fm([
+        ("type", "theme"),
+        ("classification", "theme"),
+        ("workflow_status", str(getattr(theme, "status", "strategy_family_routed"))),
+        ("access_class", "case"),
+        ("theme_kind", "routed_discovery_theme"),
+        ("snapshot_hash", _yaml_scalar(inp.snapshot_hash)),
+        ("forward_horizon_label", _yaml_scalar(fh.window_label) if fh else "none"),
+        ("forward_horizon_window_days", str(fh.window_days) if fh else "0"),
+        ("forward_horizon_opened", str(fh.opened) if fh else "unknown"),
+        ("forward_horizon_expected_close", str(fh.expected_close) if fh else "unknown"),
+        ("axis_shape", _yaml_scalar(getattr(axis, "axis_shape", None) or "unknown")),
+        ("strategy_families", _yaml_list([f.family for f in fams])),
+        ("created", _CREATED),
+        ("updated", _UPDATED),
+    ])
+
+    fam_lines = []
+    for f in fams:
+        cc = getattr(f, "confidence_components", None)
+        cc_txt = ""
+        if cc is not None:
+            cc_txt = (f" [causal {cc.causal_confidence}, axis_fit {cc.axis_fit}, "
+                      f"edge_survival {cc.edge_survival}, purity {cc.purity}, "
+                      f"data {cc.data_confidence}, scenarios {cc.scenario_availability}]")
+        why = f" — why-not: {f.why_not}" if getattr(f, "why_not", None) else ""
+        fam_lines.append(
+            f"{f.family} ({getattr(f, 'direction', '')}) confidence {f.confidence}{cc_txt}; "
+            f"next: {getattr(f, 'required_downstream_model', '')}{why}")
+
+    horizon_txt = (f"{fh.window_label} ({fh.window_days}d): opened {fh.opened}, "
+                   f"expected close {fh.expected_close}") if fh else "(none assigned)"
+    axis_txt = (f"{axis.definition} — measured: {axis.measurement} (shape "
+                f"{getattr(axis, 'axis_shape', None) or 'unknown'})") if axis else "(no clean axis)"
+
+    body = f"""{fm}
+
+# Routed Theme Memory Card
+
+## Thesis
+{_trim_words(getattr(theme, 'statement', ''), 40)}
+
+## Status
+Routed discovery deliverable — status **{getattr(theme, 'status', 'strategy_family_routed')}**.
+An epistemic record only: ranked strategy families with decomposed confidence; discovery STOP.
+
+## Forward horizon
+{horizon_txt}
+
+## Operational axis
+{axis_txt}
+
+## Ranked strategy families
+{_bullets(fam_lines, empty="- (none routed)")}
+
+## Falsifiers
+{_bullets(falsifiers, empty="- (none recorded)")}
+
+## Snapshot binding
+Bound to frozen causal reasoning `{inp.snapshot_hash}`. The frozen object is never mutated; this page
+is an additive memory record of what discovery routed.
+
+{_NO_TRADE_HEADER}
+{_NO_TRADE_LINE}
+"""
+    return body
+
+
+def persist_theme_object(inp: ThemeObjectPersistInput) -> WikiIntegrationResult:
+    """Write a routed ThemeObject as a CASE theme page. Idempotent (identical content => skip).
+    Guarded for trade/sizing leakage. On dry_run: plan only, no disk writes."""
+    if isinstance(inp, dict):
+        inp = ThemeObjectPersistInput.model_validate(inp)
+    root = inp.wiki_root.rstrip("/")
+    slug = _routed_theme_slug(inp.theme)
+    plan = WikiUpdatePlan()
+    write = WikiPageWrite(path=f"{root}/themes/{slug}.md", kind="theme", action="create",
+                          access_class="case", content=_theme_object_page_body(inp))
+    if not _guard_page(write, None, plan):
+        return WikiIntegrationResult(plan=plan, applied=False, warnings=list(plan.warnings))
+    plan.writes.append(write)
     if inp.dry_run:
         return WikiIntegrationResult(plan=plan, applied=False, warnings=list(plan.warnings))
     return apply_wiki_update_plan(plan, inp.wiki_root, force=inp.force)
