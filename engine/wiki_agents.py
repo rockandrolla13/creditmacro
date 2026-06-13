@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict
 from .evidence_extraction import EvidenceExtractionBundle
 from .temporal import (
     ForecastHorizon,
+    MissingCurrentDateError,
     TemporalClaimStatus,
     TemporalContext,
     classify_temporal_context,
@@ -266,13 +267,22 @@ class EvidenceExtractionAgent(WikiAgent):
         """PART 9 — optionally enrich the bundle with temporal context. Computed ONLY when BOTH
         source_date AND current_date are supplied. current_date is NEVER implicit (no wall clock):
         if either is missing we leave temporal_context=None and emit the exact missing-date warning."""
+        strict = getattr(inp, "require_current_date", False)
         if not (inp.source_date and inp.current_date):
+            if strict:                       # (L5) fail-closed for discovery/strict runs
+                raise MissingCurrentDateError(
+                    f"{inp.source_slug}: temporal grounding required but source_date/current_date "
+                    "missing (strict run will not let an old report read as current).")
             bundle.extraction_warnings.append(_TEMPORAL_MISSING_DATE_WARNING)
             return
         try:
             current = date.fromisoformat(str(inp.current_date).strip())
         except ValueError:
             # an unparseable current_date is treated as missing — still never defaulted to today
+            if strict:
+                raise MissingCurrentDateError(
+                    f"{inp.source_slug}: current_date {inp.current_date!r} is unparseable "
+                    "(strict run requires a valid ISO current_date).")
             bundle.extraction_warnings.append(_TEMPORAL_MISSING_DATE_WARNING)
             return
         classification = SourceClassification(
