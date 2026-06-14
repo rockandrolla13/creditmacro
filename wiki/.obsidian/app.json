@@ -1,0 +1,12 @@
+{
+  "baseColor": "",
+  "readableLineLength": true,
+  "showInlineTitle": true,
+  "alwaysUpdateLinks": true,
+  "newLinkFormat": "shortest",
+  "useMarkdownLinks": false,
+  "attachmentFolderPath": "",
+  "showUnsupportedFiles": false,
+  "promptDelete": true,
+  "strictLineBreaks": false
+}

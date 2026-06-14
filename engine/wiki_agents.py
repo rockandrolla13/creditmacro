@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict
 from .evidence_extraction import EvidenceExtractionBundle
 from .temporal import (
     ForecastHorizon,
+    MissingCurrentDateError,
     TemporalClaimStatus,
     TemporalContext,
     classify_temporal_context,
@@ -266,13 +267,22 @@ class EvidenceExtractionAgent(WikiAgent):
         """PART 9 — optionally enrich the bundle with temporal context. Computed ONLY when BOTH
         source_date AND current_date are supplied. current_date is NEVER implicit (no wall clock):
         if either is missing we leave temporal_context=None and emit the exact missing-date warning."""
+        strict = getattr(inp, "require_current_date", False)
         if not (inp.source_date and inp.current_date):
+            if strict:                       # (L5) fail-closed for discovery/strict runs
+                raise MissingCurrentDateError(
+                    f"{inp.source_slug}: temporal grounding required but source_date/current_date "
+                    "missing (strict run will not let an old report read as current).")
             bundle.extraction_warnings.append(_TEMPORAL_MISSING_DATE_WARNING)
             return
         try:
             current = date.fromisoformat(str(inp.current_date).strip())
         except ValueError:
             # an unparseable current_date is treated as missing — still never defaulted to today
+            if strict:
+                raise MissingCurrentDateError(
+                    f"{inp.source_slug}: current_date {inp.current_date!r} is unparseable "
+                    "(strict run requires a valid ISO current_date).")
             bundle.extraction_warnings.append(_TEMPORAL_MISSING_DATE_WARNING)
             return
         classification = SourceClassification(
@@ -344,13 +354,21 @@ class WikiIntegratorAgent(WikiAgent):
         return integrate(inp)
 
 
+class WikiLintInput(BaseModel):
+    """Input for WikiLintAgent. `wiki_root` may also be passed bare as a string."""
+    wiki_root: str = "wiki"
+    source_slug: Optional[str] = None
+    theme_slugs: Optional[list[str]] = None
+    raw_text: Optional[str] = None
+
+
 class WikiLintAgent(WikiAgent):
     contract = AgentContract(
         agent_name="WikiLintAgent",
         purpose="Validate wiki health: access_class present, links resolve, sources lists current, "
                 "no verbatim leak, no trade/sizing leakage, investment-process fields present.",
         input_objects=["wiki_root"],
-        output_objects=["lint_findings", "lint-scratch.md", "log.md"],
+        output_objects=["ValidationReport"],
         allowed_paths_to_read=["wiki/", "markdowns/"],
         allowed_paths_to_write=["wiki/lint-scratch.md", "wiki/log.md"],
         access_class_rules=["read-only over content pages; only writes lint scratch/log"],
@@ -358,6 +376,36 @@ class WikiLintAgent(WikiAgent):
         non_goals=["produce trades", "delete contradictions", "web search"],
         tests_required=["flags broken links", "flags missing access_class", "flags verbatim leak"],
     )
+
+    def run(self, input):  # noqa: A002
+        # lazy import: wiki_validators imports wiki_integration which imports from this module.
+        from engine.wiki_validators import validate_all
+        if isinstance(input, WikiLintInput):
+            inp = input
+        elif isinstance(input, str):
+            inp = WikiLintInput(wiki_root=input)
+        else:
+            inp = WikiLintInput.model_validate(input)
+        return validate_all(
+            wiki_root=inp.wiki_root, source_slug=inp.source_slug,
+            theme_slugs=inp.theme_slugs, raw_text=inp.raw_text)
+
+
+class DiscoveryRunnerInput(BaseModel):
+    """Drive a discovery run. Supply EITHER a ready `provider` (+ `policy`) OR a `case` (a CaseSpec,
+    from which a ScriptedProvider + its resolved policy are built). The provider encapsulates the
+    current-input seam (its `RunContext` carries `current_input_source_slug` + evidence atoms)."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    provider: Optional[object] = None
+    policy: Optional[object] = None
+    case: Optional[object] = None
+
+
+class DiscoveryRunResult(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    theme: object               # ThemeObject (frozen pydantic; kept loose to avoid a heavy import)
+    memo: str
+    status: str
 
 
 class DiscoveryRunnerAgent(WikiAgent):
@@ -377,6 +425,28 @@ class DiscoveryRunnerAgent(WikiAgent):
         tests_required=["stops at strategy_family_routed", "posterior tilts only on supplied evidence",
                         "no trade output"],
     )
+
+    def run(self, input):  # noqa: A002
+        # Thin, faithful wrapper around the existing discovery pipeline. GM-neutral: the golden
+        # master already calls run_workflow directly; this only drives it through the registry and
+        # asserts the discovery STOP. NEVER runs expression mode.
+        from engine.workflow import run_workflow
+        inp = (input if isinstance(input, DiscoveryRunnerInput)
+               else DiscoveryRunnerInput.model_validate(input))
+        provider, policy = inp.provider, inp.policy
+        if provider is None:
+            if inp.case is None:
+                raise ValueError("DiscoveryRunnerAgent: supply either provider+policy or a case")
+            from engine.scripted_provider import ScriptedProvider
+            provider = ScriptedProvider(inp.case)
+            if policy is None:
+                policy = inp.case.resolved_policy()
+        if policy is None:
+            raise ValueError("DiscoveryRunnerAgent: policy is required when a provider is supplied")
+        theme, memo = run_workflow(provider, policy, mode="discovery")   # discovery STOP enforced upstream
+        if theme.status == "expression_complete":  # defensive: discovery must never reach expression
+            raise RuntimeError("DiscoveryRunnerAgent produced expression_complete — firewall breach")
+        return DiscoveryRunResult(theme=theme, memo=memo, status=theme.status)
 
 
 # ── TemporalContextAgent (PART 2) ───────────────────────────────────────────────

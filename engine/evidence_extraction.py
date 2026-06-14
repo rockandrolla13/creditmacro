@@ -32,6 +32,10 @@ class EvidenceExtractionInput(BaseModel):
     # if it (or source_date) is missing, temporal context is simply not computed and a warning fires.
     current_date: Optional[str] = None
     is_current_input: bool = False         # only a CURRENT input may be a 'current_report'
+    # (L5) fail-closed temporal grounding. Default False = warn-and-skip (back-compatible). When a
+    # discovery/strict run sets this True, a missing/unparseable current_date RAISES instead of
+    # silently degrading — closing the "old report reads as current" path.
+    require_current_date: bool = False
 
 
 class CausalClaimCandidate(BaseModel):

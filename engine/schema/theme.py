@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .causal import Axis, CausalChain, CausalNode, Thesis, _chain_is_connected
 from .expression import Expression
+from .horizon import ForwardHorizon
 from .macro import MacroContext
 from .pricing import Pricing, Scenario
 from .probability import ProbabilitySetJustification
@@ -37,6 +38,10 @@ class ThemeObject(BaseModel):
     ] = "strategy_family_routed"
     block_reason: Optional[str] = None               # set iff status=="blocked"
     strategy_families: list[StrategyFamilyRec] = []  # ranked; the discovery output
+    # (Phase 1, §3.2) the 3-4 month window stamped at discovery; surveillance keys its clocks off
+    # this. Optional with a safe default so FrozenSnapshot + the golden master are untouched
+    # (excluded from the content hash in engine.firewall).
+    forward_horizon: Optional[ForwardHorizon] = None
 
     thesis: Thesis                  # Engine 1
     axis: Optional[Axis] = None     # Engine 1 — absent on a blocked object (no fallback)

@@ -92,6 +92,10 @@ class ThemeAggregationPolicy:
     promote_min_temporal: float = 0.5
     min_promote_score: float = 0.0
     contradiction_penalty: float = 0.30
+    # ── (L3) parent cap — the theme-discipline down payment ──
+    # Keep at most this many parent clusters (top by promotion_score); demote the tail to
+    # `watchlist`. None = no cap (default; GM-neutral). Nothing is ever dropped silently.
+    parent_cap: Optional[int] = None
     source_scope: Optional[str] = None      # override the inferred scope
     # ── PART 5 access/temporal firewall ──
     # Slugs the caller declares as the CURRENT INPUT batch. CASE sources listed here are
@@ -614,6 +618,23 @@ def aggregate_theme_candidates(
     ]
     built.sort(key=lambda pair: pair[0].promotion_score, reverse=True)
     clusters = [b for b, _ in built]
+
+    # (L3) parent cap — keep the top `parent_cap` by promotion_score; demote the tail to watchlist.
+    # Default None => no cap (GM-neutral). Demotions are logged; nothing is dropped.
+    if policy.parent_cap is not None and len(clusters) > policy.parent_cap:
+        demoted = 0
+        capped = []
+        for idx, c in enumerate(clusters):
+            if idx >= policy.parent_cap and c.theme_status != "watchlist":
+                capped.append(c.model_copy(update={"theme_status": "watchlist"}))
+                demoted += 1
+            else:
+                capped.append(c)
+        clusters = capped
+        if demoted:
+            warnings.append(
+                f"parent_cap={policy.parent_cap}: demoted {demoted} cluster(s) beyond the cap to "
+                f"watchlist (tail by promotion_score); none dropped")
 
     slugs = sorted(bundles_by_slug)
     batch_id = "batch-" + hashlib.sha1("|".join(slugs).encode()).hexdigest()[:10]

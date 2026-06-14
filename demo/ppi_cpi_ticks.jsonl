@@ -1,0 +1,7 @@
+{"day": 2, "kind": "evidence", "claim": "producer credit spreads widen on margin pressure", "attention": false}
+{"day": 5, "kind": "falsifier", "metric": 15.0}
+{"day": 8, "kind": "falsifier", "metric": 25.0}
+{"day": 15, "kind": "evidence", "claim": "producer credit spreads widen further as PPI minus CPI compresses", "attention": false}
+{"day": 22, "kind": "falsifier", "metric": 15.0}
+{"day": 29, "kind": "falsifier", "metric": 15.0}
+{"day": 36, "kind": "falsifier", "metric": 15.0}

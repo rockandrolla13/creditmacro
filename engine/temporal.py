@@ -20,6 +20,12 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, model_validator
 
+
+class MissingCurrentDateError(ValueError):
+    """(L5) Raised when a STRICT/discovery extraction is asked to ground a source temporally but no
+    usable `current_date` was supplied. Fail-closed: rather than silently degrading (which lets an
+    old report read as a current view), a strict run refuses to proceed without temporal grounding."""
+
 HorizonType = Literal["days", "weeks", "months", "quarter", "year", "unspecified"]
 HorizonStatus = Literal["active", "expired", "not_yet_started", "unknown"]
 TemporalRole = Literal[

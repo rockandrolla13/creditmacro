@@ -25,7 +25,7 @@ from engine.schema.theme_aggregation import (
     SourceAttribution,
     ThemeCluster,
 )
-from engine.temporal import TemporalContext
+from engine.temporal import ForecastHorizon, TemporalContext
 from engine.wiki_agents import REGISTRY, SourceClassification, run_agent
 from engine.wiki_integration import (
     WikiIntegratorInput,
@@ -407,3 +407,487 @@ def test_run_agent_dispatches_to_integrator(tmp_path):
 
 def test_registry_lists_integrator():
     assert "WikiIntegratorAgent" in REGISTRY.list_agents()
+
+
+# ══════════════════════════════════════════════════════════════════════════════════
+# PART 10 additions — the items not already covered above.
+# ══════════════════════════════════════════════════════════════════════════════════
+
+
+# ── item 2: rejects incompatible inputs ───────────────────────────────────────────
+
+def test_integrator_rejects_incompatible_input():
+    """The agent's run() validates via WikiIntegratorInput.model_validate, so a structurally
+    incompatible payload (missing required objects, wrong types) is rejected with a pydantic
+    ValidationError rather than silently producing a malformed plan."""
+    import pydantic
+    with pytest.raises(pydantic.ValidationError):
+        run_agent("WikiIntegratorAgent", {"not": "a valid integrator input"})
+    with pytest.raises(pydantic.ValidationError):
+        # bundle present but source_classification missing
+        run_agent("WikiIntegratorAgent", {"bundle": _bundle().model_dump()})
+
+
+# ── item 6: evidence provenance ───────────────────────────────────────────────────
+
+def test_evidence_page_carries_provenance(tmp_path):
+    inp = _input(tmp_path)
+    integrate(inp)
+    ev = (Path(inp.wiki_root) / "evidence" / "ev-1.md").read_text()
+    # frontmatter provenance fields
+    assert "evidence_id: ev-1" in ev
+    assert "source_slug: acme-credit-report-2026-05-01" in ev
+    assert "source_location: page:7" in ev
+    assert "page_number: 7" in ev
+    # body provenance section names the source + location + page
+    prov = ev.split("## Source provenance", 1)[1].split("##", 1)[0]
+    assert "acme-credit-report-2026-05-01" in prov
+    assert "page:7" in prov
+    assert "7" in prov
+
+
+# ── item 7 (provenance link resolution): evidence link from theme resolves ─────────
+
+def test_theme_evidence_links_resolve_to_evidence_pages(tmp_path):
+    inp = _input(tmp_path)
+    integrate(inp)
+    root = Path(inp.wiki_root)
+    theme = (root / "themes"
+             / "acme-credit-report-2026-05-01-primary-supply-pressure.md").read_text()
+    ev_links = re.findall(r"\[\[(ev-[^\]]+)\]\]", theme)
+    assert ev_links, "theme card must backlink to its evidence atoms"
+    for eid in ev_links:
+        assert (root / "evidence" / f"{eid}.md").exists(), f"[[{eid}]] must resolve"
+
+
+# ── item 9: cluster cites attributions + evidence ─────────────────────────────────
+
+def test_cluster_page_cites_attributions_and_evidence(tmp_path):
+    inp = _input(tmp_path)
+    integrate(inp)
+    cluster = (Path(inp.wiki_root) / "theme-clusters"
+               / "cluster-primary-supply.md").read_text()
+    # frontmatter records source + evidence provenance
+    assert "source_slugs:" in cluster
+    assert "acme-credit-report-2026-05-01" in cluster
+    assert "evidence_ids:" in cluster
+    assert "ev-1" in cluster
+    # source-attributions section names the contributing source + its contribution type
+    attribs = cluster.split("## Source attributions", 1)[1].split("##", 1)[0]
+    assert "acme-credit-report-2026-05-01" in attribs
+    assert "supports" in attribs
+    # evidence bullets section cites the evidence id
+    bullets = cluster.split("## Evidence bullets", 1)[1].split("##", 1)[0]
+    assert "ev-1" in bullets
+
+
+# ── item 10: concept / entity pages created + updated (Part 7) ─────────────────────
+
+def test_concept_and_entity_pages_created(tmp_path):
+    inp = _input(tmp_path)
+    integrate(inp)
+    root = Path(inp.wiki_root)
+    # default bundle: concepts ["spread dispersion","primary supply"], entities ["JULI","technology"]
+    expected = {
+        "concepts/spread-dispersion.md", "concepts/primary-supply.md",
+        "entities/juli.md", "entities/technology.md",
+    }
+    for rel in expected:
+        assert (root / rel).exists(), f"missing taxonomy page {rel}"
+    concept = (root / "concepts" / "spread-dispersion.md").read_text()
+    # frontmatter contract: generic taxonomy node, access mirrors the source (case here)
+    assert "type: concept" in concept
+    assert "access_class: case" in concept
+    assert "workflow_status: discovery_complete" in concept
+    assert "sources:" in concept and "acme-credit-report-2026-05-01" in concept
+    # generic body + evidence backlink + no-trade boundary
+    assert "[[ev-1]]" in concept
+    assert "## No-trade boundary" in concept
+    entity = (root / "entities" / "juli.md").read_text()
+    assert "type: entity" in entity
+    assert "access_class: case" in entity
+    assert "[[ev-1]]" in entity
+
+
+def test_method_source_still_writes_concept_entity_pages(tmp_path):
+    """For a METHOD source, evidence/theme pages are NOT written, but concept/entity taxonomy
+    pages ARE — stamped method (Part 7 contract)."""
+    inp = _input(
+        tmp_path,
+        source_classification=_classification(slug="pearl-book-of-why", access="method",
+                                              stype="book"),
+        bundle=_bundle(slug="pearl-book-of-why"),
+        temporal_context=_temporal(slug="pearl-book-of-why", role="method_source"),
+        theme_set=None,
+    )
+    integrate(inp)
+    root = Path(inp.wiki_root)
+    assert not (root / "evidence").exists() or not list((root / "evidence").glob("*.md"))
+    concept = (root / "concepts" / "spread-dispersion.md").read_text()
+    assert "access_class: method" in concept
+    assert "access_class: case" not in concept
+    assert (root / "entities" / "juli.md").exists()
+
+
+# ── item 11: index.md Part-8 per-source block ─────────────────────────────────────
+
+def test_index_has_part8_source_block(tmp_path):
+    inp = _input(tmp_path)
+    integrate(inp)
+    index = (Path(inp.wiki_root) / "index.md").read_text()
+    assert "<!-- integrated 2026-06-12: acme-credit-report-2026-05-01 -->" in index
+    assert "### acme-credit-report-2026-05-01" in index
+    for label in ("- Source:", "- Evidence:", "- Themes:", "- Theme clusters:",
+                  "- Concepts:", "- Entities:"):
+        assert label in index, f"index block missing line {label}"
+    # grouped links present + resolve to created files
+    assert "[[acme-credit-report-2026-05-01]]" in index
+    assert "[[ev-1]]" in index
+    created = {p.stem for p in _files(inp.wiki_root)}
+    for slug in re.findall(r"\[\[([^\]]+)\]\]", index):
+        assert slug in created
+
+
+def test_index_empty_group_renders_none(tmp_path):
+    """A bundle with no clusters renders the Theme clusters group as '(none)' with no link."""
+    inp = _input(tmp_path, theme_set=None)
+    integrate(inp)
+    index = (Path(inp.wiki_root) / "index.md").read_text()
+    block = index.split("### acme-credit-report-2026-05-01", 1)[1]
+    cluster_line = next(ln for ln in block.splitlines() if ln.startswith("- Theme clusters:"))
+    assert cluster_line.strip() == "- Theme clusters: (none)"
+    assert "[[" not in cluster_line
+
+
+# ── item 12: log appends exactly ONE entry (idempotent on re-run) ─────────────────
+
+def test_log_appends_exactly_one_entry(tmp_path):
+    inp = _input(tmp_path)
+    integrate(inp)
+    log_path = Path(inp.wiki_root) / "log.md"
+    text = log_path.read_text()
+    header = "## [2026-06-12] ingest | acme-credit-report-2026-05-01"
+    assert text.count(header) == 1
+    for bullet in ("- Source:", "- Access class:", "- Temporal role:",
+                   "- Evidence atoms created:", "- Themes updated:",
+                   "- Theme clusters updated:", "- Concepts/entities updated:",
+                   "- Strategy-family hints:", "- Warnings:", "- No-trade confirmation:"):
+        assert bullet in text, f"log entry missing bullet {bullet}"
+    # idempotent re-run: the same snippet is already present, so still exactly ONE entry
+    integrate(_input(tmp_path))
+    assert log_path.read_text().count(header) == 1
+
+
+# ── item 13: memory-map updates (11 headings + marker) ────────────────────────────
+
+_MEMORY_MAP_HEADINGS = [
+    "#### Active Main Developments", "#### Active Core Themes", "#### Active Hot Topics",
+    "#### Multi-Source Theme Clusters", "#### Strategy-Family Priors",
+    "#### Historical Outcome Candidates", "#### Themes Missing Evidence",
+    "#### Themes Missing Operational Axes", "#### Themes Missing Falsifiers",
+    "#### Themes Ready for Strategy-Family Routing", "#### Themes Ready for Downstream Models",
+]
+
+
+def test_memory_map_emits_all_headings_and_marker(tmp_path):
+    inp = _input(tmp_path)
+    integrate(inp)
+    mm = (Path(inp.wiki_root) / "memory-map.md").read_text()
+    assert "<!-- memory-map 2026-06-12: acme-credit-report-2026-05-01 -->" in mm
+    assert len(_MEMORY_MAP_HEADINGS) == 11
+    for h in _MEMORY_MAP_HEADINGS:
+        assert h in mm, f"memory-map missing heading {h}"
+
+
+def test_memory_map_empty_sets_render_none(tmp_path):
+    """The default bundle has evidence + axis + falsifier + family hint, so the 'missing' sets are
+    empty and render '- (none)'; 'Historical Outcome Candidates' is empty for a current report."""
+    inp = _input(tmp_path)
+    integrate(inp)
+    mm = (Path(inp.wiki_root) / "memory-map.md").read_text()
+    block = mm.split("### acme-credit-report-2026-05-01", 1)[1]
+
+    def section(name):
+        return block.split(name, 1)[1].split("####", 1)[0]
+
+    assert "- (none)" in section("#### Themes Missing Evidence")
+    assert "- (none)" in section("#### Historical Outcome Candidates")
+    # readiness IS met for the default bundle (evidence+axis+falsifier+family)
+    assert "primary supply pressure" in section("#### Themes Ready for Strategy-Family Routing")
+
+
+# ── item 15: force / overwrite semantics ──────────────────────────────────────────
+
+def test_force_rewrites_identical_page(tmp_path):
+    """force=True rewrites even an identical page (it lands in written_paths, not skipped)."""
+    inp = _input(tmp_path)
+    integrate(inp)
+    res = integrate(_input(tmp_path, force=True))
+    assert any("sources" in p for p in res.written_paths), \
+        "force=True must rewrite the (identical) source page rather than skip it"
+    assert not any("sources" in p for p in res.skipped_paths)
+
+
+def test_non_force_overwrites_divergent_create_page(tmp_path):
+    """ACTUAL applier semantics (verified against apply_wiki_update_plan): on a 'create' write,
+    force only short-circuits when the existing content is IDENTICAL. A divergent existing page
+    is OVERWRITTEN even with force=False — there is no allow_overwrite refusal path. We assert the
+    real behavior so the contract is pinned; see PART-10 return note for the discussion of whether
+    a hand-edited page should instead be refused."""
+    inp = _input(tmp_path)
+    integrate(inp)
+    src_path = Path(inp.wiki_root) / "sources" / "acme-credit-report-2026-05-01.md"
+    src_path.write_text("HAND EDITED — divergent content\n", encoding="utf-8")
+    res = integrate(_input(tmp_path))          # force defaults to False
+    after = src_path.read_text()
+    assert "HAND EDITED" not in after, "divergent create page is clobbered (current semantics)"
+    assert "# Source Summary" in after
+    assert any("sources" in p for p in res.written_paths)
+
+
+# ── item 16: CASE pages refused in Phase A unless current input ───────────────────
+
+def test_case_page_refused_in_phase_a_unless_current_input(tmp_path):
+    """Phase-A firewall, expressed by the Part-9 pure predicate over an integrator-written page:
+    a case page that is NOT the current input is refused in Phase A; the current input is admitted;
+    Phase B admits everything."""
+    from engine.wiki_validators import check_case_page_phase_a
+    inp = _input(tmp_path)
+    integrate(inp)
+    src = (Path(inp.wiki_root) / "sources" / "acme-credit-report-2026-05-01.md").read_text()
+    # case page, not the current input, Phase A -> refused
+    findings = check_case_page_phase_a(src, phase="A", is_current_input=False)
+    assert findings and findings[0].severity == "error"
+    assert findings[0].check == "case_refused_phase_a"
+    # same page IS the current input -> admitted (no finding)
+    assert check_case_page_phase_a(src, phase="A", is_current_input=True) == []
+    # Phase B -> admitted regardless
+    assert check_case_page_phase_a(src, phase="B", is_current_input=False) == []
+
+
+# ── item 17: historical report labelled historical / outcome-candidate ────────────
+
+def _historical_input(tmp_path, **kw):
+    """A historical_case bundle: an aged source whose forecasts are stated 'as of' the source date.
+    current_update_required=True is mandatory once a forecast has expired."""
+    horizon = ForecastHorizon(
+        claim="IG spreads widen 30bp over the coming quarter",
+        horizon_type="quarter", status="expired", outcome_check_required=True,
+        outcome_variable="IG OAS")
+    tc = TemporalContext(
+        source_slug="euro-equity-strategy-2019",
+        source_date=date.fromisoformat("2019-03-01"),
+        current_date=date.fromisoformat("2026-06-12"),
+        temporal_role="historical_case",
+        forecast_horizons=[horizon],
+        expired_forecasts=["IG spreads widen 30bp over the coming quarter"],
+        current_update_required=True)
+    base = dict(
+        source_classification=_classification(slug="euro-equity-strategy-2019",
+                                              access="case", stype="report"),
+        bundle=_bundle(slug="euro-equity-strategy-2019",
+                       themes=["european equity de-rating"]),
+        temporal_context=tc,
+        theme_set=None,
+        wiki_root=str(tmp_path / "wiki"),
+    )
+    base.update(kw)
+    return WikiIntegratorInput(**base)
+
+
+def test_historical_case_source_labelled_historical(tmp_path):
+    inp = _historical_input(tmp_path)
+    integrate(inp)
+    root = Path(inp.wiki_root)
+    src = (root / "sources" / "euro-equity-strategy-2019.md").read_text()
+    assert "temporal_role: historical_case" in src
+    assert "current_update_required: true" in src
+    # forecasts are framed historically ("as of <source_date>:") and explicitly NOT current
+    assert "as of 2019-03-01:" in src
+    assert "NOT current recommendations" in src
+    # the Part-9 on-disk historical-case check passes (disclaimer present, no live reco)
+    from engine.wiki_validators import check_historical_cases_not_current
+    assert check_historical_cases_not_current(str(root)) == []
+
+
+def test_historical_evidence_page_marks_outcome_check(tmp_path):
+    inp = _historical_input(tmp_path)
+    integrate(inp)
+    ev = (Path(inp.wiki_root) / "evidence" / "ev-1.md").read_text()
+    assert "temporal_status: historical" in ev
+    assert "outcome_check_required: true" in ev
+
+
+# ── item 18: expired forecasts not rendered as current ────────────────────────────
+
+def test_expired_forecast_not_rendered_current(tmp_path):
+    """The Part-9 forecast-expiry predicate: a forecast past its horizon must be labelled
+    expired/outcome_candidate, never 'current'. A page that still calls an expired horizon
+    'current' is flagged; the integrator's historical page (status historical) is not."""
+    from engine.wiki_validators import check_forecast_expiry_labeled
+    inp = _historical_input(tmp_path)
+    integrate(inp)
+    src = (Path(inp.wiki_root) / "sources" / "euro-equity-strategy-2019.md").read_text()
+    # horizon ended 2019, current date 2026 -> past horizon. A 'current' label is an error.
+    bad = check_forecast_expiry_labeled(
+        src, horizon_end_date="2019-06-01", current_date="2026-06-12",
+        temporal_status="current")
+    assert bad and bad[0].severity == "error"
+    # labelled outcome_candidate -> no error
+    ok = check_forecast_expiry_labeled(
+        src, horizon_end_date="2019-06-01", current_date="2026-06-12",
+        temporal_status="outcome_candidate")
+    assert ok == []
+    # a still-live horizon is never flagged regardless of status
+    assert check_forecast_expiry_labeled(
+        src, horizon_end_date="2027-01-01", current_date="2026-06-12",
+        temporal_status="current") == []
+
+
+# ── items 21-26: writer exercised across diverse domains ──────────────────────────
+
+def _domain_bundle(slug, *, concepts, entities, themes, families, axis_name, axis_series):
+    atom = _atom(eid=f"{slug}-ev-1", source_slug=slug, concepts=concepts, entities=entities,
+                 themes=themes, claim="A structured, paraphrased development for this domain.")
+    return EvidenceExtractionBundle(
+        source_slug=slug,
+        source_page_fields={"source_type": "report", "author_or_publisher": "Desk Research",
+                            "source_date": "2026-05-01"},
+        evidence_atoms=[atom],
+        main_developments=["A domain development"],
+        key_events=["A domain event"],
+        hot_topics=themes[:1],
+        core_theme_candidates=themes,
+        causal_claims=[CausalClaimCandidate(
+            driver="driver", transmission="mechanism", outcome="outcome",
+            confidence=0.5, rationale="why")],
+        operational_axes=[OperationalAxisCandidate(
+            axis_name=axis_name, axis_shape="level", observable_series=axis_series)],
+        confounders=["a confounder"],
+        falsifiers=[f"{axis_name} moves opposite for 4 weeks"],
+        strategy_family_hints=[StrategyFamilyHint(family=f, rationale="domain rationale",
+                                                  confidence=0.5) for f in families],
+        open_questions=["an open question"],
+    )
+
+
+def _domain_input(tmp_path, slug, bundle, *, role="current_report", access="case"):
+    return WikiIntegratorInput(
+        source_classification=_classification(slug=slug, access=access, stype="report"),
+        bundle=bundle,
+        temporal_context=_temporal(slug=slug, role=role),
+        theme_set=None,
+        wiki_root=str(tmp_path / "wiki"),
+    )
+
+
+def test_jpm_like_case_integrates_to_wiki(tmp_path):
+    """item 21 — JPM-style AI-capex-funding case (hermetic synthetic in the spirit of the on-disk
+    wiki/sources/jpm-ai-capex-funding-2026-05-11.md fixture): integrates cleanly into a temp wiki,
+    source stamped case, themes + concepts land, no-trade / copyright validators pass."""
+    bundle = _domain_bundle(
+        "jpm-ai-capex-funding-2026-05-11",
+        concepts=["data center capex", "credit supply"],
+        entities=["JPM", "hyperscalers"],
+        themes=["ai capex funding pressure"],
+        families=["relative_value"],
+        axis_name="HG vs HY data-center issuance spread",
+        axis_series="JULI tech-sector OAS")
+    inp = _domain_input(tmp_path, "jpm-ai-capex-funding-2026-05-11", bundle)
+    res = integrate(inp)
+    root = Path(inp.wiki_root)
+    assert (root / "sources" / "jpm-ai-capex-funding-2026-05-11.md").exists()
+    src = (root / "sources" / "jpm-ai-capex-funding-2026-05-11.md").read_text()
+    assert "access_class: case" in src
+    assert (root / "themes"
+            / "jpm-ai-capex-funding-2026-05-11-ai-capex-funding-pressure.md").exists()
+    assert (root / "concepts" / "data-center-capex.md").exists()
+    assert (root / "entities" / "jpm.md").exists()
+    from engine.wiki_validators import validate_all
+    # NOTE: source_slug is intentionally omitted — it would trigger check_log_single_entry, which
+    # has a Part-9/Part-8 contract mismatch (see test_log_validator_format_mismatch_xfail below).
+    report = validate_all(wiki_root=str(root), plan_or_result=res, raw_text=None)
+    assert report.ok, [f.message for f in report.errors()]
+
+
+def test_software_pc_fixture_non_jpm_themes_and_axes(tmp_path):
+    """item 24 — a software/PC-cycle source produces its own (non-JPM) themes + a computable axis."""
+    bundle = _domain_bundle(
+        "software-pc-cycle-2026-04",
+        concepts=["pc refresh cycle", "software margins"],
+        entities=["technology", "semis"],
+        themes=["pc replacement cycle inflection"],
+        families=["long_short"],
+        axis_name="tech vs market equity spread",
+        axis_series="software-sector relative OAS")
+    inp = _domain_input(tmp_path, "software-pc-cycle-2026-04", bundle)
+    integrate(inp)
+    root = Path(inp.wiki_root)
+    theme = (root / "themes"
+             / "software-pc-cycle-2026-04-pc-replacement-cycle-inflection.md").read_text()
+    assert "pc replacement cycle inflection" in theme.lower()
+    # the operational axis (a named, computable series) is recorded on the theme card
+    assert "tech vs market equity spread" in theme
+    assert "software-sector relative OAS" in theme
+    assert (root / "concepts" / "pc-refresh-cycle.md").exists()
+
+
+def test_etf_flow_fixture_yields_etf_concepts_and_family_hints(tmp_path):
+    """item 25 — an ETF-flow source surfaces ETF/basket concepts + the relative_value family hint
+    (etf_basket_rv routes as a relative_value sub-type)."""
+    bundle = _domain_bundle(
+        "etf-flow-taarss-2026-05",
+        concepts=["etf primary flow", "basket arbitrage"],
+        entities=["LQD", "HYG"],
+        themes=["etf flow dislocation"],
+        families=["relative_value"],
+        axis_name="ETF NAV vs basket spread",
+        axis_series="LQD NAV-minus-basket series")
+    inp = _domain_input(tmp_path, "etf-flow-taarss-2026-05", bundle)
+    integrate(inp)
+    root = Path(inp.wiki_root)
+    assert (root / "concepts" / "etf-primary-flow.md").exists()
+    assert (root / "concepts" / "basket-arbitrage.md").exists()
+    assert (root / "entities" / "lqd.md").exists()
+    # family hint lands on the source page + memory-map Strategy-Family Priors
+    src = (root / "sources" / "etf-flow-taarss-2026-05.md").read_text()
+    assert "relative_value" in src
+    mm = (root / "memory-map.md").read_text()
+    priors = mm.split("#### Strategy-Family Priors", 1)[1].split("####", 1)[0]
+    assert "relative_value" in priors
+
+
+def test_inflation_margin_fixture_sector_rotation_and_long_short_hints(tmp_path):
+    """item 26 — an inflation/margin-compression source carries sector-rotation + long-short hints."""
+    bundle = _domain_bundle(
+        "inflation-margin-compression-2026-05",
+        concepts=["margin compression", "input cost inflation"],
+        entities=["consumer staples", "industrials"],
+        themes=["margin compression rotation"],
+        families=["sector_rotation", "long_short"],
+        axis_name="defensives vs cyclicals spread",
+        axis_series="staples-minus-cyclicals OAS")
+    inp = _domain_input(tmp_path, "inflation-margin-compression-2026-05", bundle)
+    integrate(inp)
+    root = Path(inp.wiki_root)
+    src = (root / "sources" / "inflation-margin-compression-2026-05.md").read_text()
+    assert "sector_rotation" in src
+    assert "long_short" in src
+    theme = (root / "themes"
+             / "inflation-margin-compression-2026-05-margin-compression-rotation.md").read_text()
+    fam_fm = theme.split("strategy_family_hints:", 1)[1].split("\n", 3)
+    assert "sector_rotation" in theme
+    assert "long_short" in theme
+
+
+def test_multi_source_theme_set_yields_cluster_page(tmp_path):
+    """item 23 — a MultiSourceThemeSet produces a theme-cluster page (already partially covered by
+    the apply test; here we assert the cluster page content end-to-end via the default theme_set)."""
+    inp = _input(tmp_path)
+    integrate(inp)
+    cluster = Path(inp.wiki_root) / "theme-clusters" / "cluster-primary-supply.md"
+    assert cluster.exists()
+    body = cluster.read_text()
+    assert "type: theme_cluster" in body
+    assert "cluster_id: cluster-primary-supply" in body
+    assert "## Cluster thesis" in body

@@ -1,0 +1,447 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Theme Surveillance — State Machine</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#151b23; --panel-2:#10151c; --edge:#2a323d; --edge-2:#1d242d;
+    --ink:#c9d4e0; --ink-dim:#8a97a7; --ink-faint:#5c6878; --accent:#39c5cf;
+    /* status semantics — chroma lives here, on purpose */
+    --armed:#5b6b7d; --confirming:#3fb950; --weakening:#d6a02a; --stalled:#8b949e;
+    --pending:#e0883c; --falsified:#f85149; --expired:#6e7681; --played:#58a6ff;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:ui-sans-serif,system-ui,"Inter","Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased}
+  body{padding:18px;max-width:1180px;margin:0 auto}
+  a{color:var(--accent)}
+
+  header{display:flex;flex-wrap:wrap;gap:14px;align-items:baseline;justify-content:space-between;
+    border-bottom:1px solid var(--edge);padding-bottom:12px;margin-bottom:16px}
+  h1{font-size:15px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;margin:0}
+  h1 small{display:block;font-size:11px;letter-spacing:.04em;text-transform:none;
+    color:var(--ink-faint);font-weight:400;margin-top:4px}
+
+  .banner{font-family:var(--mono);font-size:13px;display:flex;align-items:center;gap:12px}
+  .pill{font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px;
+    padding:5px 11px;border-radius:3px;color:#0e1116;background:var(--armed)}
+  .alert{color:var(--ink-dim);font-size:12px}
+
+  .grid{display:grid;grid-template-columns:300px 1fr;gap:14px;align-items:start}
+  @media(max-width:820px){.grid{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--edge);border-radius:6px;padding:14px}
+  .card + .card{margin-top:14px}
+  .eyebrow{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);
+    margin:0 0 11px;font-weight:600}
+
+  /* controls */
+  .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .seg button{font-family:var(--mono)}
+  button{font-family:var(--sans);font-size:12px;color:var(--ink);background:var(--panel-2);
+    border:1px solid var(--edge);border-radius:4px;padding:8px 9px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--ink-faint)}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  button.on{background:var(--accent);border-color:var(--accent);color:#0e1116;font-weight:600}
+  button:disabled{opacity:.34;cursor:not-allowed}
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 4px}
+  .row label{font-size:12px;color:var(--ink-dim)}
+  .row .v{font-family:var(--mono);font-size:12px;color:var(--ink)}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:2px 0 6px}
+  input[type=number]{width:62px;font-family:var(--mono);font-size:12px;background:var(--panel-2);
+    color:var(--ink);border:1px solid var(--edge);border-radius:4px;padding:5px 6px}
+  input[type=number]:focus-visible{outline:2px solid var(--accent);outline-offset:0}
+
+  .twin{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .ev{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .ev .b-conf{border-color:#244e2c}.ev .b-conf:hover{border-color:var(--confirming)}
+  .ev .b-disc{border-color:#5a2522}.ev .b-disc:hover{border-color:var(--falsified)}
+  .advance{width:100%;margin-top:4px;font-weight:600;border-color:#2c4a4d}
+  .advance:hover{border-color:var(--accent)}
+  .reset{width:100%;margin-top:10px}
+
+  details{margin-top:10px;border-top:1px solid var(--edge-2);padding-top:8px}
+  summary{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);
+    cursor:pointer;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"+ ";font-family:var(--mono)}
+  details[open] summary::before{content:"− "}
+
+  .hint{font-size:11px;color:var(--ink-faint);line-height:1.5;margin:8px 0 0}
+
+  /* state graph */
+  .graphwrap{background:linear-gradient(180deg,#11161d,#0d1219);border:1px solid var(--edge);
+    border-radius:6px;padding:6px}
+  svg{display:block;width:100%;height:auto}
+  .node rect{transition:fill .18s, stroke .18s, filter .18s}
+  .node text{font-family:var(--mono);font-size:11px;fill:var(--ink-dim);
+    text-anchor:middle;dominant-baseline:central;letter-spacing:.02em}
+  .node.active text{fill:#0e1116;font-weight:700}
+  .edge{stroke:var(--edge);stroke-width:1.4;fill:none}
+  .edge.dashed{stroke-dasharray:3 4;stroke:var(--edge-2)}
+  @media(prefers-reduced-motion:no-preference){
+    .node.active rect{animation:pulse .9s ease-out}
+  }
+  @keyframes pulse{0%{filter:drop-shadow(0 0 0 transparent)}40%{filter:drop-shadow(0 0 9px currentColor)}100%{filter:drop-shadow(0 0 4px transparent)}}
+
+  /* readout */
+  .vars{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--edge-2);
+    border:1px solid var(--edge);border-radius:6px;overflow:hidden}
+  @media(max-width:560px){.vars{grid-template-columns:repeat(2,1fr)}}
+  .var{background:var(--panel);padding:11px 12px}
+  .var .k{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-faint)}
+  .var .n{font-family:var(--mono);font-size:18px;margin-top:5px;color:var(--ink)}
+  .var .n small{font-size:11px;color:var(--ink-faint)}
+  .var.warn .n{color:var(--pending)}
+  .var.bad .n{color:var(--falsified)}
+  .var.good .n{color:var(--confirming)}
+
+  /* tape */
+  .tape{font-family:var(--mono);font-size:12px;max-height:230px;overflow:auto}
+  .tline{display:grid;grid-template-columns:54px 116px 1fr;gap:8px;padding:6px 2px;
+    border-bottom:1px solid var(--edge-2);align-items:baseline}
+  .tline .t{color:var(--ink-faint)}
+  .tline .r{font-weight:600}
+  .tline .why{color:var(--ink-dim)}
+  .tape .empty{color:var(--ink-faint);padding:8px 2px}
+  .legend{font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.6}
+  code{font-family:var(--mono);color:var(--ink-dim)}
+</style>
+
+<header>
+  <h1>Theme Surveillance — State Machine
+    <small>Reference implementation of the §5.3 transition function · breach buffer · horizon-keyed staleness · disconfirmation asymmetry</small>
+  </h1>
+  <div class="banner">
+    <span id="pill" class="pill">ARMED</span>
+    <span id="alert" class="alert">Hold — monitoring</span>
+  </div>
+</header>
+
+<div class="grid">
+  <!-- ───────────────────────── CONTROLS ───────────────────────── -->
+  <div>
+    <div class="card">
+      <p class="eyebrow">Forward horizon</p>
+      <div class="seg" id="winSeg">
+        <button data-d="21" data-l="3w">3w</button>
+        <button data-d="42" data-l="6w">6w</button>
+        <button data-d="91" data-l="3m" class="on">3m</button>
+        <button data-d="122" data-l="4m">4m</button>
+      </div>
+      <button class="advance" id="advBtn">Advance 1 week ▸ (falsifier read)</button>
+      <p class="hint">Each advance steps the clock one read period and reads the falsifier at the current
+        metric. Staleness threshold &amp; evidence half-life rescale with the window.</p>
+    </div>
+
+    <div class="card">
+      <p class="eyebrow">Falsifier metric <span style="color:var(--ink-faint)">(Guardrail 1)</span></p>
+      <div class="row"><label>Threshold X</label>
+        <span class="v"><input type="number" id="thr" value="20" step="1"></span></div>
+      <div class="twin" style="margin:4px 0 8px">
+        <button id="dirBelow" class="on">breach if&nbsp;&lt;&nbsp;X</button>
+        <button id="dirAbove">breach if&nbsp;&gt;&nbsp;X</button>
+      </div>
+      <div class="row"><label>Current metric value</label><span class="v" id="metV">15.0</span></div>
+      <input type="range" id="metric" min="0" max="40" value="15" step="0.5">
+      <div class="row"><label>Breach buffer (reads)</label>
+        <span class="v"><input type="number" id="buf" value="3" min="1" step="1"></span></div>
+      <p class="hint" id="readPreview">Next read: <b>breach</b> · consecutive breaches: 0 / 3</p>
+    </div>
+
+    <div class="card">
+      <p class="eyebrow">Inject evidence <span style="color:var(--ink-faint)">(blind-scored)</span></p>
+      <div class="ev">
+        <button class="b-conf" data-val="1"   data-att="0">+ Confirming</button>
+        <button class="b-disc" data-val="-1"  data-att="0">+ Disconfirming</button>
+        <button         data-val="0"   data-att="0">+ Neutral</button>
+        <button         data-val="0"   data-att="1">+ Attention (news)</button>
+      </div>
+      <p class="hint">Disconfirming carries weight <code>λ=1.5×</code> confirming. Attention-only never
+        moves status to <i>confirming</i> and does not reset the staleness clock.</p>
+
+      <div class="row" style="margin-top:12px"><label>Axis realized → target</label>
+        <span class="v" id="axisV">0%</span></div>
+      <input type="range" id="axis" min="0" max="100" value="0" step="1">
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>Policy parameters</summary>
+        <div class="row"><label>k_stale</label><span class="v"><input type="number" id="kStale" value="0.15" step="0.01"></span></div>
+        <div class="row"><label>k_decay</label><span class="v"><input type="number" id="kDecay" value="0.25" step="0.01"></span></div>
+        <div class="row"><label>λ disconfirm</label><span class="v"><input type="number" id="lam" value="1.5" step="0.1"></span></div>
+        <div class="row"><label>valence band</label><span class="v"><input type="number" id="band" value="0.5" step="0.1"></span></div>
+        <div class="row"><label>axis target frac</label><span class="v"><input type="number" id="tgt" value="0.75" step="0.05"></span></div>
+      </details>
+      <button class="reset" id="resetBtn">↺ Reset run</button>
+    </div>
+  </div>
+
+  <!-- ───────────────────────── GRAPH + READOUT + TAPE ───────────────────────── -->
+  <div>
+    <div class="graphwrap">
+      <svg id="graph" viewBox="0 0 760 360" role="img" aria-label="surveillance state graph"></svg>
+    </div>
+
+    <div class="card">
+      <p class="eyebrow">State variables</p>
+      <div class="vars" id="vars"></div>
+    </div>
+
+    <div class="card">
+      <p class="eyebrow">Transition tape</p>
+      <div class="tape" id="tape"><div class="empty">— advance the clock or inject evidence —</div></div>
+      <p class="legend">First match wins, top to bottom:
+        <code>played_out</code> → <code>falsified</code> → <code>horizon_expired</code> →
+        <code>falsified_pending</code> → <code>stalled</code> → <code>weakening</code> →
+        <code>confirming</code> → <code>armed</code>. Terminal states are absorbing.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ───────── status metadata ───────── */
+const STATUS = {
+  armed:            {label:"ARMED",            color:"var(--armed)",      alert:"Hold — monitoring", term:false},
+  confirming:       {label:"CONFIRMING",       color:"var(--confirming)", alert:"Hold — evidence supports thesis", term:false},
+  weakening:        {label:"WEAKENING",        color:"var(--weakening)",  alert:"Hold — thesis weakening (price ≠ thesis)", term:false},
+  stalled:          {label:"STALLED",          color:"var(--stalled)",    alert:"Stalled — theme going quiet", term:false},
+  falsified_pending:{label:"FALSIFIED·PENDING",color:"var(--pending)",    alert:"Caution — falsifier breaching, buffering", term:false},
+  falsified:        {label:"FALSIFIED",        color:"var(--falsified)",  alert:"EXIT — falsifier confirmed", term:true},
+  horizon_expired:  {label:"HORIZON·EXPIRED",  color:"var(--expired)",    alert:"Horizon expired — re-evaluate", term:true},
+  played_out:       {label:"PLAYED·OUT",       color:"var(--played)",     alert:"Played out — check priced-in", term:true},
+};
+
+/* node geometry for the graph (centers) */
+const NODES = {
+  stalled:           {x:78,  y:180, w:118},
+  armed:             {x:236, y:180, w:104},
+  confirming:        {x:392, y:74,  w:126},
+  weakening:         {x:392, y:286, w:126},
+  falsified_pending: {x:452, y:180, w:160},
+  falsified:         {x:648, y:74,  w:118},
+  horizon_expired:   {x:648, y:180, w:148},
+  played_out:        {x:648, y:286, w:118},
+};
+const EDGES = [
+  ["armed","stalled"],["armed","confirming"],["armed","weakening"],
+  ["armed","falsified_pending"],["armed","horizon_expired"],["armed","played_out"],
+  ["falsified_pending","falsified"],
+];
+const DASHED = [["falsified_pending","armed"]]; // recover / whipsaw-averted
+
+/* ───────── state ───────── */
+const OBS_FREQ = 7; // days per read period
+let S;
+function fresh(){
+  return {
+    windowDays:91, winLabel:"3m",
+    thr:20, dir:"below", metric:15, buf:3,
+    kStale:0.15, kDecay:0.25, lam:1.5, band:0.5, tgt:0.75,
+    staleFloor:2, staleCap:30, decayFloor:3, decayCap:45,
+    clock:0, lastEvidence:0,
+    consec:0, breachStartedAt:null,
+    events:[], axisFrac:0,
+    status:"armed", terminal:false, tickN:0, tape:[],
+  };
+}
+const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,x));
+const isBreach=(v,thr,dir)=> dir==="below" ? v<thr : v>thr;
+
+/* derived quantities (Guardrail 2) */
+function derive(){
+  const H=S.windowDays;
+  const staleTh=clamp(S.kStale*H,S.staleFloor,S.staleCap);
+  const halfLife=clamp(S.kDecay*H,S.decayFloor,S.decayCap);
+  const quiet=S.clock-S.lastEvidence;
+  let net=0;
+  for(const e of S.events){
+    if(e.att) continue;                 // attention ≠ evidence
+    const w=Math.pow(0.5,(S.clock-e.t)/halfLife);     // recency decay
+    const lam=e.val<0?S.lam:1.0;                       // disconfirmation asymmetry
+    net+=e.val*w*lam;
+  }
+  return {H, elapsed:S.clock, staleTh, halfLife, quiet, net, axisDone:S.axisFrac};
+}
+
+/* ───────── the transition function (mirrors §5.3 exactly) ───────── */
+function transition(){
+  const d=derive();
+  if(d.axisDone>=S.tgt)            return ["played_out","axis_target_reached"];
+  if(S.consec>=S.buf)             return ["falsified","falsifier_persisted"];
+  if(d.elapsed>d.H)               return ["horizon_expired","horizon_elapsed"];
+  if(S.consec>=1)                 return ["falsified_pending","falsifier_breaching_buffering"];
+  if(d.quiet>d.staleTh)           return ["stalled","evidence_stale"];
+  if(d.net< -S.band)              return ["weakening","valence_negative"];
+  if(d.net>  S.band)              return ["confirming","valence_positive"];
+  return ["armed","nominal"];
+}
+
+/* ───────── ticks ───────── */
+function advance(){
+  if(S.terminal) return;
+  S.clock+=OBS_FREQ;
+  // falsifier read
+  const breaching=isBreach(S.metric,S.thr,S.dir);
+  let note;
+  if(breaching){
+    S.consec++; if(S.breachStartedAt===null) S.breachStartedAt=S.clock;
+    note=null;
+  } else {
+    if(S.consec>0){ note="whipsaw_averted (×"+S.consec+")"; }
+    S.consec=0; S.breachStartedAt=null;
+  }
+  // status follows priority routing; surface the read note if it was a whipsaw reset
+  const [status,reason]=transition();
+  S.status=status; if(STATUS[status].term) S.terminal=true;
+  S.tickN++;
+  S.tape.unshift({n:S.tickN, day:S.clock, rule:note||reason, status});
+  render();
+}
+
+function inject(val,att){
+  if(S.terminal) return;
+  S.events.push({val,att,t:S.clock});
+  if(!att) S.lastEvidence=S.clock;          // attention-only does NOT reset staleness
+  const [status,reason]=transition();
+  S.status=status; if(STATUS[status].term) S.terminal=true;
+  S.tickN++;
+  const tag = att ? "attention_logged (not evidence)" : reason;
+  S.tape.unshift({n:S.tickN, day:S.clock, rule:tag, status});
+  render();
+}
+
+/* recompute without logging a tick (used when a knob changes) */
+function recompute(){
+  const [status]=transition();
+  S.status=status; if(STATUS[status].term) S.terminal=true;
+  render();
+}
+
+/* ───────── rendering ───────── */
+function cssvar(v){ // resolve a CSS var to a concrete color
+  if(!v.startsWith("var(")) return v;
+  const name=v.slice(4,-1);
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+function drawGraph(){
+  const NS="http://www.w3.org/2000/svg";
+  let s="";
+  const cx=k=>NODES[k].x, cy=k=>NODES[k].y;
+  const drawEdge=(a,b,dash)=>{
+    const x1=cx(a),y1=cy(a),x2=cx(b),y2=cy(b);
+    s+=`<line class="edge${dash?' dashed':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  };
+  EDGES.forEach(([a,b])=>drawEdge(a,b,false));
+  DASHED.forEach(([a,b])=>drawEdge(a,b,true));
+  for(const [k,n] of Object.entries(NODES)){
+    const active=(k===S.status);
+    const col=cssvar(STATUS[k].color);
+    const w=n.w, h=40, x=n.x-w/2, y=n.y-h/2;
+    const fill=active?col:"var(--panel-2)";
+    const stroke=active?col:"var(--edge)";
+    const style=active?`color:${col}`:"";
+    s+=`<g class="node${active?' active':''}" style="${style}">
+          <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6"
+                fill="${fill}" stroke="${stroke}" stroke-width="${active?2:1.3}"/>
+          <text x="${n.x}" y="${n.y}">${k}</text>
+        </g>`;
+  }
+  document.getElementById("graph").innerHTML=s;
+}
+function drawVars(){
+  const d=derive();
+  const stale = d.quiet>d.staleTh;
+  const cells=[
+    {k:"status", n:STATUS[S.status].label, cls:""},
+    {k:"consec breach", n:`${S.consec}<small> / ${S.buf}</small>`, cls:S.consec>=S.buf?"bad":(S.consec>=1?"warn":"")},
+    {k:"days since evid", n:`${d.quiet}<small>d</small>`, cls:stale?"warn":""},
+    {k:"staleness thr", n:`${d.staleTh.toFixed(1)}<small>d</small>`, cls:""},
+    {k:"evid half-life", n:`${d.halfLife.toFixed(1)}<small>d</small>`, cls:""},
+    {k:"net valence", n:`${d.net>=0?"+":""}${d.net.toFixed(2)}`, cls:d.net<-S.band?"warn":(d.net>S.band?"good":"")},
+    {k:"elapsed / win", n:`${d.elapsed}<small> / ${d.H}d</small>`, cls:d.elapsed>d.H?"bad":""},
+    {k:"axis realized", n:`${Math.round(d.axisDone*100)}<small>%</small>`, cls:d.axisDone>=S.tgt?"good":""},
+  ];
+  document.getElementById("vars").innerHTML=cells.map(c=>
+    `<div class="var ${c.cls}"><div class="k">${c.k}</div><div class="n">${c.n}</div></div>`).join("");
+}
+function drawTape(){
+  const el=document.getElementById("tape");
+  if(!S.tape.length){ el.innerHTML='<div class="empty">— advance the clock or inject evidence —</div>'; return;}
+  el.innerHTML=S.tape.slice(0,40).map(r=>{
+    const col=cssvar(STATUS[r.status].color);
+    return `<div class="tline">
+      <span class="t">#${r.n}</span>
+      <span class="t">day ${r.day}</span>
+      <span><span class="r" style="color:${col}">${r.status}</span>
+        <span class="why">· ${r.rule}</span></span></div>`;
+  }).join("");
+}
+function drawBanner(){
+  const m=STATUS[S.status];
+  const pill=document.getElementById("pill");
+  pill.textContent=m.label; pill.style.background=cssvar(m.color);
+  document.getElementById("alert").textContent=m.alert;
+}
+function drawPreview(){
+  const breaching=isBreach(S.metric,S.thr,S.dir);
+  document.getElementById("readPreview").innerHTML=
+    `Next read: <b style="color:${breaching?'var(--pending)':'var(--confirming)'}">${breaching?'breach':'clear'}</b>`+
+    ` · consecutive breaches: ${S.consec} / ${S.buf}`;
+}
+function drawControlsLock(){
+  const lock=S.terminal;
+  document.getElementById("advBtn").disabled=lock;
+  document.querySelectorAll(".ev button").forEach(b=>b.disabled=lock);
+  document.getElementById("advBtn").textContent =
+    lock ? "Terminal — reset to continue" : "Advance 1 week ▸ (falsifier read)";
+}
+function render(){ drawGraph(); drawVars(); drawTape(); drawBanner(); drawPreview(); drawControlsLock(); }
+
+/* ───────── wiring ───────── */
+function bind(){
+  document.getElementById("winSeg").addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    document.querySelectorAll("#winSeg button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    S.windowDays=+b.dataset.d; S.winLabel=b.dataset.l; recompute();
+  });
+  document.getElementById("advBtn").addEventListener("click",advance);
+  document.querySelectorAll(".ev button").forEach(b=>
+    b.addEventListener("click",()=>inject(+b.dataset.val,+b.dataset.att)));
+
+  const dirBelow=document.getElementById("dirBelow"), dirAbove=document.getElementById("dirAbove");
+  dirBelow.addEventListener("click",()=>{S.dir="below";dirBelow.classList.add("on");dirAbove.classList.remove("on");drawPreview();recompute();});
+  dirAbove.addEventListener("click",()=>{S.dir="above";dirAbove.classList.add("on");dirBelow.classList.remove("on");drawPreview();recompute();});
+
+  const metric=document.getElementById("metric"), metV=document.getElementById("metV");
+  metric.addEventListener("input",()=>{S.metric=+metric.value;metV.textContent=S.metric.toFixed(1);drawPreview();});
+
+  const axis=document.getElementById("axis"), axisV=document.getElementById("axisV");
+  axis.addEventListener("input",()=>{S.axisFrac=+axis.value/100;axisV.textContent=axis.value+"%";recompute();});
+
+  const num=(id,key,after)=>{const el=document.getElementById(id);
+    el.addEventListener("input",()=>{const v=parseFloat(el.value); if(!isNaN(v)){S[key]=v; (after||recompute)();}});};
+  num("thr","thr",()=>{drawPreview();recompute();});
+  num("buf","buf",()=>{drawPreview();recompute();});
+  num("kStale","kStale"); num("kDecay","kDecay"); num("lam","lam"); num("band","band"); num("tgt","tgt");
+
+  document.getElementById("resetBtn").addEventListener("click",reset);
+}
+function syncInputs(){
+  document.getElementById("metric").value=S.metric;
+  document.getElementById("metV").textContent=S.metric.toFixed(1);
+  document.getElementById("axis").value=Math.round(S.axisFrac*100);
+  document.getElementById("axisV").textContent=Math.round(S.axisFrac*100)+"%";
+  document.getElementById("thr").value=S.thr;
+  document.getElementById("buf").value=S.buf;
+}
+function reset(){ S=fresh(); syncInputs(); render(); }
+
+S=fresh(); bind(); syncInputs(); render();
+</script>

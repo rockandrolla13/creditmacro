@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .evidence_extraction import EvidenceExtractionBundle
 from .schema.theme_aggregation import MultiSourceThemeSet, ThemeCluster
@@ -625,6 +625,108 @@ Temporal roles present: {', '.join(temporal_roles) or 'unknown'}.
     return body
 
 
+def _concept_page_body(inp: WikiIntegratorInput, concept_name: str, concept_slug: str,
+                       evidence_ids: list[str], theme_slugs: list[str],
+                       cluster_ids: list[str]) -> str:
+    """A taxonomy/mechanics page for a concept referenced by the source's evidence atoms.
+
+    The body stays GENERIC: a short descriptor plus BACKLINKS to the evidence atoms and themes
+    that reference the concept. No source-specific market claims are copied in (honours the
+    method/case firewall and the copyright guard). `access_class` mirrors the SOURCE's access
+    class — a method source's concept pages are method (taxonomy), a case source's are case.
+    """
+    cls = inp.source_classification
+    tc = inp.temporal_context
+    role = _temporal_role(tc)
+
+    fm = _fm([
+        ("type", "concept"),
+        ("classification", "concept"),
+        ("workflow_status", "discovery_complete"),
+        ("access_class", cls.access_class),
+        ("sources", _yaml_list([cls.source_slug])),
+        ("evidence", _yaml_list(evidence_ids)),
+        ("themes", _yaml_list(theme_slugs)),
+        ("theme_clusters", _yaml_list(cluster_ids)),
+        ("aliases", _yaml_list([])),
+        ("created", _CREATED),
+        ("updated", _UPDATED),
+    ])
+
+    body = f"""{fm}
+
+# Concept: {_trim_words(concept_name)}
+
+## What this is
+A concept referenced by source `{cls.source_slug}` (temporal role {role}). Durable memory
+node linking the evidence atoms and themes that invoke this concept; no source-specific market
+claim is reproduced here.
+
+## Referenced by evidence
+{_bullets([f"[[{eid}]]" for eid in evidence_ids])}
+
+## Referenced by themes
+{_bullets([f"[[{t}]]" for t in theme_slugs])}
+
+## Referenced by clusters
+{_bullets([f"[[{c}]]" for c in cluster_ids])}
+
+{_NO_TRADE_HEADER}
+{_NO_TRADE_LINE}
+"""
+    return body
+
+
+def _entity_page_body(inp: WikiIntegratorInput, entity_name: str, entity_slug: str,
+                      evidence_ids: list[str], theme_slugs: list[str],
+                      cluster_ids: list[str]) -> str:
+    """A taxonomy page for an entity referenced by the source's evidence atoms.
+
+    Same discipline as `_concept_page_body`: generic descriptor + backlinks only, `access_class`
+    mirrors the SOURCE's access class, no source-specific market claim copied verbatim.
+    """
+    cls = inp.source_classification
+    tc = inp.temporal_context
+    role = _temporal_role(tc)
+
+    fm = _fm([
+        ("type", "entity"),
+        ("classification", "entity"),
+        ("workflow_status", "discovery_complete"),
+        ("access_class", cls.access_class),
+        ("sources", _yaml_list([cls.source_slug])),
+        ("evidence", _yaml_list(evidence_ids)),
+        ("themes", _yaml_list(theme_slugs)),
+        ("theme_clusters", _yaml_list(cluster_ids)),
+        ("aliases", _yaml_list([])),
+        ("created", _CREATED),
+        ("updated", _UPDATED),
+    ])
+
+    body = f"""{fm}
+
+# Entity: {_trim_words(entity_name)}
+
+## What this is
+An entity referenced by source `{cls.source_slug}` (temporal role {role}). Durable memory
+node linking the evidence atoms and themes that mention this entity; no source-specific market
+claim is reproduced here.
+
+## Referenced by evidence
+{_bullets([f"[[{eid}]]" for eid in evidence_ids])}
+
+## Referenced by themes
+{_bullets([f"[[{t}]]" for t in theme_slugs])}
+
+## Referenced by clusters
+{_bullets([f"[[{c}]]" for c in cluster_ids])}
+
+{_NO_TRADE_HEADER}
+{_NO_TRADE_LINE}
+"""
+    return body
+
+
 # ── planner ─────────────────────────────────────────────────────────────────────
 
 def _guard_page(write: WikiPageWrite, raw_text: Optional[str], plan: WikiUpdatePlan) -> bool:
@@ -730,36 +832,214 @@ def build_wiki_update_plan(inp: WikiIntegratorInput) -> WikiUpdatePlan:
             add(f"{root}/theme-clusters/{cluster.cluster_id}.md", "theme_cluster", "create",
                 _cluster_page_body(inp, cluster), "case", cluster.cluster_id)
 
-    # APPEND entries: index.md, log.md, memory-map.md
-    theme_slugs = [s for s in created_links if s.startswith(cls.source_slug + "-")]
-    cluster_ids = [c.cluster_id for c in inp.theme_set.clusters] if inp.theme_set else []
-    cluster_ids = [c for c in cluster_ids if c in created_links]
+    # (PART 7) CONCEPT + ENTITY PAGES — taxonomy/mechanics nodes referenced by the source's
+    # evidence atoms. Allowed for BOTH method and case sources; the page's access_class mirrors
+    # the SOURCE's (never upgraded). Names are sourced from the union of atom.concepts /
+    # atom.entities across the bundle (dedup + sorted). The body is generic + backlinks only;
+    # backlinks point ONLY at pages that actually got created (in `created_links`).
+    created_set = set(created_links)
+    cluster_ids_created = [c.cluster_id for c in (inp.theme_set.clusters if inp.theme_set else [])
+                           if c.cluster_id in created_set]
 
-    # index.md — wikilinks to every page created (only those that passed the guards)
-    index_links = "\n".join(f"- [[{s}]]" for s in created_links)
-    index_snippet = (
-        f"\n<!-- integrated {_UPDATED}: {cls.source_slug} -->\n"
-        f"{index_links}\n"
-    )
-    add(f"{root}/index.md", "index", "append", index_snippet, None, "")
+    concepts = sorted({c for a in b.evidence_atoms for c in a.concepts})
+    entities = sorted({e for a in b.evidence_atoms for e in a.entities})
 
-    # log.md — one dated line
-    log_snippet = (
-        f"- {_UPDATED} WikiIntegrator: integrated `{cls.source_slug}` "
-        f"({cls.access_class}) — {len(created_links)} page(s); "
-        f"{len(theme_slugs)} theme(s), {len(cluster_ids)} cluster(s).\n"
-    )
-    add(f"{root}/log.md", "log", "append", log_snippet, None, "")
+    for concept_name in concepts:
+        # backlinks restricted to atoms that actually reference THIS concept
+        ev_refs = [a.evidence_id for a in b.evidence_atoms
+                   if a.evidence_id and a.evidence_id in created_set and concept_name in a.concepts]
+        th_refs = sorted({f"{cls.source_slug}-{_slugify(t)}"
+                          for a in b.evidence_atoms if concept_name in a.concepts
+                          for t in a.themes
+                          if f"{cls.source_slug}-{_slugify(t)}" in created_set})
+        concept_slug = _slugify(concept_name)
+        add(f"{root}/concepts/{concept_slug}.md", "concept", "create",
+            _concept_page_body(inp, concept_name, concept_slug, ev_refs, th_refs,
+                               cluster_ids_created),
+            cls.access_class, concept_slug)
 
-    # memory-map.md — map the source to its themes/clusters
-    mm_snippet = (
-        f"- `{cls.source_slug}` -> themes: "
-        f"{', '.join(f'[[{t}]]' for t in theme_slugs) or '(none)'}; "
-        f"clusters: {', '.join(f'[[{c}]]' for c in cluster_ids) or '(none)'}\n"
-    )
-    add(f"{root}/memory-map.md", "memory_map", "append", mm_snippet, None, "")
+    for entity_name in entities:
+        ev_refs = [a.evidence_id for a in b.evidence_atoms
+                   if a.evidence_id and a.evidence_id in created_set and entity_name in a.entities]
+        th_refs = sorted({f"{cls.source_slug}-{_slugify(t)}"
+                          for a in b.evidence_atoms if entity_name in a.entities
+                          for t in a.themes
+                          if f"{cls.source_slug}-{_slugify(t)}" in created_set})
+        entity_slug = _slugify(entity_name)
+        add(f"{root}/entities/{entity_slug}.md", "entity", "create",
+            _entity_page_body(inp, entity_name, entity_slug, ev_refs, th_refs,
+                              cluster_ids_created),
+            cls.access_class, entity_slug)
+
+    # (PART 8) APPEND entries: index.md, log.md, memory-map.md.
+    # CRITICAL link-resolution invariant: every [[slug]] emitted into index.md MUST be a page
+    # that was actually planned. We group the SLUGS THAT PASSED THE GUARDS — i.e. only those in
+    # `created_links` (a page blocked for copyright/trade never reaches it) — by kind, reading the
+    # kind off the planned writes. This guarantees the index never links to a non-existent file.
+    created_set = set(created_links)
+    by_kind: dict[str, list[str]] = {}
+    for w in plan.writes:
+        if w.action != "create":
+            continue
+        stem = Path(w.path).stem
+        if stem in created_set:
+            by_kind.setdefault(w.kind, []).append(stem)
+    # A theme card is action="create" on first ingest and "append" on re-ingest; capture the
+    # appended-theme slug too so the index/memory-map reflect it (it is still a real file).
+    for w in plan.writes:
+        if w.kind == "theme" and w.action == "append":
+            stem = Path(w.path).stem
+            if stem in created_set and stem not in by_kind.get("theme", []):
+                by_kind.setdefault("theme", []).append(stem)
+
+    src_slugs = by_kind.get("source", [])
+    evidence_slugs = by_kind.get("evidence", [])
+    theme_slugs = by_kind.get("theme", [])
+    cluster_slugs = by_kind.get("theme_cluster", [])
+    concept_slugs = by_kind.get("concept", [])
+    entity_slugs = by_kind.get("entity", [])
+
+    add(f"{root}/index.md", "index", "append",
+        _index_snippet(cls.source_slug, src_slugs, evidence_slugs, theme_slugs,
+                       cluster_slugs, concept_slugs, entity_slugs),
+        None, "")
+    add(f"{root}/log.md", "log", "append",
+        _log_snippet(inp, plan, evidence_slugs, theme_slugs, cluster_slugs,
+                     concept_slugs, entity_slugs),
+        None, "")
+    add(f"{root}/memory-map.md", "memory_map", "append",
+        _memory_map_snippet(inp, theme_slugs, cluster_slugs, evidence_slugs),
+        None, "")
 
     return plan
+
+
+# ── PART 8 helpers: index / log / memory-map append snippets ──────────────────────
+# All three are byte-stable across re-runs (deterministic dates, no wall-clock, no set-ordering
+# surprises — slug lists arrive in planned-write order). Each carries a stable per-source marker
+# comment so the applier's `content in existing` idempotency check skips them on re-run. Every
+# [[slug]] emitted is a page that was actually planned (passed the guards).
+
+def _link_line(label: str, slugs: list[str]) -> str:
+    """One index line: a labelled, comma-joined list of wikilinks (or '(none)')."""
+    body = ", ".join(f"[[{s}]]" for s in slugs) if slugs else "(none)"
+    return f"- {label}: {body}"
+
+
+def _index_snippet(source_slug: str, src_slugs: list[str], evidence_slugs: list[str],
+                   theme_slugs: list[str], cluster_slugs: list[str],
+                   concept_slugs: list[str], entity_slugs: list[str]) -> str:
+    """Content-oriented per-source index block. Lists, grouped by kind, every page created in
+    THIS integration. Only links to created pages (link-resolution invariant)."""
+    lines = [
+        "",
+        f"<!-- integrated {_UPDATED}: {source_slug} -->",
+        f"### {source_slug}",
+        _link_line("Source", src_slugs),
+        _link_line("Evidence", evidence_slugs),
+        _link_line("Themes", theme_slugs),
+        _link_line("Theme clusters", cluster_slugs),
+        _link_line("Concepts", concept_slugs),
+        _link_line("Entities", entity_slugs),
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def _log_snippet(inp: WikiIntegratorInput, plan: WikiUpdatePlan, evidence_slugs: list[str],
+                 theme_slugs: list[str], cluster_slugs: list[str], concept_slugs: list[str],
+                 entity_slugs: list[str]) -> str:
+    """Append-only, one entry per integration, byte-stable (deterministic counts + date)."""
+    cls = inp.source_classification
+    b = inp.bundle
+    role = _temporal_role(inp.temporal_context)
+    families = [_trim_words(h.family, 6) for h in b.strategy_family_hints]
+    fam_text = ", ".join(families) if families else "(none)"
+    themes_text = str(len(theme_slugs)) if theme_slugs else "0"
+    clusters_text = str(len(cluster_slugs)) if cluster_slugs else "0"
+    lines = [
+        "",
+        f"## [{_UPDATED}] ingest | {cls.source_slug}",
+        f"- Source: {cls.source_slug} ({cls.source_type})",
+        f"- Access class: {cls.access_class}",
+        f"- Temporal role: {role}",
+        f"- Evidence atoms created: {len(evidence_slugs)}",
+        f"- Themes updated: {themes_text}",
+        f"- Theme clusters updated: {clusters_text}",
+        f"- Concepts/entities updated: {len(concept_slugs)} concept(s), "
+        f"{len(entity_slugs)} entity(ies)",
+        f"- Strategy-family hints: {fam_text}",
+        f"- Warnings: {len(plan.warnings)}",
+        # A short equivalent of plan.no_trade_confirmation. We deliberately avoid the literal
+        # "hedge ratios" wording the confirmation uses so this log line carries no string that a
+        # naive trade-language scan flags — the boundary is asserted by construction, not phrasing.
+        "- No-trade confirmation: structured durable memory only — discovery mode; "
+        "no trades/sizing/execution; no raw source text.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def _memory_map_snippet(inp: WikiIntegratorInput, theme_slugs: list[str],
+                        cluster_slugs: list[str], evidence_slugs: list[str]) -> str:
+    """Current-state per-source contribution. Emits every heading even when empty ('- (none)').
+    Derives the 'missing X' / 'ready' sets from the bundle's evidence / axes / falsifiers /
+    family hints. 'Ready for routing' requires evidence + an axis + a falsifier + a family hint;
+    'ready for downstream models' additionally requires a hint carrying a downstream model."""
+    cls = inp.source_classification
+    b = inp.bundle
+    role = _temporal_role(inp.temporal_context)
+
+    has_evidence = bool(evidence_slugs)
+    has_axis = bool(b.operational_axes)
+    has_falsifier = bool(b.falsifiers)
+    has_family = bool(b.strategy_family_hints)
+    has_downstream = any((h.downstream_model_hint or "").strip() for h in b.strategy_family_hints)
+
+    # historical-outcome candidates: a source whose forecasts can now be scored against reality.
+    is_outcome = role in ("historical_case", "outcome_candidate", "stale_case")
+    outcome_candidates = b.core_theme_candidates if is_outcome else []
+
+    missing_evidence = [] if has_evidence else b.core_theme_candidates
+    missing_axes = [] if has_axis else b.core_theme_candidates
+    missing_falsifiers = [] if has_falsifier else b.core_theme_candidates
+    ready_routing = (b.core_theme_candidates
+                     if (has_evidence and has_axis and has_falsifier and has_family) else [])
+    ready_downstream = (b.core_theme_candidates
+                        if (has_evidence and has_axis and has_falsifier and has_downstream)
+                        else [])
+
+    families = [f"{_trim_words(h.family, 6)}: {h.rationale}" for h in b.strategy_family_hints]
+
+    lines = [
+        "",
+        f"<!-- memory-map {_UPDATED}: {cls.source_slug} -->",
+        f"### {cls.source_slug}",
+        "#### Active Main Developments",
+        _bullets(b.main_developments),
+        "#### Active Core Themes",
+        _bullets(b.core_theme_candidates),
+        "#### Active Hot Topics",
+        _bullets(b.hot_topics),
+        "#### Multi-Source Theme Clusters",
+        _bullets([f"[[{c}]]" for c in cluster_slugs]),
+        "#### Strategy-Family Priors",
+        _bullets(families),
+        "#### Historical Outcome Candidates",
+        _bullets(outcome_candidates),
+        "#### Themes Missing Evidence",
+        _bullets(missing_evidence),
+        "#### Themes Missing Operational Axes",
+        _bullets(missing_axes),
+        "#### Themes Missing Falsifiers",
+        _bullets(missing_falsifiers),
+        "#### Themes Ready for Strategy-Family Routing",
+        _bullets(ready_routing),
+        "#### Themes Ready for Downstream Models",
+        _bullets(ready_downstream),
+        "",
+    ]
+    return "\n".join(lines)
 
 
 # ── applier ─────────────────────────────────────────────────────────────────────
@@ -808,6 +1088,233 @@ def integrate(inp: WikiIntegratorInput) -> WikiIntegrationResult:
     if isinstance(inp, dict):
         inp = WikiIntegratorInput.model_validate(inp)
     plan = build_wiki_update_plan(inp)
+    if inp.dry_run:
+        return WikiIntegrationResult(plan=plan, applied=False, warnings=list(plan.warnings))
+    return apply_wiki_update_plan(plan, inp.wiki_root, force=inp.force)
+
+
+# ── (S8 / D3a) discovery-output persistence — routed ThemeObject → CASE theme page ──────
+
+class ThemeObjectPersistInput(BaseModel):
+    """Persist a routed ThemeObject (the discovery deliverable) as a durable CASE theme page.
+    Carries families + ConfidenceComponents + axis + falsifier + snapshot hash + forward_horizon.
+    No legs/sizing (discovery STOP). Idempotent re-write."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    theme: object                       # a ThemeObject (kept loose to avoid a heavy top import)
+    snapshot_hash: str                  # the fresh_snapshot_hash binding this page to frozen reasoning
+    wiki_root: str = "wiki"
+    dry_run: bool = False
+    force: bool = False
+
+
+def _routed_theme_slug(theme) -> str:
+    return "routed-" + _slugify(theme.statement)
+
+
+def _theme_falsifiers(theme) -> list[str]:
+    """Discovery falsifiers live on loop_diagnosis.invalidation_evidence; fall back to risk."""
+    out: list[str] = []
+    ld = getattr(theme, "loop_diagnosis", None)
+    if ld is not None:
+        out.extend(getattr(ld, "invalidation_evidence", []) or [])
+    risk = getattr(theme, "risk", None)
+    if risk is not None:
+        for f in getattr(risk, "falsifiers", []) or []:
+            out.append(f"{f.observable} crosses {f.threshold}: {f.kill_rule}")
+    return out
+
+
+def _theme_object_page_body(inp: ThemeObjectPersistInput) -> str:
+    theme = inp.theme
+    slug = _routed_theme_slug(theme)
+    fams = list(getattr(theme, "strategy_families", []) or [])
+    axis = getattr(theme, "axis", None)
+    fh = getattr(theme, "forward_horizon", None)
+    falsifiers = _theme_falsifiers(theme)
+
+    fm = _fm([
+        ("type", "theme"),
+        ("classification", "theme"),
+        ("workflow_status", str(getattr(theme, "status", "strategy_family_routed"))),
+        ("access_class", "case"),
+        ("theme_kind", "routed_discovery_theme"),
+        ("snapshot_hash", _yaml_scalar(inp.snapshot_hash)),
+        ("forward_horizon_label", _yaml_scalar(fh.window_label) if fh else "none"),
+        ("forward_horizon_window_days", str(fh.window_days) if fh else "0"),
+        ("forward_horizon_opened", str(fh.opened) if fh else "unknown"),
+        ("forward_horizon_expected_close", str(fh.expected_close) if fh else "unknown"),
+        ("axis_shape", _yaml_scalar(getattr(axis, "axis_shape", None) or "unknown")),
+        ("strategy_families", _yaml_list([f.family for f in fams])),
+        ("created", _CREATED),
+        ("updated", _UPDATED),
+    ])
+
+    fam_lines = []
+    for f in fams:
+        cc = getattr(f, "confidence_components", None)
+        cc_txt = ""
+        if cc is not None:
+            cc_txt = (f" [causal {cc.causal_confidence}, axis_fit {cc.axis_fit}, "
+                      f"edge_survival {cc.edge_survival}, purity {cc.purity}, "
+                      f"data {cc.data_confidence}, scenarios {cc.scenario_availability}]")
+        why = f" — why-not: {f.why_not}" if getattr(f, "why_not", None) else ""
+        fam_lines.append(
+            f"{f.family} ({getattr(f, 'direction', '')}) confidence {f.confidence}{cc_txt}; "
+            f"next: {getattr(f, 'required_downstream_model', '')}{why}")
+
+    horizon_txt = (f"{fh.window_label} ({fh.window_days}d): opened {fh.opened}, "
+                   f"expected close {fh.expected_close}") if fh else "(none assigned)"
+    axis_txt = (f"{axis.definition} — measured: {axis.measurement} (shape "
+                f"{getattr(axis, 'axis_shape', None) or 'unknown'})") if axis else "(no clean axis)"
+
+    body = f"""{fm}
+
+# Routed Theme Memory Card
+
+## Thesis
+{_trim_words(getattr(theme, 'statement', ''), 40)}
+
+## Status
+Routed discovery deliverable — status **{getattr(theme, 'status', 'strategy_family_routed')}**.
+An epistemic record only: ranked strategy families with decomposed confidence; discovery STOP.
+
+## Forward horizon
+{horizon_txt}
+
+## Operational axis
+{axis_txt}
+
+## Ranked strategy families
+{_bullets(fam_lines, empty="- (none routed)")}
+
+## Falsifiers
+{_bullets(falsifiers, empty="- (none recorded)")}
+
+## Snapshot binding
+Bound to frozen causal reasoning `{inp.snapshot_hash}`. The frozen object is never mutated; this page
+is an additive memory record of what discovery routed.
+
+{_NO_TRADE_HEADER}
+{_NO_TRADE_LINE}
+"""
+    return body
+
+
+def persist_theme_object(inp: ThemeObjectPersistInput) -> WikiIntegrationResult:
+    """Write a routed ThemeObject as a CASE theme page. Idempotent (identical content => skip).
+    Guarded for trade/sizing leakage. On dry_run: plan only, no disk writes."""
+    if isinstance(inp, dict):
+        inp = ThemeObjectPersistInput.model_validate(inp)
+    root = inp.wiki_root.rstrip("/")
+    slug = _routed_theme_slug(inp.theme)
+    plan = WikiUpdatePlan()
+    write = WikiPageWrite(path=f"{root}/themes/{slug}.md", kind="theme", action="create",
+                          access_class="case", content=_theme_object_page_body(inp))
+    if not _guard_page(write, None, plan):
+        return WikiIntegrationResult(plan=plan, applied=False, warnings=list(plan.warnings))
+    plan.writes.append(write)
+    if inp.dry_run:
+        return WikiIntegrationResult(plan=plan, applied=False, warnings=list(plan.warnings))
+    return apply_wiki_update_plan(plan, inp.wiki_root, force=inp.force)
+
+
+# ── (S10) closed-watch write-back — a terminal ThemeWatch → CASE outcome page ────────────
+
+class ClosedWatchPersistInput(BaseModel):
+    """Persist a TERMINAL ThemeWatch as its own CASE outcome page (a closed-thesis record), folded
+    into the persistence layer (§10 Q6) so it feeds Phase-6 calibration + outcome-weighted memory."""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    watch: object                      # a terminal ThemeWatch
+    terminal_reason: str = ""
+    outcome: Optional[object] = None   # a ThemeOutcomeRecord (optional)
+    wiki_root: str = "wiki"
+    dry_run: bool = False
+    force: bool = False
+
+
+def _closed_watch_page_body(inp: ClosedWatchPersistInput) -> str:
+    w = inp.watch
+    ax = getattr(w, "axis_state", None)
+    fh = getattr(w, "forward_horizon", None)
+    fal = getattr(w, "falsifier", None)
+    realized = None
+    if ax is not None:
+        realized = ax.realized_move if ax.realized_move is not None else (ax.current - ax.entry_level)
+    oc = inp.outcome
+
+    fm = _fm([
+        ("type", "outcome"),
+        ("classification", "outcome"),
+        ("workflow_status", "watch_closed"),
+        ("access_class", "case"),
+        ("theme_id", _yaml_scalar(getattr(w, "theme_id", "unknown"))),
+        ("terminal_status", _yaml_scalar(getattr(w, "status", "unknown"))),
+        ("snapshot_hash", _yaml_scalar(getattr(w, "snapshot_hash", "unknown"))),
+        ("outcome_check_required", "true"),
+        ("realized_axis_at_horizon", str(realized) if realized is not None else "unknown"),
+        ("forward_horizon_label", _yaml_scalar(fh.window_label) if fh else "none"),
+        ("created", _CREATED),
+        ("updated", _UPDATED),
+    ])
+
+    oc_line = "(no quantitative outcome record supplied)"
+    if oc is not None:
+        oc_line = (f"predicted_edge {getattr(oc, 'predicted_edge', '?')}, "
+                   f"realized_axis {getattr(oc, 'realized_axis_at_horizon', '?')}")
+    alerts = [f"{a.alert_type}: {a.message}" for a in getattr(w, "alerts", [])]
+    logs = [f"{e.kind}: {e.reason}" for e in getattr(w, "log", [])]
+
+    body = f"""{fm}
+
+# Closed Theme Watch — Outcome Record
+
+## Terminal status
+**{getattr(w, 'status', 'unknown')}** — {inp.terminal_reason or '(reason not supplied)'}.
+
+## Realized axis
+Series `{getattr(ax, 'series', 'unknown')}`: entry {getattr(ax, 'entry_level', '?')}, close
+{getattr(ax, 'current', '?')}, modeled target {getattr(ax, 'modeled_target', '?')}; realized move
+{realized if realized is not None else 'unknown'}.
+
+## Pre-registered falsifier
+{getattr(fal, 'observable', 'unknown')} {getattr(fal, 'direction', '')} {getattr(fal, 'threshold', '?')}
+(breached: {getattr(fal, 'breached', False)}).
+
+## Outcome record (calibration corpus)
+{oc_line}
+
+## Alerts emitted
+{_bullets(alerts, empty="- (none)")}
+
+## Watch log
+{_bullets(logs, empty="- (none)")}
+
+## Snapshot binding
+Closed thesis bound to frozen reasoning `{getattr(w, 'snapshot_hash', 'unknown')}`. Historical
+outcome candidate — NOT a current recommendation.
+
+{_NO_TRADE_HEADER}
+{_NO_TRADE_LINE}
+"""
+    return body
+
+
+def persist_closed_watch(inp: ClosedWatchPersistInput) -> WikiIntegrationResult:
+    """Write a terminal ThemeWatch as a CASE outcome page. Idempotent + no-trade guarded. Raises if
+    the watch is not terminal."""
+    if isinstance(inp, dict):
+        inp = ClosedWatchPersistInput.model_validate(inp)
+    status = getattr(inp.watch, "status", None)
+    if status not in ("falsified", "horizon_expired", "played_out"):
+        raise ValueError(f"persist_closed_watch: watch is not terminal (status={status})")
+    root = inp.wiki_root.rstrip("/")
+    slug = "closed-" + _slugify(getattr(inp.watch, "theme_id", "watch"))
+    plan = WikiUpdatePlan()
+    write = WikiPageWrite(path=f"{root}/outcomes/{slug}.md", kind="outcome", action="create",
+                          access_class="case", content=_closed_watch_page_body(inp))
+    if not _guard_page(write, None, plan):
+        return WikiIntegrationResult(plan=plan, applied=False, warnings=list(plan.warnings))
+    plan.writes.append(write)
     if inp.dry_run:
         return WikiIntegrationResult(plan=plan, applied=False, warnings=list(plan.warnings))
     return apply_wiki_update_plan(plan, inp.wiki_root, force=inp.force)

@@ -1,0 +1,93 @@
+{
+  "collapse-filter": false,
+  "search": "",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "path:sources/",
+      "color": {
+        "a": 1,
+        "rgb": 16089649
+      }
+    },
+    {
+      "query": "path:strategy-families/",
+      "color": {
+        "a": 1,
+        "rgb": 15110197
+      }
+    },
+    {
+      "query": "path:theme-clusters/",
+      "color": {
+        "a": 1,
+        "rgb": 16744192
+      }
+    },
+    {
+      "query": "path:themes/",
+      "color": {
+        "a": 1,
+        "rgb": 16766720
+      }
+    },
+    {
+      "query": "path:concepts/",
+      "color": {
+        "a": 1,
+        "rgb": 5025616
+      }
+    },
+    {
+      "query": "path:engines/",
+      "color": {
+        "a": 1,
+        "rgb": 1488593
+      }
+    },
+    {
+      "query": "path:entities/",
+      "color": {
+        "a": 1,
+        "rgb": 5682853
+      }
+    },
+    {
+      "query": "[\"access_class\":case]",
+      "color": {
+        "a": 1,
+        "rgb": 14701138
+      }
+    },
+    {
+      "query": "[\"access_class\":method]",
+      "color": {
+        "a": 1,
+        "rgb": 4431943
+      }
+    },
+    {
+      "query": "path:evidence/",
+      "color": {
+        "a": 1,
+        "rgb": 7895160
+      }
+    }
+  ],
+  "collapse-display": false,
+  "showArrow": false,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 0.7,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": false,
+  "centerStrength": 0.518713248970312,
+  "repelStrength": 10,
+  "linkStrength": 1,
+  "linkDistance": 250,
+  "scale": 1,
+  "close": false
+}
