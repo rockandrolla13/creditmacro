@@ -12,7 +12,7 @@ from typing import Optional
 
 from .. import vocab
 from ..constants import H_MAX
-from .hypothesis import Mechanism, ThemeHypothesis, derived_direction
+from .hypothesis import Mechanism, ThemeHypothesis, ThemeShape, derived_direction
 from .events import EventType
 
 
@@ -48,7 +48,7 @@ class WFResult:
     detail: str = ""
 
 
-def wf_predicate(theme: ThemeHypothesis, *, stated_direction: Optional[int] = None) -> WFResult:
+def wf_predicate(theme: ThemeShape, *, stated_direction: Optional[int] = None) -> WFResult:
     """WF(θ) per ONTOLOGY §WF, returning the first failing clause.
 
     Clause (b) decidability is a Phase-1 proxy (non-empty falsifier); a full

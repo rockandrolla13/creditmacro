@@ -6,7 +6,7 @@ here as a function — it is NEVER a stored field (I6).
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Optional, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -70,7 +70,18 @@ class ThemeHypothesis(BaseModel):
     revision: int = 0                  # fold count at construction
 
 
-def derived_direction(theme: ThemeHypothesis) -> int:
+class ThemeShape(Protocol):
+    """Structural view of the (M, σ, X, H, F) tuple. Both ThemeHypothesis and the
+    extractor's pre-fold WikiCandidate satisfy it — so WF / d(θ) can validate a
+    candidate WITHOUT constructing a ThemeHypothesis outside fold.py (I5)."""
+    mechanism: Mechanism
+    shock_direction: int
+    operational_axis: str
+    horizon_days: int
+    falsifier: str
+
+
+def derived_direction(theme: ThemeShape) -> int:
     """d(θ) = σ · Π_j s_j  (ONTOLOGY §Theme). DERIVED — never stored (I6)."""
     return theme.shock_direction * theme.mechanism.sign_product()
 

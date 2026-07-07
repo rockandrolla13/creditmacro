@@ -10,9 +10,10 @@ Legend: `[ ]` not started · `[~]` scaffolded (stub + docstring, no logic) ·
 - [~] `engine/ledger/constants.py` (complete — single source of truth)
 - [~] `engine/ledger/vocab.py` (crosswalk skeleton + seed node families; TODO full ~60)
 - [~] `tools/ledger_invariants.py` (Tier-1 grep/AST CI harness — runnable)
-- [ ] `tests/golden/corpus/` (5 synthetic docs + expected_*.json)
-- [ ] `tests/golden/wiki/` (curated pages w/ revisions)
-- [ ] Gate: `test_ci_harness_catches_planted_violations`
+- [ ] `tests/golden/corpus/` (5 synthetic docs + expected_*.json) — Phase 3/4
+- [x] `tests/golden/wiki/` (3-revision page, axis-flip page, vibes page)
+- [~] Gate: `test_ci_harness_catches_planted_violations` (harness proven to catch
+      planted violations manually; automated pytest wrapper still TODO)
 
 ## Phase 1 — event log, fold, as-of queries  ✅ (TDD, 27 tests green)
 - [x] `substrate/events.py`, `substrate/hypothesis.py`, `substrate/identity.py`,
@@ -24,9 +25,16 @@ Legend: `[ ]` not started · `[~]` scaffolded (stub + docstring, no logic) ·
 - [x] Gate: `test_direction_consistency` (WF clause e / I8e)
 - [x] Support: append-only store, classify_event decision table, WF clauses a–e
 
-## Phase 2 — wiki extractor + revision replayer (4 curated themes only)
-- [~] `wiki/wiki_import.py`, `wiki/breadcrumbs.py` (stubs)
-- [ ] Gates: golden_revisions, unparseable_routes_to_queue
+## Phase 2 — wiki extractor + revision replayer (4 curated themes only)  ✅ (TDD, 11 tests)
+- [x] `wiki/wiki_import.py`: extract (WF-gated), replay (cosine pre-filter +
+      structural), import_curated (CREATED + PriorMassSeed); reuses Phase-1
+      equiv / wf_predicate
+- [~] `wiki/breadcrumbs.py` (stub — Phase 3, forward re-ingest companion)
+- [x] Gate: `test_golden_revisions` (1 CREATED + 1 MECHANISM_REVISED; cosmetic→∅;
+      axis-flip→AXIS_REVISED)
+- [x] Gate: `test_unparseable_routes_to_queue` (k=1 vibes → NEEDS_STRUCTURING clause a)
+- refactor: `substrate/hypothesis.ThemeShape` protocol lets WF validate a
+  pre-fold WikiCandidate without constructing ThemeHypothesis (I5 preserved)
 
 ## Phase 3 — Pass A extractor (blind)
 - [~] `ingest/claim.py`, `ingest/pass_a.py` (stubs)

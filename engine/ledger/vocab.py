@@ -109,6 +109,9 @@ _SEED: tuple[VocabNode, ...] = (
     VocabNode("related_obligation_linkage", "structure",
               "common-driver linkage across related obligations",
               (), wiki_concepts=("related-obligation-rv",)),
+    VocabNode("credit_spread", "valuation",
+              "terminal credit-spread level (a common vk)",
+              ("spread", "oas")),
 )
 
 NODES: dict[str, VocabNode] = {n.node_id: n for n in _SEED}
