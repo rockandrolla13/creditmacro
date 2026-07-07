@@ -10,7 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
-from .hypothesis import Mechanism, ThemeHypothesis
+from .. import vocab
+from ..constants import H_MAX
+from .hypothesis import Mechanism, ThemeHypothesis, derived_direction
 from .events import EventType
 
 
@@ -47,10 +49,43 @@ class WFResult:
 
 
 def wf_predicate(theme: ThemeHypothesis, *, stated_direction: Optional[int] = None) -> WFResult:
-    """WF(θ) per ONTOLOGY §WF, naming the failing clause. Phase-1 (gate first)."""
-    raise NotImplementedError("Phase 1 — gate: test_direction_consistency, WF clauses a–e")
+    """WF(θ) per ONTOLOGY §WF, returning the first failing clause.
+
+    Clause (b) decidability is a Phase-1 proxy (non-empty falsifier); a full
+    predicate-parse against the tracked-axis feeds lands with surveillance.
+    """
+    if theme.mechanism.k < 2:
+        return WFResult(False, "a", "chain has no intermediate node (k < 2)")
+    if not theme.falsifier.strip():
+        return WFResult(False, "b", "falsifier empty / not decidable")
+    if not vocab.is_tracked_axis(theme.operational_axis):
+        return WFResult(False, "c", f"axis {theme.operational_axis!r} not in tracked-axis registry")
+    if theme.horizon_days > H_MAX.days:
+        return WFResult(False, "d", f"horizon {theme.horizon_days}d > H_MAX {H_MAX.days}d")
+    if stated_direction is not None and stated_direction != derived_direction(theme):
+        return WFResult(False, "e", "stated direction != σ·Πs")
+    return WFResult(True)
 
 
-def classify_event(current: ThemeHypothesis, successor: ThemeHypothesis) -> EventType:
-    """Event-type decision function (§Event semantics + F2 tie-break). Phase-1."""
-    raise NotImplementedError("Phase 1 — gate: as_of_exact_states / event classification")
+def classify_event(current: ThemeHypothesis, successor: ThemeHypothesis) -> tuple[EventType, ...]:
+    """Event-type decision (§Event semantics + F2 tie-break), as an ordered tuple.
+
+    Identity change (σ flip or M' ≇ M) → (RETIRED, CREATED). Otherwise the
+    successor is a revision of the SAME matched theme (F2): emit one revision
+    event per changed attribute. () means no change.
+    """
+    if successor.shock_direction != current.shock_direction or not equiv(
+        successor.mechanism, current.mechanism
+    ):
+        return (EventType.RETIRED, EventType.CREATED)
+
+    events: list[EventType] = []
+    if successor.mechanism != current.mechanism:          # ≅ but not identical → refinement
+        events.append(EventType.MECHANISM_REVISED)
+    if successor.operational_axis != current.operational_axis:
+        events.append(EventType.AXIS_REVISED)
+    if successor.horizon_days != current.horizon_days:
+        events.append(EventType.HORIZON_EXTENDED)
+    if successor.falsifier != current.falsifier:
+        events.append(EventType.FALSIFIER_REVISED)
+    return tuple(events)

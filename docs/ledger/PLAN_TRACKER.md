@@ -14,11 +14,15 @@ Legend: `[ ]` not started · `[~]` scaffolded (stub + docstring, no logic) ·
 - [ ] `tests/golden/wiki/` (curated pages w/ revisions)
 - [ ] Gate: `test_ci_harness_catches_planted_violations`
 
-## Phase 1 — event log, fold, as-of queries
-- [~] `substrate/events.py`, `substrate/hypothesis.py`, `substrate/identity.py`,
-      `substrate/fold.py`, `substrate/store.py`, `substrate/queries.py` (stubs)
-- [ ] Gates: as_of_exact_states, no_retroactive_mutation,
-      fold_order_invariance (property), direction_consistency
+## Phase 1 — event log, fold, as-of queries  ✅ (TDD, 27 tests green)
+- [x] `substrate/events.py`, `substrate/hypothesis.py`, `substrate/identity.py`,
+      `substrate/fold.py`, `substrate/store.py`, `substrate/queries.py`
+      (implemented; `queries.valid_over` deferred to Phase 6 — outcome attribution)
+- [x] Gate: `test_as_of_exact_states` (tests/integration/test_ledger_as_of.py)
+- [x] Gate: `test_no_retroactive_mutation` (byte-identical earlier as-of)
+- [x] Gate: `test_fold_order_invariance` (property; tie-break proven to bite)
+- [x] Gate: `test_direction_consistency` (WF clause e / I8e)
+- [x] Support: append-only store, classify_event decision table, WF clauses a–e
 
 ## Phase 2 — wiki extractor + revision replayer (4 curated themes only)
 - [~] `wiki/wiki_import.py`, `wiki/breadcrumbs.py` (stubs)
