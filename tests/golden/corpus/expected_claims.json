@@ -1,0 +1,10 @@
+{
+  "gc-001-funding": [
+    {"claim_id": "gc-001-funding-000", "market_variable": "C0A0_OAS", "direction": 1, "mechanism_tags": ["funding_stress", "liquidity_premium"]},
+    {"claim_id": "gc-001-funding-001", "market_variable": "H0A0_OAS", "direction": 1, "mechanism_tags": ["issuance_supply"]}
+  ],
+  "gc-002-mixed": [
+    {"claim_id": "gc-002-mixed-000", "market_variable": "C0A0_OAS", "direction": 1, "mechanism_tags": ["dealer_balance_sheet_capacity", "funding_stress"]},
+    {"claim_id": "gc-002-mixed-001", "market_variable": "3M10Y", "direction": 1, "mechanism_tags": ["term_premium"]}
+  ]
+}

@@ -10,7 +10,8 @@ Legend: `[ ]` not started · `[~]` scaffolded (stub + docstring, no logic) ·
 - [~] `engine/ledger/constants.py` (complete — single source of truth)
 - [~] `engine/ledger/vocab.py` (crosswalk skeleton + seed node families; TODO full ~60)
 - [~] `tools/ledger_invariants.py` (Tier-1 grep/AST CI harness — runnable)
-- [ ] `tests/golden/corpus/` (5 synthetic docs + expected_*.json) — Phase 3/4
+- [~] `tests/golden/corpus/` (2 docs + expected_claims.json committed; the
+      admission-coverage docs + expected_registry.json land in Phase 6)
 - [x] `tests/golden/wiki/` (3-revision page, axis-flip page, vibes page)
 - [~] Gate: `test_ci_harness_catches_planted_violations` (harness proven to catch
       planted violations manually; automated pytest wrapper still TODO)
@@ -36,9 +37,13 @@ Legend: `[ ]` not started · `[~]` scaffolded (stub + docstring, no logic) ·
 - refactor: `substrate/hypothesis.ThemeShape` protocol lets WF validate a
   pre-fold WikiCandidate without constructing ThemeHypothesis (I5 preserved)
 
-## Phase 3 — Pass A extractor (blind)
-- [~] `ingest/claim.py`, `ingest/pass_a.py` (stubs)
-- [ ] Gate: golden_claims_exact (+ I2 import check green)
+## Phase 3 — Pass A extractor (blind)  ✅ (TDD, 7 tests)
+- [x] `ingest/claim.py` (AtomicClaim); `ingest/pass_a.py`: ClaimProvider seam,
+      ScriptedClaimProvider (deterministic), PassAExtractor (validate domains,
+      vocab-tag filter → out-of-vocab review, granularity merge, deterministic ids)
+- [x] Gate: `test_golden_claims_exact` (exact market_variable/direction/tags per claim)
+- [x] Gate: I2 import firewall wired into pytest + proven to bite on a planted import
+- [~] `wiki/breadcrumbs.py` (Phase-3 companion; still stub — needs real corpus wiring)
 
 ## Phase 4 — Pass B mapper + evidence ledger
 - [~] `ingest/link.py`, `ingest/pass_b.py` (stubs)
