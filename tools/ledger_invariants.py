@@ -71,6 +71,24 @@ def check_i3() -> list[str]:
     return out
 
 
+def check_i3_passb_no_ledger() -> list[str]:
+    """I3: Pass B sees DEFINITIONS only — it may import the definition view + the pure
+    d(θ) formula, but never the ledger stores or scoring (no scores / status / ledger)."""
+    f = LEDGER / "ingest" / "pass_b.py"
+    tree = ast.parse(f.read_text(), filename=str(f))
+    banned = ("substrate.store", "substrate.queries", "scoring_view")
+    out = []
+    for node in ast.walk(tree):
+        mod = ""
+        if isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+        elif isinstance(node, ast.Import):
+            mod = ",".join(a.name for a in node.names)
+        if any(b in mod for b in banned):
+            out.append(_fail(f"I3 pass_b imports ledger/scores ('{mod}') — definitions only"))
+    return out
+
+
 def check_i5() -> list[str]:
     out = []
     for f in LEDGER.rglob("*.py"):
@@ -108,6 +126,7 @@ CHECKS = [
     ("I1 no stored score", check_i1),
     ("I2 Pass A blind", check_i2),
     ("I3 prompts polarity-free", check_i3),
+    ("I3 Pass B definitions-only", check_i3_passb_no_ledger),
     ("I5 fold sole constructor", check_i5),
     ("I6 no predicted_direction", check_i6),
     ("I4 store append-only", check_store_append_only),

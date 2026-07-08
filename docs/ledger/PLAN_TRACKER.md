@@ -45,12 +45,18 @@ Legend: `[ ]` not started · `[~]` scaffolded (stub + docstring, no logic) ·
 - [x] Gate: I2 import firewall wired into pytest + proven to bite on a planted import
 - [~] `wiki/breadcrumbs.py` (Phase-3 companion; still stub — needs real corpus wiring)
 
-## Phase 4 — Pass B mapper + evidence ledger
-- [~] `ingest/link.py`, `ingest/pass_b.py` (stubs)
-- [ ] Gates: seam_extract_to_map, axis_flip_remap
+## Phase 4 — Pass B mapper + evidence ledger  ✅ (TDD, 6 tests)
+- [x] `ingest/link.py`: EvidenceLink + JsonlEvidenceLinkStore (append-only, I4/I7)
+- [x] `ingest/pass_b.py`: structural pre-match, deterministic node-Jaccard
+      match_confidence, τ_ORPHAN routing, polarity = dir × d(θ) × sign(X) (computed,
+      I3), theme_revision binding, remap (supersede + re-run on AXIS/MECHANISM revision)
+- [x] Gate: `test_seam_extract_to_map` (support +1 / contradict −1 / orphan routed)
+- [x] Gate: `test_axis_flip_remap` (sign-flip → superseded + sign-flipped polarity;
+      sign(X) proven load-bearing)
+- [x] I3 "Pass B definitions-only" wired into tools/ledger_invariants.py
 
 ## >>> HOLISTIC REVIEW CHECKPOINT (sign conventions) — after Phase 4
-- [ ] `docs/ledger/SIGN_AUDIT.md`
+- [ ] `docs/ledger/SIGN_AUDIT.md` (running now)
 
 ## Phase 5 — scoring view
 - [~] `ingest/scoring_view.py` (stub)

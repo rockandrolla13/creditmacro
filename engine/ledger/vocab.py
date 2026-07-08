@@ -126,8 +126,15 @@ TRACKED_AXES: dict[str, TrackedAxis] = {
         TrackedAxis("3M10Y", "3M–10Y Treasury slope", +1, "UST.3M10Y"),
         TrackedAxis("HYPER_IG_PROJECT_BASIS",
                     "hyperscaler IG OAS − IG DC-project OAS", +1, None),
+        # inverted convention: return up ⇒ spread tighter ⇒ vk (spread) DOWN ⇒ sign −1.
+        TrackedAxis("IG_EXCESS_RETURN", "IG excess return (up = spread tighter)", -1, None),
     )
 }
+
+
+def axis_sign(axis_id: str) -> int:
+    """sign(X) ∈ {+1,-1}: maps 'axis value up' to vk up (+1) or vk down (-1)."""
+    return TRACKED_AXES[axis_id].sign
 
 
 def is_node(node_id: str) -> bool:
