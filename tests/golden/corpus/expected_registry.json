@@ -1,0 +1,9 @@
+{
+  "_doc": "End-state of forward_ingest over [gc-003-jpm, gc-004-gs, gc-005-solo]. The funding_stress cluster (3 claims, JPM+GS, ≤30d) admits and activates; the earnings cluster (3 claims, one institution) fails I_MIN and stays orphan.",
+  "admitted": [
+    {"theme_id": "admitted:funding_stress-dealer_balance_sheet_capacity", "status": "ACTIVE"}
+  ],
+  "orphan_claim_ids": ["gc-005-solo-000", "gc-005-solo-001", "gc-005-solo-002"],
+  "needs_structuring": [],
+  "review_tags": []
+}

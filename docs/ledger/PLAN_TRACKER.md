@@ -72,9 +72,16 @@ Legend: `[ ]` not started · `[~]` scaffolded (stub + docstring, no logic) ·
 - [x] Gate: `test_novelty_and_caps`
 - [x] Gate: `test_score_is_pure` (identical output; ledger unmutated)
 
-## Phase 6 — orphan clustering + admission
-- [~] `ingest/admission.py`, `lifecycle.py` (stubs)
-- [ ] Gate: end_to_end_golden
+## Phase 6 — orphan clustering + admission  ✅ (TDD, 7 tests)
+- [x] `ingest/admission.py`: cluster_orphans (shared-tag connected components),
+      admission gate (N_MIN/I_MIN/W_ADMIT), deterministic synthesis (D-08) + WF,
+      founding EvidenceLinks, out-of-vocab → review
+- [x] `runner.forward_ingest`: Pass A → Pass B → cluster → admit → score → activate
+      (CANDIDATE→ACTIVE on B≥2 ∧ |S|≥2)
+- [x] Gate: `test_end_to_end_golden` — corpus → expected_registry.json (funding
+      cluster ACTIVE; earnings cluster fails I_MIN, stays orphan)
+- [x] admission-coverage golden docs (gc-003/004/005) + expected_registry.json
+- [~] `lifecycle.py` still stub — surveillance→FALSIFIED wiring is Phase-6/7 follow-on
 
 ## Phase 7 — wiki renderer + drift detection
 - [~] `wiki/render.py`, `wiki/review_queue.py`, `projection.py`, `runner.py` (stubs)

@@ -65,6 +65,21 @@ resolving in code would let deltas silently contradict it.
 **Affected.** `docs/ledger/ONTOLOGY.md`, `vocab.py`, `projection.py`,
 `wiki/render.py`, `substrate/fold.py`, `substrate/identity.py`.
 
+### D-08 — Deterministic mechanism-synthesis rule for admission
+**Decision.** §Admission says "mechanism assembled over the vocabulary from the
+cluster's modal tags" but leaves the assembly unspecified. Chosen rule
+(`ingest/admission.py`): chain = top-2 modal in-vocab tags (sorted by −frequency then
+name) → `SYNTH_VK` ("credit_spread"), all edge signs +1; σ = sign(Σ claim.direction);
+X = modal market_variable; H = min horizon; F synthesized. `theme_id = admitted:<a>-<b>`.
+A cluster with fewer than 2 distinct in-vocab tags → NEEDS_STRUCTURING (can't reach
+k≥2). Founding EvidenceLinks are emitted for the clustered claims (they ARE the
+theme's evidence; match_confidence 1.0), so activation scores against real polarity.
+**Rationale.** Determinism (needed for the golden end-state) + guarantees WF(a) k≥2.
+**Rejected.** Embedding-ordered chains (non-deterministic); richer multi-tag chains
+(no principled ordering without an LLM). This is a v1 heuristic; a learned synthesizer
+is a later seam.
+**Affected.** `ingest/admission.py`, `runner.forward_ingest`, golden `expected_registry.json`.
+
 ### D-07 — Polarity carries sign(X) (from the post-Phase-4 SIGN_AUDIT)
 **Decision.** `polarity = claim.direction × d(θ) × sign(X)`, applied uniformly
 (including vk-measured claims). Polarity is stored in the operational-axis frame.
