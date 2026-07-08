@@ -15,8 +15,6 @@ through forward re-ingest (admission), not import.
 """
 from __future__ import annotations
 
-import math
-from collections import Counter
 from dataclasses import dataclass
 from typing import Optional
 
@@ -26,6 +24,7 @@ from ..constants import COS_COSMETIC
 from ..substrate.events import EventType, Provenance, ThemeEvent
 from ..substrate.hypothesis import Mechanism, TransmissionEdge
 from ..substrate.identity import equiv, wf_predicate
+from ..textsim import bow_cosine
 
 # The only pages this module may import as themes (D-04).
 CURATED_WF_SURVIVORS = (
@@ -94,14 +93,8 @@ def extract(page_text: str) -> ExtractResult:
 
 
 def mechanism_text_cosine(a: str, b: str) -> float:
-    """Deterministic bag-of-words cosine (Phase-2 embedder seam; a real embedding
-    model is wired at runtime per BLOCKED B-02). Used only as the §Event pre-filter."""
-    ta, tb = Counter(a.lower().split()), Counter(b.lower().split())
-    keys = set(ta) | set(tb)
-    dot = sum(ta[k] * tb[k] for k in keys)
-    na = math.sqrt(sum(v * v for v in ta.values()))
-    nb = math.sqrt(sum(v * v for v in tb.values()))
-    return dot / (na * nb) if na and nb else 0.0
+    """§Event cosmetic pre-filter — the shared deterministic embedder seam (textsim)."""
+    return bow_cosine(a, b)
 
 
 def replay(prev: WikiCandidate, new: WikiCandidate) -> tuple[EventType, ...]:

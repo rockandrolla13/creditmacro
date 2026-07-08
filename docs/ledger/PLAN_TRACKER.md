@@ -61,9 +61,16 @@ Legend: `[ ]` not started · `[~]` scaffolded (stub + docstring, no logic) ·
       + ONTOLOGY_DELTA D-07 (code was already correct)
 - [x] CR-BUG-002 (Minor): `axis_sign` KeyError → descriptive ValueError guard (TDD)
 
-## Phase 5 — scoring view
-- [~] `ingest/scoring_view.py` (stub)
-- [ ] Gates: score_order_invariance (property), novelty_and_caps, score_is_pure
+## Phase 5 — scoring view  ✅ (TDD, 9 tests)
+- [x] `ingest/scoring_view.py`: pure S_θ/B_θ over the link ledger (I1, never stored) —
+      decay λ^((t−t_i)/h) with h=H/2, novelty discount (same-inst cosine repeat),
+      per-institution cap ±CAP_INST, breadth, prior-mass term, no-lookahead filter,
+      superseded-link exclusion
+- [x] `engine/ledger/textsim.py`: shared bag-of-words cosine (wiki + scoring use it;
+      wiki_import.mechanism_text_cosine now delegates — DRY)
+- [x] Gate: `test_score_order_invariance` (property)
+- [x] Gate: `test_novelty_and_caps`
+- [x] Gate: `test_score_is_pure` (identical output; ledger unmutated)
 
 ## Phase 6 — orphan clustering + admission
 - [~] `ingest/admission.py`, `lifecycle.py` (stubs)
