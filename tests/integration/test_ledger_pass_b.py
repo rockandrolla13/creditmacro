@@ -59,6 +59,14 @@ def test_seam_extract_to_map():
     assert [c.claim_id for c in res.orphans] == ["c-orph"]     # routed to orphan pool
 
 
+def test_axis_sign_unknown_raises_descriptive_error():
+    # CR-BUG-002: an untracked axis must fail with a clear contract error, not KeyError.
+    import pytest
+    from engine.ledger import vocab
+    with pytest.raises(ValueError):
+        vocab.axis_sign("NOT_IN_REGISTRY")
+
+
 def test_polarity_verified_against_d_theta():
     d = _def()
     # polarity == claim.direction × d(θ) × sign(X); here d(θ)=+1, sign(C0A0_OAS)=+1

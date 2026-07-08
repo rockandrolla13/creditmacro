@@ -133,8 +133,14 @@ TRACKED_AXES: dict[str, TrackedAxis] = {
 
 
 def axis_sign(axis_id: str) -> int:
-    """sign(X) ∈ {+1,-1}: maps 'axis value up' to vk up (+1) or vk down (-1)."""
-    return TRACKED_AXES[axis_id].sign
+    """sign(X) ∈ {+1,-1}: maps 'axis value up' to vk up (+1) or vk down (-1).
+
+    Raises a descriptive error (not KeyError) if X is outside the tracked-axis
+    registry — WF clause (c) is the upstream guarantee (see SIGN_AUDIT CR-BUG-002)."""
+    axis = TRACKED_AXES.get(axis_id)
+    if axis is None:
+        raise ValueError(f"axis {axis_id!r} not in tracked-axis registry (WF clause c)")
+    return axis.sign
 
 
 def is_node(node_id: str) -> bool:

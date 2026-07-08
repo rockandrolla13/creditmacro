@@ -329,10 +329,24 @@ ledger, no scores, no status. Matching is two-stage:
     EvidenceLink (frozen, append-only):
         theme_id, theme_revision,          — fold count at mapping time
         claim_id,
-        polarity  = claim.direction × d(θ)     — COMPUTED, never emitted
-                                                 by an LLM
+        polarity  = claim.direction × d(θ) × sign(X)   — COMPUTED, never
+                                                 emitted by an LLM
         match_confidence,
         supersedes: link_id | null
+
+> **⟦AMEND D-07 — polarity carries sign(X) (SIGN_AUDIT CR-BUG-001)⟧**
+> The original shorthand `polarity = claim.direction × d(θ)` omitted the axis
+> sign convention. Polarity is stored in the **operational-axis frame** (what the
+> Breach Buffer observes), so the correct rule is
+>
+>     polarity = claim.direction × d(θ) × sign(X)   where d_X(θ) = d(θ)·sign(X)
+>
+> This is REQUIRED, not cosmetic: an axis sign-convention flip (AXIS_REVISED to an
+> axis with opposite sign(X)) inverts every stored polarity — which is exactly why
+> the remap is mandatory (§Event link-policy) and what `test_axis_flip_remap`
+> proves. `sign(X)` is applied uniformly (also to vk-measured claims), so a claim's
+> stored polarity is always expressed on its theme's operational axis. See
+> `SIGN_AUDIT.md` and `ONTOLOGY_DELTA.md` D-07.
 
 Routing: max over themes of match_confidence < τ_ORPHAN = 0.6 → the
 claim enters the orphan pool. Claims with direction = 0 may link with

@@ -65,6 +65,19 @@ resolving in code would let deltas silently contradict it.
 **Affected.** `docs/ledger/ONTOLOGY.md`, `vocab.py`, `projection.py`,
 `wiki/render.py`, `substrate/fold.py`, `substrate/identity.py`.
 
+### D-07 — Polarity carries sign(X) (from the post-Phase-4 SIGN_AUDIT)
+**Decision.** `polarity = claim.direction × d(θ) × sign(X)`, applied uniformly
+(including vk-measured claims). Polarity is stored in the operational-axis frame.
+**Rationale.** SIGN_AUDIT CR-BUG-001: the ONTOLOGY §EvidenceLink shorthand
+`claim.direction × d(θ)` omitted sign(X), contradicting §Theme's
+`d_X(θ)=d(θ)·sign(X)` and the `test_axis_flip_remap` gate. Without sign(X), an
+inverted-convention axis silently inverts every polarity and downstream S_θ sign.
+**Rejected.** Applying sign(X) only to axis-measured claims — leaves vk-claims in a
+different frame from axis-claims within one theme; the uniform axis-frame convention
+is simpler and matches what the Breach Buffer observes.
+**Affected.** `ingest/pass_b.py` (already correct), `docs/ledger/ONTOLOGY.md`
+§EvidenceLink (amended), `vocab.axis_sign` (CR-BUG-002 guard).
+
 ### D-06 — ONTOLOGY constants live in `constants.py` as module-level names
 **Decision.** `engine/ledger/constants.py` mirrors §Constants as
 module-level named values (not a Pydantic config object). Runtime settings

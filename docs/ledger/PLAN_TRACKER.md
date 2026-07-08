@@ -55,8 +55,11 @@ Legend: `[ ]` not started · `[~]` scaffolded (stub + docstring, no logic) ·
       sign(X) proven load-bearing)
 - [x] I3 "Pass B definitions-only" wired into tools/ledger_invariants.py
 
-## >>> HOLISTIC REVIEW CHECKPOINT (sign conventions) — after Phase 4
-- [ ] `docs/ledger/SIGN_AUDIT.md` (running now)
+## >>> HOLISTIC REVIEW CHECKPOINT (sign conventions) — after Phase 4  ✅
+- [x] `docs/ledger/SIGN_AUDIT.md` — 8 sign sites audited; 6 exact, 2 findings
+- [x] CR-BUG-001 (Major): ONTOLOGY §EvidenceLink polarity omitted sign(X) → amended
+      + ONTOLOGY_DELTA D-07 (code was already correct)
+- [x] CR-BUG-002 (Minor): `axis_sign` KeyError → descriptive ValueError guard (TDD)
 
 ## Phase 5 — scoring view
 - [~] `ingest/scoring_view.py` (stub)
