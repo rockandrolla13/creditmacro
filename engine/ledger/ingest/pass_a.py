@@ -14,6 +14,7 @@ Two layers (mirrors the repo's provider seam):
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, Sequence
@@ -22,7 +23,11 @@ import yaml
 
 from .. import vocab                     # METHOD memory — allowed
 from ..constants import CONVICTION_LEVELS, DIRECTIONS
+from ..llm_json import LEDGER_MODEL, extract_text, parse_json_object
 from .claim import AtomicClaim
+from .prompts.pass_a_extract import EXTRACT_PROMPT, EXTRACT_SYSTEM
+
+LIVE_ENV_FLAG = "ALLOW_LIVE_LLM_DISCOVERY"   # shared live-LLM opt-in with the engine
 
 
 class ClaimProvider(Protocol):
@@ -51,14 +56,36 @@ class ScriptedClaimProvider:
 
 
 class LLMClaimProvider:
-    """Prose → raw claim proposals via an LLM provider seam. Wired later (B-01)."""
+    """Prose → raw claim proposals via the Anthropic Messages API (B-01).
 
-    def __init__(self, provider) -> None:
-        self._provider = provider
+    Blind: sees only the document + the vocabulary (METHOD memory). A real client
+    is built only under the LIVE_ENV_FLAG opt-in; tests inject a fake client.
+    """
+
+    def __init__(self, client=None, *, model: str = LEDGER_MODEL, max_tokens: int = 4096) -> None:
+        self._client = client
+        self._model = model
+        self._max_tokens = max_tokens
+
+    def _get_client(self):
+        if self._client is None:
+            if os.environ.get(LIVE_ENV_FLAG) != "1":
+                raise RuntimeError(f"live LLM not enabled (set {LIVE_ENV_FLAG}=1)")
+            import anthropic
+            self._client = anthropic.Anthropic()
+        return self._client
 
     def propose(self, doc_id: str, text: str, source_institution: str,
                 doc_date: str) -> list[dict]:
-        raise NotImplementedError("Pass-A prose extraction — provider seam (BLOCKED B-01)")
+        user = EXTRACT_PROMPT.format(
+            doc_id=doc_id, institution=source_institution, doc_date=doc_date,
+            vocab=", ".join(sorted(vocab.NODES)), text=text,
+        )
+        response = self._get_client().messages.create(
+            model=self._model, max_tokens=self._max_tokens, system=EXTRACT_SYSTEM,
+            messages=[{"role": "user", "content": user}],
+        )
+        return list(parse_json_object(extract_text(response)).get("claims", []))
 
 
 class PassAExtractor:

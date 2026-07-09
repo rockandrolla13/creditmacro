@@ -19,14 +19,23 @@ the ledger stores or scoring (I3).
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
-from typing import Protocol, Sequence
+from typing import Callable, Protocol, Sequence
 
 from .. import vocab
 from ..constants import TAU_ORPHAN
+from ..llm_json import LEDGER_MODEL, extract_text, parse_json_object
 from ..substrate.hypothesis import Mechanism, ThemeDefinitionView, derived_direction
 from .claim import AtomicClaim
 from .link import EvidenceLink
+from .prompts.pass_b_match import MATCH_PROMPT, MATCH_SYSTEM
+
+LIVE_ENV_FLAG = "ALLOW_LIVE_LLM_DISCOVERY"
+
+# A semantic scorer maps (claim, definition) → confidence in [0,1]. The default is
+# the deterministic node-Jaccard; LLMMatchScorer is the live Anthropic seam.
+Scorer = Callable[[AtomicClaim, ThemeDefinitionView], float]
 
 
 def _mechanism_nodes(m: Mechanism) -> set[str]:
@@ -73,8 +82,48 @@ class ThemeMapper(Protocol):
             theme_revisions: dict[str, int]) -> "MapResult": ...
 
 
+class LLMMatchScorer:
+    """Semantic match confidence via the Anthropic Messages API (B-01).
+
+    Sees the ThemeDefinitionView (mechanism nodes + axis) and the claim ONLY (I3);
+    it is never asked for a direction/polarity. Real client built under the opt-in.
+    """
+
+    def __init__(self, client=None, *, model: str = LEDGER_MODEL, max_tokens: int = 256) -> None:
+        self._client = client
+        self._model = model
+        self._max_tokens = max_tokens
+
+    def _get_client(self):
+        if self._client is None:
+            if os.environ.get(LIVE_ENV_FLAG) != "1":
+                raise RuntimeError(f"live LLM not enabled (set {LIVE_ENV_FLAG}=1)")
+            import anthropic
+            self._client = anthropic.Anthropic()
+        return self._client
+
+    def score(self, claim: AtomicClaim, definition: ThemeDefinitionView) -> float:
+        user = MATCH_PROMPT.format(
+            nodes=", ".join(sorted(_mechanism_nodes(definition.mechanism))),
+            axis=definition.operational_axis, market_variable=claim.market_variable,
+            tags=", ".join(claim.mechanism_tags), text=claim.text,
+        )
+        response = self._get_client().messages.create(
+            model=self._model, max_tokens=self._max_tokens, system=MATCH_SYSTEM,
+            messages=[{"role": "user", "content": user}],
+        )
+        return float(parse_json_object(extract_text(response))["match_confidence"])
+
+
 class StructuralSemanticMapper:
-    """Structural pre-match then deterministic semantic score; τ_ORPHAN routing."""
+    """Structural pre-match then semantic score; τ_ORPHAN routing.
+
+    `scorer` defaults to the deterministic node-Jaccard `match_confidence`; inject
+    `LLMMatchScorer(...).score` for the live semantic stage.
+    """
+
+    def __init__(self, scorer: Scorer = match_confidence) -> None:
+        self._scorer = scorer
 
     def map(self, claims: Sequence[AtomicClaim], definitions: Sequence[ThemeDefinitionView],
             theme_revisions: dict[str, int]) -> MapResult:
@@ -85,7 +134,7 @@ class StructuralSemanticMapper:
             for d in definitions:
                 if not structural_prematch(claim, d):
                     continue
-                conf = match_confidence(claim, d)
+                conf = self._scorer(claim, d)
                 if best is None or conf > best[0]:
                     best = (conf, d)
             if best is None or best[0] < TAU_ORPHAN:

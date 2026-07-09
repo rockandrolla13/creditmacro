@@ -13,7 +13,15 @@ nothing does. What calibration target / method?
 corpus; gate Pass A/B with `scripted_provider` so gates are deterministic.
 Expose `MATCH_CONFIDENCE_FLOOR = τ_ORPHAN` and measure precision/recall of
 routing on the golden set before trusting live values.
-**Affected.** `ingest/pass_b.py`, `tests/golden/corpus/`.
+**Status (2026-07-09).** LLM seams wired: `LLMClaimProvider` (Pass A) and
+`LLMMatchScorer` (Pass B) call `anthropic.Anthropic().messages.create`
+(default `claude-opus-4-8`), gated behind `ALLOW_LIVE_LLM_DISCOVERY=1`; a real
+client is built only under the opt-in, tests inject a fake client. The
+StructuralSemanticMapper default scorer stays deterministic (node-Jaccard) so
+gates remain LLM-free. STILL OPEN: the calibration harness measuring
+match_confidence precision/recall on the golden corpus.
+**Affected.** `ingest/pass_a.py`, `ingest/pass_b.py`, `ingest/prompts/`,
+`llm_json.py`, `tests/golden/corpus/`.
 
 ### B-02 — Embedding provider for novelty (ν) and clustering
 **Question.** §Scoring ν and §Admission clustering need sentence

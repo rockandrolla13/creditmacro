@@ -100,5 +100,13 @@ full repo suite 849 passed (2 pre-existing fitz-import errors excluded). Tier-1 
 (7 checks) green. SIGN_AUDIT clean (both findings fixed). ONTOLOGY_DELTA (D-01…D-08)
 and BLOCKED (B-01…B-03) current. Remaining stubs by design: `wiki/wiki_import` full
 82-page path (superseded by forward re-ingest, D-03), `lifecycle.py` surveillance→
-FALSIFIED wiring, `queries.valid_over`, LLM prose providers (Pass A / Pass B / wiki
-extractor) behind their deterministic seams.
+FALSIFIED wiring, `queries.valid_over`, the wiki-prose extractor's LLM path.
+
+## LLM seams wired (2026-07-09, TDD, 5 tests)
+- [x] `ingest/pass_a.py::LLMClaimProvider` — Anthropic Messages API, blind (I2),
+      default `claude-opus-4-8`, opt-in `ALLOW_LIVE_LLM_DISCOVERY=1`
+- [x] `ingest/pass_b.py::LLMMatchScorer` — semantic match_confidence, definitions
+      only (I3); `StructuralSemanticMapper(scorer=...)` default stays deterministic
+- [x] `ingest/prompts/pass_a_extract.py`, `pass_b_match.py` (no polarity/EvidenceLink)
+- [x] `engine/ledger/llm_json.py` — shared Messages-response / JSON extraction
+- [ ] BLOCKED B-01: match_confidence calibration harness on the golden corpus
