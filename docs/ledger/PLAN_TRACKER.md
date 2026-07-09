@@ -83,10 +83,22 @@ Legend: `[ ]` not started · `[~]` scaffolded (stub + docstring, no logic) ·
 - [x] admission-coverage golden docs (gc-003/004/005) + expected_registry.json
 - [~] `lifecycle.py` still stub — surveillance→FALSIFIED wiring is Phase-6/7 follow-on
 
-## Phase 7 — wiki renderer + drift detection
-- [~] `wiki/render.py`, `wiki/review_queue.py`, `projection.py`, `runner.py` (stubs)
-- [ ] Gates: render_parse_roundtrip, projection_roundtrip (added — bridges to engine/)
+## Phase 7 — wiki renderer + drift detection  ✅ (TDD, 5 tests)
+- [x] `wiki/render.py`: render (mechanism chain, axis, S_θ/B_θ, per-institution table,
+      falsifier, timeline), parse (recovers ThemeHypothesis VIA fold — I5-safe),
+      drift_diff (→ analyst-provenance proposed events, never auto-applied)
+- [x] `projection.py`: ThemeHypothesis → engine ThemeObject (discovery_complete /
+      blocked A3 mapping); builds a connected causal_chain + routable main_theme so the
+      object passes the engine's discovery gates and `firewall.freeze` succeeds
+- [x] Gate: `test_render_parse_roundtrip` (structured fields recovered)
+- [x] Gate: `test_projection_roundtrip` (added) — θ → ThemeObject → freeze + recover;
+      ledger and engine proven to be one system
 
-## Status
-Phase 0 foundation committed. Phases 1–7 are stubs awaiting TDD implementation
-(gate tests first, per BUILD_PROMPT session rules).
+## Status — BUILD COMPLETE
+All 7 phases + the sign-audit checkpoint done under TDD. 73 ledger tests green;
+full repo suite 849 passed (2 pre-existing fitz-import errors excluded). Tier-1 CI
+(7 checks) green. SIGN_AUDIT clean (both findings fixed). ONTOLOGY_DELTA (D-01…D-08)
+and BLOCKED (B-01…B-03) current. Remaining stubs by design: `wiki/wiki_import` full
+82-page path (superseded by forward re-ingest, D-03), `lifecycle.py` surveillance→
+FALSIFIED wiring, `queries.valid_over`, LLM prose providers (Pass A / Pass B / wiki
+extractor) behind their deterministic seams.
