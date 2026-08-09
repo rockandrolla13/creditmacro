@@ -39,14 +39,16 @@ def read_outcomes(path: Union[str, Path]) -> list[ThemeOutcomeRecord]:
 # ── Calibration analytics — documented stubs (need a corpus of CLOSED theses) ──
 
 def calibration_report(records: list[ThemeOutcomeRecord]) -> dict:
-    """STUB. Compare q-implied probabilities against realised state frequencies to"""
+    """STUB. Compare q-implied probabilities against realised state frequencies to
+    test whether the priced-in measure was well-calibrated. Needs closed theses."""
     raise NotImplementedError(
         "calibration_report needs a corpus of closed theses (realized_axis_at_horizon "
         "populated) — implemented with the data layer, not here."
     )
 
 def edge_realization(records: list[ThemeOutcomeRecord]) -> dict:
-    """STUB. Regress realised axis move on predicted_edge to estimate how much of the"""
+    """STUB. Regress realised axis move on predicted_edge to estimate how much of the
+    (risk-neutral) edge was true alpha vs risk premium. Needs closed theses."""
     raise NotImplementedError(
         "edge_realization needs closed theses to disentangle alpha from risk premium "
         "— implemented with the data layer, not here."

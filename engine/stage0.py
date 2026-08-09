@@ -31,7 +31,11 @@ def _evidence_score(
     observations: list[Observation],
     recency_halflife_days: int = 30,
 ) -> float:
-    """Recency-weighted count of Observations whose driver_tags overlap with"""
+    """    Recency-weighted count of Observations whose driver_tags overlap with
+    the theme statement keywords.
+    Simple proxy: count matched obs, decay by age.
+    Real implementation: LLM embedding similarity + date weighting.
+"""
     linked = [o for o in observations if o.id in theme.evidence_ids]
     if not linked:
         return 0.0

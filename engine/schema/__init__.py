@@ -1,6 +1,13 @@
 """ThemeObject schema — the append-only, observable-anchored record."""
 from __future__ import annotations
 
+from .source_classification import (
+    AccessClassT,
+    PageAccessT,
+    PageClassification,
+    SourceClassification,
+    SourceTypeT,
+)
 from .causal import (
     Axis,
     AxisCandidate,

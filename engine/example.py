@@ -85,7 +85,8 @@ CASE_PATH = Path(__file__).resolve().parent.parent / "cases" / "ai_issuance.yaml
 _BUNDLE: Optional[SimpleNamespace] = None
 
 def build_example() -> SimpleNamespace:
-    """Build (once, then cache) the worked-example pipeline output. Returns a namespace of"""
+    """Build (once, then cache) the worked-example pipeline output. Returns a namespace of
+    the names the golden-master tests use, plus the pipeline's own rendered `memo`."""
     global _BUNDLE
     if _BUNDLE is not None:
         return _BUNDLE

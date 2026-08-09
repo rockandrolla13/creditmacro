@@ -57,7 +57,27 @@ temporal fail-closed, verbatim-leak, capture/replay, golden master). What is sti
 
 ---
 
-## 2. Cross-cutting foundation — the Grounding Kernel (`engine/grounding.py`)
+> **Module layout, decided 2026-08-09** (`reviews/2026_08_09_architecture_review.md`,
+> AR-BND-001). Everything this plan builds goes in **`engine/grounding/`**, not at the top level
+> of `engine/`:
+>
+> ```
+> engine/grounding/__init__.py      kernel: SourceIndex, verify_atom, enforce
+> engine/grounding/confidence.py    G4
+> engine/grounding/emit_gate.py     G6
+> engine/grounding/adjudication.py  G3
+> engine/grounding/sanitize.py      G5
+> engine/grounding/model_manifest.py  G7
+> engine/grounding/provenance_ledger.py  G6 store
+> ```
+>
+> `engine/` already carries ~45 top-level modules; `schema/` and `ledger/` show the codebase
+> knows how to group. These eight are one concern with one lifecycle — they ship together across
+> six phases and all depend on the kernel. Scattering them reads as eight unrelated additions.
+> This costs nothing today because none of the files exists yet, and is a rename of every import
+> site once they do. Paths below are written unqualified; read them as `engine/grounding/`.
+
+## 2. Cross-cutting foundation — the Grounding Kernel (`engine/grounding/`)
 
 One module, one definition of "is this text in the source." Pure, deterministic, no LLM, no wall
 clock. G1/G2 are callers; G3/G4/G6 consume its verdicts.
@@ -109,10 +129,25 @@ extractor; the `EvidenceAtom` schema.
   - `span_char_start: Optional[int] = None`, `span_char_end: Optional[int] = None` — offsets into
     the source's `normalized_markdown`.
   - `grounding: Optional[GroundingVerdict] = None` — harness verdict; **never author-set**.
-- **Producer contract.** `extract_evidence` populates `source_span` + offsets for every atom
-  (trivial for the rule extractor — `_iter_sentences` already walks the text; capture each
-  sentence's offsets). Any LLM extractor MUST return the verbatim span; a claim with no locatable
-  span is rejected — the model cannot "cite" without quoting.
+- **Producer contract — the quote only, never the offsets.** `extract_evidence` populates
+  `source_span` with the verbatim quote. It does **not** compute `span_char_start/end`; the
+  kernel does, via `SourceIndex.find_span(quote)`. Any LLM extractor MUST return the verbatim
+  span; a claim with no locatable span is rejected — the model cannot "cite" without quoting.
+
+  > **Corrected 2026-08-09** (`reviews/2026_08_09_integration_points_review.md`, CR-BUG-001).
+  > This previously read *"trivial for the rule extractor — `_iter_sentences` already walks the
+  > text; capture each sentence's offsets."* It does not walk positions:
+  > `evidence_extraction.py:170-180` does `md.splitlines()`, `raw_line.strip()`, a lookbehind
+  > `re.split`, then a second `sent.strip()` — each discarding a variable amount. Offsets are
+  > not recoverable without rewriting the generator. Since `find_span` is specified anyway, and
+  > since an LLM extractor cannot report byte offsets reliably, deriving them in the kernel is
+  > both the smaller change and the only contract both producers can honour.
+  >
+  > **Known consequence.** `_iter_sentences` splits on lines *before* sentences, so a sentence
+  > wrapped across two lines yields two fragments. A fragment still grounds — it is a verbatim
+  > substring — but the recorded span is half a sentence, which is weaker evidence than
+  > intended. Ship it, count how often it happens, and only then decide whether the tokenizer
+  > needs rewriting.
 - **Verification.** `grounding.enforce(bundle, index, policy)` runs after extraction: exact →
   normalized → else `ungrounded`.
 
@@ -422,8 +457,17 @@ Nothing outside Tier C is loose-matched: if a quote does not reach the Tier C th
 `ungrounded`, full stop. Tier C exists because real markdowns carry OCR noise, hyphenation and
 table reflow — not to let paraphrase through.
 
-**Confirmation gate** (`engine/review_queue.py`). Every Tier C candidate is queued with the claim,
-the candidate span, and its surrounding paragraph, and asks exactly three questions:
+**Confirmation gate** — **reuse `engine/ledger/wiki/review_queue.py`; do not write a new one.**
+
+> **Corrected 2026-08-09** (AR-DRY-001). This originally specified a new `engine/review_queue.py`.
+> One already exists, it is 23 lines, and its docstring is *"Append-only, human-gated review
+> queues... Three sinks, nothing auto-applied"* — the same shape as this gate, down to the
+> never-auto-apply rule. Add a fourth sink for Tier C candidates. Unlike the ledger question
+> above, there is no argument for a second implementation here: it is small, finished, and
+> already does this.
+
+Every Tier C candidate is queued with the claim, the candidate span, and its surrounding
+paragraph, and asks exactly three questions:
 
 1. **Does this quote support the claim?** (yes / no)
 2. **Does this quote correspond to the right theme?** (yes / no)
@@ -469,12 +513,35 @@ They are **not** tunable per run, not read from config, not settable by the LLM.
 reviewed code change plus a version bump, and the version is stamped on every stored confidence so
 old scores remain interpretable.
 
-### D5 — Ledger store (G6): **SQLite database file**
+### D5 — Ledger store (G6): **SQLite database file, kept separate from the hypothesis ledger**
 
 A real database file, mirroring the existing `thesis_tracker.py` + `db/migrations/0001,0002`
 pattern: `db/migrations/0003_provenance_ledger.sql`, append-only, audit-logged. Not JSONL, not
 in-memory. This is what makes provenance queryable after the fact ("show me every claim that rests
 on this source").
+
+> **Boundary, added 2026-08-09** (`reviews/2026_08_09_architecture_review.md`, AR-DRY-001).
+> `engine/ledger/` already exists: 1,862 LOC of event-sourced bitemporal substrate — the Theme
+> Hypothesis Ledger — with its own `substrate/store.py`, `events.py`, `fold.py`, `projection.py`
+> and ONTOLOGY docs. The original text of this decision did not mention it, and the two are in
+> direct tension: that store's docstring reads *"Backing store is append-only JSONL"*, while
+> this decision says *"Not JSONL."*
+>
+> **They stay separate, and here is the line between them.** The hypothesis ledger owns theme
+> lifecycle events — what a theme is and how it changed over time. The provenance ledger owns
+> claim-to-span edges — what a given emitted statement rests on. One is a history, the other is
+> a citation graph.
+>
+> **Why separate rather than merged.** The hypothesis ledger is itself mid-build; its modules
+> are marked "Phase-1 deliverable" and "Phase-7" against `docs/ledger/PLAN_TRACKER.md`.
+> Extending a substrate that is still under construction would make this plan inherit every
+> unknown remaining in that one, and two in-flight systems joined together is how both stall.
+>
+> **This is accepted duplication, not resolved duplication.** Two append-only stores with
+> different persistence models is a real smell, and D5's own goal — *"show me every claim that
+> rests on this source"* — is a query `engine/ledger/projection.py` already knows the shape of.
+> Revisit merging them once the hypothesis ledger's build completes. Writing this boundary down
+> now is what makes that revisit possible instead of archaeological.
 
 ### D6 — Number normalization (G2): **store both**
 

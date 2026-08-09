@@ -31,7 +31,8 @@ class FrozenSnapshot(BaseModel):
     theme: ThemeObject
 
 def _hash_theme(theme: ThemeObject) -> str:
-    """SHA-256 over the CANONICAL JSON of the causal object + routed families, excluding"""
+    """SHA-256 over the CANONICAL JSON of the causal object + routed families, excluding
+    volatile id/timestamps (`_HASH_EXCLUDE`) so identical reasoning hashes equal across runs."""
     payload = theme.model_dump(mode="json", exclude=_HASH_EXCLUDE)
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
@@ -47,14 +48,17 @@ class Analogue(BaseModel):
     note: str
 
 class ConfidenceAdjustment(BaseModel):
-    """A recorded calibration of one routed family. fresh_confidence is copied from the"""
+    """A recorded calibration of one routed family. fresh_confidence is copied from the
+    frozen snapshot; adjusted_confidence is the post-history view — stored HERE, never
+    written back onto the frozen family."""
     family: str
     fresh_confidence: float
     adjusted_confidence: float
     reason: str
 
 class PostCaseCalibration(BaseModel):
-    """Additive phase-B block. References the frozen snapshot by hash so the split is"""
+    """Additive phase-B block. References the frozen snapshot by hash so the split is
+    auditable. Adds analogues, lessons, and confidence adjustments; mutates nothing."""
     fresh_snapshot_hash: str
     analogues: list[Analogue] = []
     lessons: list[str] = []
@@ -86,7 +90,9 @@ class FirewalledResult(BaseModel):
 Calibrator = Callable[[FrozenSnapshot, MemoryRetriever], PostCaseCalibration]
 
 def default_calibrator(snapshot: FrozenSnapshot, retriever: MemoryRetriever) -> PostCaseCalibration:
-    """Reference phase-B calibrator: read CASE analogues sharing a routed family, record a"""
+    """Reference phase-B calibrator: read CASE analogues sharing a routed family, record a
+    lesson per analogue, and copy each family's fresh confidence into an (unchanged-by-
+    default) adjustment. It mutates nothing on the frozen snapshot."""
     theme = snapshot.theme
     routed = {f.family for f in theme.strategy_families}
 
@@ -135,6 +141,15 @@ def run_two_phase(
     now: Optional[str] = None,
 ) -> FirewalledResult:
     """Run the firewalled two-phase pass and emit a FirewalledResult."""
+    # Both are optional and public, and `pages` is only read when no retriever is
+    # given. Accepting both would silently discard the caller's page set — in the
+    # one function whose job is bounding what phase A may see, that is the wrong
+    # failure mode: the caller believes they constrained it and they have not.
+    if retriever is not None and pages is not None:
+        raise ValueError(
+            "run_two_phase: pass `pages` or `retriever`, not both — `pages` would "
+            "be ignored, silently widening what phase A can read."
+        )
     if retriever is None:
         retriever = MemoryRetriever(pages or {}, phase="A")
     if retriever.phase != "A":

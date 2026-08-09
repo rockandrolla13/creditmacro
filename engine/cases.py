@@ -49,7 +49,8 @@ class AssertionResult(BaseModel):
 
 class _OracleBase(BaseModel):
     def check(self, theme: ThemeObject) -> list[AssertionResult]:
-        """Kind-specific assertions. The invariants floor is run separately by the"""
+        """Kind-specific assertions. The invariants floor is run separately by the
+        runner. Subclasses override."""
         raise NotImplementedError(
             f"{type(self).__name__}.check is implemented in its own build step."
         )
@@ -163,7 +164,8 @@ class AcceptanceOracle(_OracleBase):
         return results
 
 class InvariantsOnlyOracle(_OracleBase):
-    """No numeric oracle — only the always-on invariants floor applies. The path for"""
+    """No numeric oracle — only the always-on invariants floor applies. The path for
+    PDF-sourced cases."""
     kind: Literal["invariants_only"] = "invariants_only"
 
     def check(self, theme: ThemeObject) -> list[AssertionResult]:
@@ -178,13 +180,15 @@ Oracle = Annotated[
 # (pricing q/edge and expression scores are computed by the workflow, not stored).
 
 class CausalPayload(BaseModel):
-    """Hand-built EXPAND_CAUSAL output a case can carry, returned verbatim by the"""
+    """Hand-built EXPAND_CAUSAL output a case can carry, returned verbatim by the
+    ScriptedProvider (the live LLMProvider produces the same shape from the prompt)."""
     main_theme: CausalNode
     causal_chain: CausalChain
     shared_factor: str
 
 class CaseSpec(BaseModel):
-    """One self-contained case. The ScriptedProvider returns slices of this; the"""
+    """One self-contained case. The ScriptedProvider returns slices of this; the
+    runner computes pricing + scores and asserts against the oracle."""
     theme_sentence: str
     horizon: str
     author: str

@@ -95,7 +95,8 @@ class CausalNode(BaseModel):
         return self
 
 class CausalEdge(BaseModel):
-    """A single hop. inferred=True if the agent derived it; False if stated in a"""
+    """A single hop. inferred=True if the agent derived it; False if stated in a
+    source. feedback=True marks a reflexive link (outcome feeds back on the driver)."""
     from_id: str
     to_id: str
     mechanism: str
