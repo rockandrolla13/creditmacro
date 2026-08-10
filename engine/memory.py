@@ -15,7 +15,8 @@ _METHOD_TYPES = {"concept", "entity", "model"}
 _CASE_TYPES = {"theme", "scenario", "evidence", "outcome"}
 
 class WikiPage(BaseModel):
-    """One parsed wiki page. access_class may be None/invalid on a malformed page — the"""
+    """One parsed wiki page. access_class may be None/invalid on a malformed page — the
+    lint check (`check_access_class`) surfaces that; the retriever fails closed regardless."""
     model_config = ConfigDict(frozen=True)
     slug: str
     access_class: Optional[str] = None
@@ -109,7 +110,8 @@ class MemoryRetriever:
         return self._phase
 
     def mark_frozen(self, content_hash: str) -> None:
-        """Record that the phase-A snapshot is frozen — must be called BEFORE phase B so"""
+        """Record that the phase-A snapshot is frozen — must be called BEFORE phase B so
+        every later case read is provably after the freeze."""
         self.frozen_hash = content_hash
 
     def advance_to_phase_b(self) -> None:

@@ -130,7 +130,8 @@ def compute_edge(p_s: list[float], q_s: list[float], X_s: list[float]) -> float:
     return float(np.dot(p - q, X))
 
 def _edge_attribution(names, p, q, X_s, *, round_dp: Optional[int] = None) -> list[EdgeContribution]:
-    """Per-scenario (p−q)·X attribution, sorted by contribution desc. round_dp rounds the"""
+    """Per-scenario (p−q)·X attribution, sorted by contribution desc. round_dp rounds the
+    stored values (run_pricing persists 6dp; the MC point estimate stays exact)."""
     def v(x: float) -> float:
         return round(x, round_dp) if round_dp is not None else x
     return sorted(

@@ -50,7 +50,8 @@ class PMGate(BaseModel):
 
 class Provenance(BaseModel):
     evidence: list[str]                          # source document list
-    confidence: float = Field(ge=0.0, le=1.0)
+    # None = not assessed. Distinct from 0.0, which asserts "assessed, and worthless".
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     last_updated: str = Field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat()
     )

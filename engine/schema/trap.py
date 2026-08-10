@@ -22,7 +22,8 @@ class BiasCritique(BaseModel):
 # ── Feedback, Leverage Point & System Trap Detector (Meadows) ─────────────────
 
 class LeveragePoint(BaseModel):
-    """Where a small change most alters system behaviour. observable=True if an"""
+    """Where a small change most alters system behaviour. observable=True if an
+    investor can watch it; False if it is structural (a deeper Meadows leverage point)."""
     description: str
     observable: bool = True
 

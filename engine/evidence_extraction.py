@@ -137,6 +137,20 @@ _DEV_VERBS = ("has become", "entered", "reached", "rose", "grown", "emerged", "w
 
 _NUM = re.compile(r"[-+]?\d+(?:\.\d+)?")
 
+# Author-set confidences for the RULE extractor. Named rather than inlined because
+# they encode a policy — how much to trust a pattern match — and an unnamed 0.5
+# appearing twice for two different reasons reads as one decision when it is two.
+#
+# All three are provisional by design. They are what PLAN-authoritative-harness.md
+# G4 calls the false-precision trap: a number the author picked, presented with the
+# same authority as a measured one. G4 replaces them with confidence computed from
+# harness-observed signals (span found, numbers verified, source reliability,
+# independence, freshness). Naming them now makes that replacement reviewable —
+# a diff that deletes named constants is legible; one that deletes stray 0.5s is not.
+_RULE_ATOM_CONFIDENCE = 0.8       # a sentence matched the extraction rules verbatim
+_CAUSAL_CANDIDATE_CONFIDENCE = 0.5  # an explicit connective was present; direction unverified
+_FAMILY_HINT_CONFIDENCE = 0.5     # a family is plausible from signals alone; nothing scored yet
+
 # Boilerplate that should never become an evidence atom (footers, contacts, disclosures).
 _NOISE = ("research", "distributed", "disclosure", "certification", "source: bloomberg",
           "analyst certification", "mci(p)", "appendix")
@@ -238,7 +252,7 @@ def extract_evidence(inp: EvidenceExtractionInput) -> EvidenceExtractionBundle:
             entities=_detect(sent, _ENTITY_KEYS),
             market_variables=_detect(sent, _MV_KEYS),
             numbers=nums,
-            confidence=0.8,
+            confidence=_RULE_ATOM_CONFIDENCE,
             agent_use="case evidence (current-input eligible)",
         ))
     all_ids = [a.evidence_id for a in atoms if a.evidence_id]
@@ -259,7 +273,8 @@ def extract_evidence(inp: EvidenceExtractionInput) -> EvidenceExtractionBundle:
                 if driver and outcome:
                     causal.append(CausalClaimCandidate(
                         driver=driver, transmission=conn, outcome=outcome,
-                        source_evidence_ids=_ids_on_page(page), confidence=0.5,
+                        source_evidence_ids=_ids_on_page(page),
+                        confidence=_CAUSAL_CANDIDATE_CONFIDENCE,
                         rationale=f"explicit causal connective '{conn}'"))
                 break
 
@@ -336,7 +351,8 @@ def extract_evidence(inp: EvidenceExtractionInput) -> EvidenceExtractionBundle:
         "watchlist_only": "(none yet — needs an axis, scenarios, and a falsifier)",
     }
     hints = [StrategyFamilyHint(family=f, rationale=r, source_evidence_ids=all_ids[:5],
-                                confidence=0.5, downstream_model_hint=_DOWN.get(f, ""))
+                                confidence=_FAMILY_HINT_CONFIDENCE,
+                                downstream_model_hint=_DOWN.get(f, ""))
              for f, r in fams.items()]
 
     # 7) market intelligence + themes

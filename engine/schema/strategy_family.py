@@ -16,7 +16,18 @@ class ConfidenceComponents(BaseModel):
     scenario_availability: bool                        # were scenarios supplied (never invented)?
 
 class StrategyFamilyRec(BaseModel):
-    """One ranked strategy FAMILY — the discovery half's deliverable. Routed from the"""
+    """One ranked strategy FAMILY — the discovery half's deliverable. Routed from the
+    promoted theme's axis SHAPE *and* DIRECTION (e.g. (curve, steeper) → steepener); NOT a
+    detailed expression. Detailed legs (curve points, names, hedge ratios, sizing) are
+    downstream and out of discovery scope.
+
+    'watchlist_only' is the explicit no-tradeable-family outcome — route to it (don't fail)
+    when nothing clears confidence. A capped/low-confidence family names the missing input
+    in `why_not` rather than asserting false precision.
+
+    Frozen: routed families are part of the fresh-reasoning snapshot the memory firewall
+    freezes; phase-B calibration records adjustments separately, never mutating these.
+"""
     model_config = ConfigDict(frozen=True)
     # Exactly the families the discovery router (engine/discovery._route_family) can produce.
     # Re-add a family only when its routing rule is implemented — the taxonomy must not

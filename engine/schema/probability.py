@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ProbabilitySource = Literal[
     "PM_assumption", "model_output", "evidence_weighted", "historical_base_rate", "unknown",
@@ -82,7 +82,15 @@ class EvidenceAtom(BaseModel):
     """A source-backed evidence atom — the (unmapped) INPUT to the evidence→scenario bridge.
     Distinct from ScenarioEvidenceImpact, which is an atom already bound to one scenario.
     `claim_kind` / `direction` may be None: the mapper classifies the kind and defaults the
-    direction to 'increase' (corroborates the state it maps to) when they are absent."""
+    direction to 'increase' (corroborates the state it maps to) when they are absent.
+
+    **Frozen.** `PLAN-authoritative-harness.md` §0 already assumes it is, and its guarantees
+    depend on it: G1's grounding verdict is "never author-set" and G4 caps the model's own
+    confidence rather than trusting it. Both are unenforceable on a mutable model — anything
+    downstream could raise `confidence` or stamp a verdict the harness refused. Construct a
+    changed atom with `model_copy(update=...)`; do not mutate in place."""
+    model_config = ConfigDict(frozen=True)
+
     evidence_id: Optional[str] = None
     source_slug: Optional[str] = None
     source_location: Optional[str] = None

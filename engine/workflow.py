@@ -57,7 +57,9 @@ def _strategy_families(
     causal_confidence: float = 1.0,
     probability_quality: float = 1.0,
 ) -> list[StrategyFamilyRec]:
-    """Route the promoted theme's axis to a strategy family (shape+direction), with"""
+    """Route the promoted theme's axis to a strategy family (shape+direction), with
+    decomposed confidence. Scenarios are used only for the LIGHT priced-in edge; when
+    absent the family is still routed but capped (never invented)."""
     prior = _prior_vector(ctx, len(scenarios)) if scenarios else []
     return select_strategy_families(
         axis=axis,
@@ -327,7 +329,8 @@ def _run_expression(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObje
     return theme, _render_memo(theme, best, pricing)
 
 def _validate_causal_chain(main_theme, causal_chain) -> None:
-    """Boundary-validate the EXPAND_CAUSAL output (node-level rules are enforced by the"""
+    """Boundary-validate the EXPAND_CAUSAL output (node-level rules are enforced by the
+    schema; this asserts the cross-object invariants the stage depends on)."""
     if causal_chain is None:
         raise ValueError("EXPAND_CAUSAL: main_theme present but causal_chain is None")
     if not main_theme.is_routable():

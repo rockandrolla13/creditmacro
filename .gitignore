@@ -23,6 +23,10 @@ data/*.sqlite
 data/*.sqlite-shm
 data/*.sqlite-wal
 
+# Theme Hypothesis Ledger runtime append-only stores (regenerated; never committed).
+# The code/docs/tests ARE tracked; the JSONL event & link logs are not.
+data/ledger/
+
 # Obsidian per-user UI state (keep shareable config under wiki/.obsidian/, ignore transient state)
 wiki/.obsidian/workspace.json
 wiki/.obsidian/workspace-mobile.json

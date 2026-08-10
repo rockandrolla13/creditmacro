@@ -182,7 +182,8 @@ def _light_residual_edge(
 
 def _data_confidence(scenario_availability: bool, priced_in_available: bool,
                      n_scenarios: int) -> float:
-    """Data sufficiency in [0,1]. Weak (0.5) when scenarios/pricing are missing — the"""
+    """Data sufficiency in [0,1]. Weak (0.5) when scenarios/pricing are missing — the
+    ceiling caps do the hard 'unanswerable' work; the factor only grades richness."""
     if not scenario_availability or not priced_in_available:
         return 0.5
     return min(1.0, n_scenarios / 4.0)

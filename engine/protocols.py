@@ -93,7 +93,8 @@ class RiskSource(Protocol):
 
 @runtime_checkable
 class Provider(ScenarioSource, ExpressionSource, RiskSource, Protocol):
-    """Full pipeline seam set. The runner calls these in order and cannot tell a"""
+    """Full pipeline seam set. The runner calls these in order and cannot tell a
+    scripted provider from a generative one."""
 
     def context(self) -> RunContext: ...
 
@@ -118,7 +119,8 @@ class Provider(ScenarioSource, ExpressionSource, RiskSource, Protocol):
         ...
 
     def diagnose_loops(self, system_map: Optional[SystemMap]) -> Optional[LoopDiagnosis]:
-        """PRE-PRICING: diagnose loops/leverage/traps from the system map's loop map and"""
+        """PRE-PRICING: diagnose loops/leverage/traps from the system map's loop map and
+        the reversal point that feeds scenario construction. None when not supplied."""
         ...
 
     def assess_trap_implications(

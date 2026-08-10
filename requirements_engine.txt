@@ -5,3 +5,8 @@ anthropic>=0.40
 pyyaml>=6.0   # thesis-tracker CLI: YAML placeholder ingestion (--json *.yaml)
 requests>=2.31        # investor-memo fetcher: download memo pages
 beautifulsoup4>=4.12  # investor-memo fetcher: HTML → markdown extraction
+pymupdf>=1.24         # tools/convert_pdf_to_markdown.py: `import fitz` at module
+                      # level, so its absence stops pytest COLLECTING two test
+                      # files, not merely running them. `pymupdf4llm` is the
+                      # documented primary engine but is imported in a try/except
+                      # and degrades to PyMuPDF get_text, so it stays optional.

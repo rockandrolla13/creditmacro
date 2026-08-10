@@ -30,7 +30,7 @@ from engine.schema.theme_aggregation import (
     ThemeClusterMember,
 )
 from engine.temporal import TemporalContext
-from engine.wiki_agents import SourceClassification
+from engine.schema import SourceClassification
 
 # ── policy ───────────────────────────────────────────────────────────────────
 _DEFAULT_ALIASES = {

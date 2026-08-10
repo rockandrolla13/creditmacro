@@ -30,17 +30,22 @@ class Thesis(BaseModel):
     driver_diversification_multiplier: Optional[float] = None  # 1/sqrt(avg pairwise ρ); >1 when drivers are uncorrelated
 
 class AxisHistory(BaseModel):
-    mean: float          # long-run unconditional mean
-    vol: float           # σ (same units as axis)
-    percentile: float    # current value percentile in history
-    regime_tags: list[str]
+    """Historical statistics for an axis. Every statistic is optional because
+    "not measured" is a real state — a ledger-projected theme names a computable
+    axis before anyone has computed it. `None` means unknown; it must never be
+    filled with 0.0, which reads as a measurement and, for `vol`, silently
+    degenerates any downstream vol-adjusted quantity."""
+    mean: Optional[float] = None          # long-run unconditional mean
+    vol: Optional[float] = None           # σ (same units as axis)
+    percentile: Optional[float] = None    # current value percentile in history
+    regime_tags: list[str] = []
 
 class Axis(BaseModel):
     """Engine 1 output. Answers Q2 (universe scoping) and Q3 (the hard gate)."""
     definition: str    # full operational description + universe
     measurement: str   # exactly how it is computed; data source
-    current_value: float
-    history: AxisHistory
+    current_value: Optional[float] = None   # None = axis named but not yet observed
+    history: AxisHistory = AxisHistory()
     # optional — macro regime detected from central bank signals / HMM
     regime: Optional[Literal["easing", "neutral", "tightening", "crisis"]] = None
     # Routing inputs (discovery): SHAPE + DIRECTION together pick the family. When unset,
@@ -95,7 +100,8 @@ class CausalNode(BaseModel):
         return self
 
 class CausalEdge(BaseModel):
-    """A single hop. inferred=True if the agent derived it; False if stated in a"""
+    """A single hop. inferred=True if the agent derived it; False if stated in a
+    source. feedback=True marks a reflexive link (outcome feeds back on the driver)."""
     from_id: str
     to_id: str
     mechanism: str

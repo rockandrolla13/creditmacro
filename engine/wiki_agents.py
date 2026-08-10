@@ -26,10 +26,14 @@ from .temporal import (
     TemporalContext,
     classify_temporal_context,
 )
+from .schema import (  # re-exported: these moved to schema/ to break a cycle
+    AccessClassT,
+    PageAccessT,
+    PageClassification,
+    SourceClassification,
+    SourceTypeT,
+)
 
-SourceTypeT = Literal["book", "paper", "report", "deck", "memo", "transcript", "market_data", "other"]
-AccessClassT = Literal["method", "case", "mixed", "ignore"]
-PageAccessT = Literal["method", "case", "ignore"]
 
 _SOURCE_TYPES = frozenset(
     ("book", "paper", "report", "deck", "memo", "transcript", "market_data", "other"))
@@ -78,23 +82,6 @@ class SourceIntakeInput(BaseModel):
     path: Optional[str] = None
     pages: list[SourcePage] = []
     title: Optional[str] = None
-
-
-class PageClassification(BaseModel):
-    page_number: int
-    access_class: PageAccessT
-    rationale: str
-
-
-class SourceClassification(BaseModel):
-    source_slug: str
-    source_type: SourceTypeT
-    access_class: AccessClassT
-    page_classifications: list[PageClassification] = []
-    copyright_status: str
-    ingestion_policy: str
-    recommended_compilers: list[str] = []
-    warnings: list[str] = []
 
 
 # ── PART 2: SourceIntakeAgent (deterministic) ───────────────────────────────────
@@ -555,7 +542,6 @@ class MultiSourceThemeAggregatorAgent(WikiAgent):
     )
 
     def run(self, input):  # noqa: A002
-        # lazy import: theme_aggregation imports SourceClassification from this module
         from engine.theme_aggregation import (
             ThemeAggregationPolicy,
             aggregate_theme_candidates,

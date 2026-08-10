@@ -18,7 +18,8 @@ def _finite_or_none(value: float | None) -> bool:
     return value is None or math.isfinite(value)
 
 def invariants_floor(theme: ThemeObject) -> list[AssertionResult]:
-    """Assert the floor that holds for EVERY emitted ThemeObject, irrespective of"""
+    """Assert the floor that holds for EVERY emitted ThemeObject, irrespective of
+    oracle kind. Returns one AssertionResult per check, in a stable order."""
     results: list[AssertionResult] = []
 
     # 1. schema_valid — the ThemeObject exists / was constructed.
