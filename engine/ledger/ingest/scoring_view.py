@@ -48,6 +48,12 @@ def _days(a: str, b: str) -> float:
 
 
 def _decay(as_of: str, t_i: str, horizon_days: int) -> float:
+    """Calculate the decay factor based on elapsed days and half-life (horizon_days / 2.0).
+
+    If horizon_days is zero or negative, no decay credit is yielded, returning 0.0.
+    """
+    if horizon_days <= 0:
+        return 0.0
     h = horizon_days / 2.0                       # half-life
     return LAMBDA ** (_days(as_of, t_i) / h)
 
