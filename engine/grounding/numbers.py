@@ -12,7 +12,11 @@ from engine.schema.grounding import Number
 _NUMBER_BODY = r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+"
 _SIGNED_NUMBER = rf"[+-]?(?:{_NUMBER_BODY})"
 _RANGE_DASH = r"(?:-|–)"
-_SUFFIX_UNIT = r"(?:bp|%|x)"
+# `bps` must precede `bp`: the alternation is first-match, so the shorter form would
+# otherwise win and leave a trailing "s" that the embedded-token guard reads as a word
+# character, silently discarding the whole number. "40bps" is at least as common as
+# "40bp" in credit research, so that failure hides a lot of real figures.
+_SUFFIX_UNIT = r"(?:bps|bp|%|x)"
 
 _TOKEN_RE = re.compile(
     rf"""
@@ -41,7 +45,7 @@ _TOKEN_RE = re.compile(
 )
 
 _BOUNDARY_CHARS = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_")
-_UNIT_NORMALIZATION = {"$": "usd", "bp": "bp", "%": "%", "x": "x"}
+_UNIT_NORMALIZATION = {"$": "usd", "bps": "bp", "bp": "bp", "%": "%", "x": "x"}
 
 
 def _to_float(raw_number: str) -> float:
