@@ -34,12 +34,15 @@ def to_theme_object(theme: ThemeHypothesis, as_of: str) -> ThemeObject:
         causal_chain=[CausalChainStep(from_node=e.v_from, to_node=e.v_to) for e in edges],
         direction_of_view=str(d),
     )
+    # The ledger names an axis; it does not observe one. Leaving these unset is the
+    # point: a projected theme has no measured level, history or scored confidence yet,
+    # and 0.0 would present all three as findings. Downstream already handles the
+    # absence — engine2.run_pricing skips the vol-adjusted edge when sigma is None.
     axis = Axis(
         definition=f"ledger axis {theme.operational_axis}",
-        measurement=theme.operational_axis, current_value=0.0,
-        history=AxisHistory(mean=0.0, vol=0.0, percentile=0.0, regime_tags=[]),
+        measurement=theme.operational_axis,
     )
-    provenance = Provenance(evidence=[f"falsifier: {theme.falsifier}"], confidence=0.0)
+    provenance = Provenance(evidence=[f"falsifier: {theme.falsifier}"])
 
     # Top-level causal object (Discovery Gate 1) + a routable main_theme (Gate 2).
     node_ids = [edges[0].v_from] + [e.v_to for e in edges]
