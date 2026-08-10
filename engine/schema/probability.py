@@ -5,6 +5,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .grounding import GroundingVerdict
+
 ProbabilitySource = Literal[
     "PM_assumption", "model_output", "evidence_weighted", "historical_base_rate", "unknown",
 ]
@@ -108,6 +110,18 @@ class EvidenceAtom(BaseModel):
     evidence_cluster_id: Optional[str] = None
     agent_use: Optional[str] = None      # provenance note (how the agent may use the fact); carried, not used in mapping
     is_synthesis: bool = False
+
+    # --- G1 grounding (all Optional + default, so existing atoms are unchanged) ---
+    #: The verbatim quote this claim is grounded in. The PRODUCER supplies the quote and
+    #: nothing else: offsets and the verdict below are computed by the kernel, because an
+    #: LLM extractor cannot report byte offsets reliably and must not be trusted to grade
+    #: its own citation. A claim with no locatable span cannot be grounded — quoting is
+    #: the only way to cite.
+    source_span: Optional[str] = None
+    span_char_start: Optional[int] = None     # kernel-computed offset into the source
+    span_char_end: Optional[int] = None
+    #: Harness verdict. Never author-set — see `engine.grounding.verify_atom`.
+    grounding: Optional[GroundingVerdict] = None
 
     @classmethod
     def from_record(cls, rec: dict) -> "EvidenceAtom":

@@ -14,6 +14,8 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from .grounding import GroundingPolicy, SourceIndex, enforce
+from .grounding.numbers import numbers_in
 from .schema import EvidenceAtom
 from .temporal import ForecastHorizon, TemporalClaimStatus, TemporalContext
 
@@ -135,7 +137,6 @@ _THEME_SIGNALS = [
 ]
 _DEV_VERBS = ("has become", "entered", "reached", "rose", "grown", "emerged", "widened", "tightened")
 
-_NUM = re.compile(r"[-+]?\d+(?:\.\d+)?")
 
 # Author-set confidences for the RULE extractor. Named rather than inlined because
 # they encode a policy — how much to trust a pattern match — and an unnamed 0.5
@@ -235,10 +236,16 @@ def extract_evidence(inp: EvidenceExtractionInput) -> EvidenceExtractionBundle:
     full = md.lower()
     sentences = list(_iter_sentences(md))
 
-    # 1) evidence atoms — every figure-bearing sentence, concise + page-cited
+    # 1) evidence atoms — every figure-bearing sentence, concise + page-cited.
+    # Numbers come from the grounding kernel, not a bare \d+ regex. The old pattern had
+    # no word boundary, so it read "1" out of "Q1" and split the date 2022-12-28 into
+    # 2022, -12 and -28 — phantom figures that then fed scenario evidence. The kernel's
+    # tokenizer is unit-aware and boundary-checked, and using it here is also what makes
+    # every atom's numbers verifiable against its own span below.
+    index = SourceIndex(md)
     atoms: list[EvidenceAtom] = []
     for page, sent in sentences:
-        nums = [float(x) for x in _NUM.findall(sent)]
+        nums = [n.value for n in numbers_in(sent)]
         # keep figure-bearing sentences, dropping boilerplate footers/contacts/disclosures
         if not nums or _is_noise(sent):
             continue
@@ -254,7 +261,14 @@ def extract_evidence(inp: EvidenceExtractionInput) -> EvidenceExtractionBundle:
             numbers=nums,
             confidence=_RULE_ATOM_CONFIDENCE,
             agent_use="case evidence (current-input eligible)",
+            # The producer supplies the quote and nothing else; `enforce` locates it and
+            # authors the verdict. `claim` above is a whitespace-normalized 18-word
+            # prefix, so the untrimmed sentence is what actually grounds.
+            source_span=sent,
         ))
+
+    grounded = enforce(atoms, index, GroundingPolicy(mode="lint"))
+    atoms = grounded.kept
     all_ids = [a.evidence_id for a in atoms if a.evidence_id]
 
     def _ids_on_page(page) -> list[str]:
@@ -399,7 +413,9 @@ def extract_evidence(inp: EvidenceExtractionInput) -> EvidenceExtractionBundle:
         scenario_candidates=scenario_candidates,
         open_questions=[f"Is the axis a clean differential or contaminated by {confounders[0]}?"]
         if confounders else [],
-        extraction_warnings=warnings,
+        # A dropped atom is recorded, never silent — an ungrounded claim disappearing
+        # without trace is the failure this whole layer exists to prevent.
+        extraction_warnings=warnings + grounded.warnings,
         no_trade_confirmation=("Discovery extraction only: no exact trades, no curve points, "
                                "no hedge ratios, no sizing, no order steps."),
     )
