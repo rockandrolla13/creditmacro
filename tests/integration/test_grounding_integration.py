@@ -63,32 +63,50 @@ def test_numbers_recovered_from_a_grounded_span_are_really_there(index, markdown
         assert number.raw in quote, f"{number.raw!r} reported but absent from the span"
 
 
-def test_number_offsets_are_span_relative_not_source_absolute(index, markdown):
-    """The one place the two halves disagree — pinned so it cannot drift silently.
+def test_number_offsets_point_at_the_document_when_given_a_base(index, markdown):
+    """The two halves speak the same offset language, but only if you say so.
 
-    `SourceIndex.find_span` speaks in source offsets. `numbers_in` speaks in offsets
-    into the string it was handed. A caller that tokenizes a span substring and then
-    reads `Number.char_start` as a source position gets provenance pointing at
-    unrelated text. `Number.char_start` is documented as "offset into the source text",
-    so the burden is on the caller to rebase — this test states that contract in
-    executable form.
+    `find_span` returns document offsets. `numbers_in` returns offsets into the string
+    it was handed, so tokenizing a span slice and reading `Number.char_start` as a
+    document position used to land on unrelated text — provenance pointing at the wrong
+    words while looking perfectly well-formed. `base_offset` rebases them, and this test
+    slices the document at the reported offsets to prove it.
     """
     quote = _numeric_line(markdown)
     start, end = index.find_span(quote)
-    numbers = [n for n in numbers_in(markdown[start:end]) if n.char_start is not None]
+    numbers = [
+        n for n in numbers_in(markdown[start:end], base_offset=start)
+        if n.char_start is not None
+    ]
     if not numbers:
         pytest.skip("no offset-bearing numbers in the chosen span")
 
-    number = numbers[0]
-    # Rebasing onto the span start is what makes the offsets meaningful.
-    assert markdown[start + number.char_start:start + number.char_end] == number.raw
-    # The two frames coincide only when the span happens to begin at the file start,
-    # which is exactly why the bug is easy to miss in a fixture. Where they differ,
-    # reading the offset unrebased must land somewhere else — stated so that making
-    # numbers_in source-aware fails here loudly instead of changing the contract in
-    # silence.
-    if start != 0:
-        assert markdown[number.char_start:number.char_end] != number.raw
+    for number in numbers:
+        assert markdown[number.char_start:number.char_end] == number.raw
+
+
+def test_every_token_kind_is_rebased_not_just_some(markdown):
+    """Each branch of the tokenizer stamps offsets separately, so each is checked.
+
+    Ranges, prefix units, suffix units and bare numbers are four distinct construction
+    sites. Rebasing three of them and missing the fourth would pass any test that only
+    exercised the common case.
+    """
+    text = "spreads 120-140bp on $1,250 of notional at 3.5x versus 75 last week"
+    document = "PREAMBLE. " + text
+    base = document.index(text)
+
+    tokens = numbers_in(text, base_offset=base)
+    assert {t.unit for t in tokens} >= {"bp", "usd", "x", None}, "not all kinds exercised"
+    for token in tokens:
+        assert document[token.char_start:token.char_end] == token.raw
+
+
+def test_default_base_offset_is_unchanged_for_whole_document_callers(markdown):
+    """The default must stay correct for anyone passing the entire document."""
+    tokens = numbers_in(markdown)[:20]
+    for token in tokens:
+        assert markdown[token.char_start:token.char_end] == token.raw
 
 
 def test_a_paraphrase_of_a_real_sentence_does_not_ground(index, markdown):

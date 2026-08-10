@@ -60,11 +60,26 @@ def _is_embedded(text: str, start: int, end: int) -> bool:
     return not (left_ok and right_ok)
 
 
-def numbers_in(text: str) -> list[Number]:
+def numbers_in(text: str, base_offset: int = 0) -> list[Number]:
     """Return numeric tokens found in `text`.
 
     Tokens preserve the exact raw source span while exposing canonical values for
     comparison. Ranges remain one token with `value_upper` populated.
+
+    `base_offset` is where `text` starts inside the document the offsets should refer
+    to, and it exists because the natural way to use this function is the wrong way::
+
+        start, end = index.find_span(quote)
+        numbers_in(markdown[start:end])          # offsets relative to the SLICE
+
+    `SourceIndex.find_span` speaks in document offsets, so a caller that reads
+    `Number.char_start` from that result gets a position in the document where
+    different text lives — provenance that points at the wrong words while looking
+    perfectly well-formed. Passing `base_offset=start` makes the two agree::
+
+        numbers_in(markdown[start:end], base_offset=start)
+
+    The default of 0 is correct whenever `text` IS the whole document.
     """
 
     numbers: list[Number] = []
@@ -81,8 +96,8 @@ def numbers_in(text: str) -> list[Number]:
                     value=_to_float(match.group("range_lower")),
                     value_upper=_to_float(match.group("range_upper")),
                     unit=_unit_or_none(match.group("range_unit")),
-                    char_start=start,
-                    char_end=end,
+                    char_start=base_offset + start,
+                    char_end=base_offset + end,
                 )
             )
             continue
@@ -94,8 +109,8 @@ def numbers_in(text: str) -> list[Number]:
                     raw=raw,
                     value=value,
                     unit=_unit_or_none(match.group("prefix_unit")),
-                    char_start=start,
-                    char_end=end,
+                    char_start=base_offset + start,
+                    char_end=base_offset + end,
                 )
             )
             continue
@@ -107,8 +122,8 @@ def numbers_in(text: str) -> list[Number]:
                     raw=raw,
                     value=value,
                     unit=_unit_or_none(match.group("suffix_unit")),
-                    char_start=start,
-                    char_end=end,
+                    char_start=base_offset + start,
+                    char_end=base_offset + end,
                 )
             )
             continue
@@ -119,8 +134,8 @@ def numbers_in(text: str) -> list[Number]:
                 raw=raw,
                 value=value,
                 unit=None,
-                char_start=start,
-                char_end=end,
+                char_start=base_offset + start,
+                char_end=base_offset + end,
             )
         )
 
