@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Sequence
+from typing import Optional, Sequence
 
 import yaml
 from pydantic import BaseModel
@@ -19,6 +19,7 @@ from .ingest.admission import admit, cluster_orphans
 from .ingest.pass_a import PassAExtractor, ScriptedClaimProvider
 from .ingest.pass_b import StructuralSemanticMapper
 from .ingest.scoring_view import score
+from .substrate.events import EventType, Provenance, ThemeEvent
 from .substrate.hypothesis import ThemeDefinitionView
 
 
@@ -34,6 +35,16 @@ class LedgerRunConfig(BaseModel):
 class AdmittedTheme:
     theme_id: str
     status: str                        # ACTIVE | CANDIDATE
+    created_event: Optional[ThemeEvent] = None
+    status_changed_event: Optional[ThemeEvent] = None
+
+    def events(self) -> list[ThemeEvent]:
+        evs: list[ThemeEvent] = []
+        if self.created_event is not None:
+            evs.append(self.created_event)
+        if self.status_changed_event is not None:
+            evs.append(self.status_changed_event)
+        return evs
 
 
 @dataclass
@@ -42,6 +53,15 @@ class RegistryState:
     orphan_claim_ids: list[str] = field(default_factory=list)
     needs_structuring: list[str] = field(default_factory=list)
     review_tags: list[str] = field(default_factory=list)
+
+    def events_for_theme(self, theme_id: str) -> list[ThemeEvent]:
+        for a in self.admitted:
+            if a.theme_id == theme_id:
+                return a.events()
+        return []
+
+    def events_by_theme(self) -> dict[str, list[ThemeEvent]]:
+        return {a.theme_id: a.events() for a in self.admitted}
 
 
 def _doc_meta(corpus_dir: Path, doc_id: str) -> dict:
@@ -85,7 +105,24 @@ def forward_ingest(
             # S_θ < 0 with no breach is CONTESTED (a sub-state of ACTIVE), not dead
             # (§Theme "Interpretation", §Lifecycle; ONTOLOGY_DELTA D-09).
             active = sv.B >= ACTIVATION_BREADTH_MIN and abs(sv.S) >= ACTIVATION_ABS_SCORE_MIN
-            admitted.append(AdmittedTheme(out.theme_id, "ACTIVE" if active else "CANDIDATE"))
+            status_changed_ev = None
+            if active:
+                status_changed_ev = ThemeEvent(
+                    event_id=f"{out.theme_id}:status_changed:ACTIVE",
+                    theme_id=out.theme_id,
+                    event_type=EventType.STATUS_CHANGED,
+                    payload={"status": "ACTIVE"},
+                    effective_at=as_of,
+                    provenance=Provenance.ORPHAN_PROMOTION,
+                )
+            admitted.append(
+                AdmittedTheme(
+                    theme_id=out.theme_id,
+                    status="ACTIVE" if active else "CANDIDATE",
+                    created_event=out.created_event,
+                    status_changed_event=status_changed_ev,
+                )
+            )
         elif out.status == "needs_structuring":
             needs.extend(cluster_ids)
         else:                                      # rejected_gate | out_of_vocab → stays orphan
