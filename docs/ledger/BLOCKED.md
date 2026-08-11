@@ -51,7 +51,16 @@ A 1-day theme passes WF today, but a one-day transmission story is arguably a
 directional call rather than a theme — the same objection WF clause (a) makes
 to a k = 1 chain. Half-life h = H/2 also means a 1-day theme discards ~all
 evidence within a day, so its S_θ is dominated by whatever landed this morning.
-**Proposed resolution (interim, implemented).** Strict positivity only:
+**RESOLVED 2026-08-11 (analyst decision).** Strict positivity only:
+`0 < H ≤ H_MAX`. **No `H_MIN` constant is added.** The floor above 1 day was
+declined on the grounds that nothing has yet tried to register a very short
+theme, so any number would be guessing at an unobserved problem — and a new
+§Constants entry is permanent and costly to revise. Revisit ONLY with evidence:
+if short-horizon themes start being admitted, the candidates remain the
+surveillance sampling interval or `W_ADMIT` = 30 days, and the change is then an
+ONTOLOGY edit plus a delta. The original reasoning is retained below.
+
+**Prior proposal (now the decision).** Strict positivity only:
 `0 < H ≤ H_MAX`, no new constant. If a floor is later wanted, it becomes
 `H_MIN` in §Constants + `constants.py` (an ONTOLOGY change), with the natural
 candidates being the surveillance sampling interval or W_ADMIT = 30 days.
@@ -123,8 +132,20 @@ the resulting status. The projected object is retained beside the routed one in
 `LedgerDiscoveryResult` so both are auditable. If this reading is rejected, the
 alternative is to have `projection.py` own the routed status too, which would put
 strategy routing inside the ledger package.
-**Status (2026-08-11).** OPEN. Proposed reading is implemented behind
-`LedgerProjectionNotRoutable`; this remains a human question, not an agent
-decision.
+**RESOLVED 2026-08-11 (analyst decision).** The proposed reading is ACCEPTED:
+`run_workflow` performs an INDEPENDENT COMPUTATION, not a second axis mapping,
+so AMEND A3 is not violated and no ONTOLOGY edit is required. The test is that
+`run_workflow` never reads the market-truth axis — it derives pipeline progress
+from its own work (falsifier present ⇒ routed). The lifecycle status influences
+exactly one thing, whether discovery runs at all
+(`LedgerProjectionNotRoutable`), and never the resulting status. Both objects
+are retained in `LedgerDiscoveryResult` so a reader can always tell which label
+came from where.
+
+**Rejected.** Having `projection.py` own the routed status too. It would satisfy
+a literal reading of "only one site assigns status" while moving strategy-family
+routing INSIDE the ledger package — making the ledger issue investment
+judgements rather than track themes, and merging two jobs that are currently
+separate. A boundary that is worse in substance to be tidier on paper.
 **Affected.** `engine/ledger_bridge.py`, `engine/ledger_entrance.py`,
 `docs/ledger/ONTOLOGY.md` §Lifecycle (AMEND A3 wording).

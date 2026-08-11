@@ -499,7 +499,14 @@ it is not estimated by the model.
 genuine surprise does; an ungrounded expectation yields `kind="level"`; a level print still resets the
 staleness clock.
 
-**Effort M · Risk medium — the expectation source is the hard part; see §6 open question 1.**
+**Effort M · Risk medium — the expectation source is the hard part; see §6 D-L2-1.**
+
+**Companion at the theme layer.** L2 handles numeric surprise per-atom (drives the surveillance
+state machine). `SurpriseMetrics` on `ThemeCandidate` (A2, D-A2-6) handles **narrative**
+surprise per-theme (is the theme new vs research consensus, not yet in prices, driven by
+revisions, contradicting consensus). Both are needed. Never conflated: an atom that is
+numerically surprising can still land inside a narratively-stale theme, and a narratively
+fresh theme can be filled with numerically level prints. Score both, read both.
 
 ---
 
@@ -670,6 +677,10 @@ All seven questions are answered. Binding on the build.
 | 6 | **D-L5-1** | **Residual-alpha threshold — 0.40.** Below → tractability=fail, RV layer disabled. Revisit after a quarter of data. |
 | 7 | **D-L4-1** | **Book cadence & recipients — Monday morning, private.** Just the PM. Distribution decided later once the format has earned trust. |
 | 8 | **D-L3-1** | **Pack retention — 24 months full; then age out raw atom text.** Metadata, outcomes, and scorecard inputs kept forever. |
+| 9 | **D-A2-3** | **Consensus quarantine.** Extra sell-side agreement splits into `+support`, `+consensus`, `+crowding` (small / larger / larger still) with `confidence_gamma` capped on high crowding. Consensus is evidence of *crowding*, not truth. |
+| 10 | **D-A2-4** | **Mandatory adversarial case.** Every theme ships with an `AdversarialCase` at inference time (against_theme, supporting_evidence, system_response). Missing bear case → theme rejected at A2 emit. |
+| 11 | **D-A2-5** | **Typed falsification triggers.** Each trigger is `(series, condition, deadline, implication, retirement_state)`. Minimum one per theme; explicit `retirement_state` mapping so surveillance has no interpretive freedom when a trigger fires. |
+| 12 | **D-A2-6** | **Narrative surprise scored alongside numeric surprise.** Four axes on every theme (narrative / market / revision / contradiction). Distinct from L2's numeric surprise (which drives the state machine per-atom). |
 
 Decisions are recorded in code as constants under a `LIFECYCLE_DECISIONS_VERSION` stamp
 (mirroring harness D4). Changing one is a reviewed code change plus a version bump; every past
