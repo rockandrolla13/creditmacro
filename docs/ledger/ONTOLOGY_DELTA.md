@@ -202,3 +202,38 @@ completes a `ThemeObject` whose driver name appears in no source. (b) Run
 the two copies to diverge, which is the failure D-09 records.
 **Affected.** `engine/ledger/projection.py`,
 `tests/integration/test_ledger_render_projection.py`.
+
+### D-13 — In projection, the routable `main_theme` is the terminal node `vk`
+**Decision.** `projection.to_theme_object` uses the terminal node `vk` of the
+transmission chain as the routable `main_theme` in the projected `ThemeObject`,
+with the operational axis attached there, rather than synthesising a separate
+`theme:<id>` node outside the chain.
+**Rationale.** B-05 established a measured contract failure: the synthetic
+`main_theme` was not a member of `causal_chain.nodes`, so the projection was
+constructible but not routable. ONTOLOGY §Theme already fixes `X` as the
+observable proxy for `vk`, so making `vk` the routable theme node makes the
+projection say what the ontology already says without changing a normative rule.
+**Rejected.** Appending a synthetic node after `vk` and extending the chain to
+route through it — rejected because the synthetic node carries no transmission
+meaning and inflates `k`, which is WF-gated.
+**Affected.** `engine/ledger/projection.py`,
+`tests/integration/test_ledger_render_projection.py`, `engine/ledger_bridge.py`.
+
+### D-14 — `forward_ingest` returns foldable events, persistence stays opt-in
+**Decision.** `runner.forward_ingest` returns each admitted theme's `CREATED`
+event and any derived `STATUS_CHANGED` event needed to reflect activation, so
+the resulting registry is foldable and queryable as an event-sourced ledger.
+Persistence remains opt-in via `LedgerRunConfig.events_store`.
+**Rationale.** B-06 identified a mismatch between the ONTOLOGY's event-sourced
+contract and the forward re-ingest population path: computing status as a bare
+string discarded the event stream required by `fold`, projection, and as-of
+queries. Returning the created and derived status events restores parity with
+the contract while preserving deterministic tests. Because persistence remains
+optional, `recorded_at` is still stamped only in `substrate/store.py` under
+invariant I7; the runner does not mint transaction time locally.
+**Rejected.** Keeping `forward_ingest` as a status-only summary — it leaves the
+registry non-foldable. Auto-persisting from the runner — rejected because it
+would move `recorded_at` ownership out of the store and make persistence
+mandatory rather than opt-in.
+**Affected.** `engine/ledger/runner.py`, `engine/ledger_entrance.py`,
+`tests/integration/test_ledger_admission.py`.

@@ -110,3 +110,11 @@ FALSIFIED wiring, `queries.valid_over`, the wiki-prose extractor's LLM path.
 - [x] `ingest/prompts/pass_a_extract.py`, `pass_b_match.py` (no polarity/EvidenceLink)
 - [x] `engine/ledger/llm_json.py` — shared Messages-response / JSON extraction
 - [ ] BLOCKED B-01: match_confidence calibration harness on the golden corpus
+
+## Wave 3.2 — governance trail recorded (2026-08-11)
+- [x] `docs/ledger/ONTOLOGY_DELTA.md` appended `D-13` and `D-14` for the B-05 and
+      B-06 resolutions, with rationale, rejected alternatives, and affected files
+- [x] `docs/ledger/BLOCKED.md` updated B-05 and B-06 to resolved, naming `D-13`
+      and `D-14`
+- [x] `docs/ledger/BLOCKED.md` left B-07 OPEN while marking the proposed reading as
+      implemented behind `LedgerProjectionNotRoutable`
