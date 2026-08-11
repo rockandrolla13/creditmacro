@@ -80,6 +80,7 @@ transmission meaning and would inflate `k`, which is a WF-gated quantity.
 **Which side is right.** The engine invariant is right and the projection is
 wrong; the ONTOLOGY is silent, so this needs a `D-NN` delta once decided, not a
 local override.
+**Status (2026-08-11).** Resolved by `D-13`.
 **Affected.** `engine/ledger/projection.py`,
 `tests/integration/test_ledger_render_projection.py`, `engine/ledger_bridge.py`.
 
@@ -102,6 +103,7 @@ restating it as a string. Persistence to `JsonlEventStore` stays **opt-in** via
 `recorded_at` keeps being stamped only inside the store (I7). No constant
 changes; no change to `RegistryState`'s existing fields, so
 `tests/golden/corpus/expected_registry.json` stays valid.
+**Status (2026-08-11).** Resolved by `D-14`.
 **Affected.** `engine/ledger/runner.py`, `engine/ledger_entrance.py`,
 `tests/integration/test_ledger_admission.py`.
 
@@ -121,5 +123,8 @@ the resulting status. The projected object is retained beside the routed one in
 `LedgerDiscoveryResult` so both are auditable. If this reading is rejected, the
 alternative is to have `projection.py` own the routed status too, which would put
 strategy routing inside the ledger package.
+**Status (2026-08-11).** OPEN. Proposed reading is implemented behind
+`LedgerProjectionNotRoutable`; this remains a human question, not an agent
+decision.
 **Affected.** `engine/ledger_bridge.py`, `engine/ledger_entrance.py`,
 `docs/ledger/ONTOLOGY.md` §Lifecycle (AMEND A3 wording).

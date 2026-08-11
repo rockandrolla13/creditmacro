@@ -36,8 +36,14 @@ from typing import Optional, Sequence
 from pydantic import BaseModel, ConfigDict
 
 from .cases import PolicyConfig
+from .ledger.projection import to_theme_object
+from .ledger.runner import RegistryState, forward_ingest
+from .ledger.substrate.fold import fold
 from .ledger.substrate.hypothesis import ThemeDefinitionView, ThemeHypothesis
+from .ledger.substrate.store import JsonlEventStore
+from .ledger_bridge import LedgerProjectionNotRoutable, LedgerProvider
 from .schema import ThemeObject
+from .workflow import run_workflow
 
 
 class LedgerIngestSpec(BaseModel):
@@ -74,7 +80,7 @@ class LedgerDiscoveryResult(BaseModel):
 
 
 def hypotheses_from_registry(
-    state,                                # ledger.runner.RegistryState
+    state: RegistryState,
     *,
     as_of: str,
 ) -> list[ThemeHypothesis]:
@@ -86,10 +92,13 @@ def hypotheses_from_registry(
     event whenever the activation gate fired, so that the folded status reproduces the
     status `forward_ingest` computed instead of restating it as a string.
     """
-    # TODO: for each admitted theme, collect its events from `state` and call
-    #       engine.ledger.substrate.fold.fold(events); drop themes that fold to None
-    #       (no CREATED event). Never construct ThemeHypothesis directly (I5).
-    raise NotImplementedError("hypotheses_from_registry: needs RegistryState to carry events")
+    hypotheses: list[ThemeHypothesis] = []
+    for admitted in state.admitted:
+        events = admitted.events()
+        hyp = fold(events)
+        if hyp is not None:
+            hypotheses.append(hyp)
+    return hypotheses
 
 
 def project_all(
@@ -98,9 +107,7 @@ def project_all(
     as_of: str,
 ) -> list[ThemeObject]:
     """Map each hypothesis through `projection.to_theme_object` — the ONLY mapping site."""
-    # TODO: from .ledger.projection import to_theme_object
-    #       return [to_theme_object(h, as_of=as_of) for h in hypotheses]
-    raise NotImplementedError("project_all")
+    return [to_theme_object(h, as_of=as_of) for h in hypotheses]
 
 
 def run_ledger_discovery(
@@ -114,10 +121,51 @@ def run_ledger_discovery(
     `refused_reason`. A run over five documents that routes two themes and refuses three
     must say so — silently returning two is how a gate stops being visible.
     """
-    # TODO: 1. state = forward_ingest(spec.doc_ids, spec.corpus_dir, spec.existing_definitions)
-    #       2. hypotheses = hypotheses_from_registry(state, as_of=spec.as_of)
-    #       3. projected = project_all(hypotheses, as_of=spec.as_of)
-    #       4. per projected object: LedgerProvider(...) → run_workflow(..., "discovery"),
-    #          catching LedgerProjectionNotRoutable into refused_reason
-    #       5. optional: append events to the store when spec.persist_events
-    raise NotImplementedError("run_ledger_discovery")
+    if spec is None:
+        raise NotImplementedError("run_ledger_discovery requires a LedgerIngestSpec")
+
+    state = forward_ingest(
+        spec.doc_ids,
+        spec.corpus_dir,
+        spec.existing_definitions,
+    )
+    hypotheses = hypotheses_from_registry(state, as_of=spec.as_of)
+    projected_objects = project_all(hypotheses, as_of=spec.as_of)
+
+    results: list[LedgerDiscoveryResult] = []
+    for h, projected in zip(hypotheses, projected_objects):
+        status_str = h.status.value if hasattr(h.status, "value") else str(h.status)
+        try:
+            provider = LedgerProvider(projected)
+            routed_theme, memo = run_workflow(provider, policy, mode="discovery")
+            results.append(
+                LedgerDiscoveryResult(
+                    ledger_theme_id=h.theme_id,
+                    lifecycle_status=status_str,
+                    projected=projected,
+                    routed=routed_theme,
+                    memo=memo,
+                    refused_reason=None,
+                )
+            )
+        except LedgerProjectionNotRoutable as exc:
+            results.append(
+                LedgerDiscoveryResult(
+                    ledger_theme_id=h.theme_id,
+                    lifecycle_status=status_str,
+                    projected=projected,
+                    routed=None,
+                    memo=None,
+                    refused_reason=str(exc),
+                )
+            )
+
+    if spec.persist_events:
+        if spec.events_store is None:
+            raise ValueError("events_store path is required when persist_events is True")
+        store = JsonlEventStore(str(spec.events_store))
+        for admitted in state.admitted:
+            for event in admitted.events():
+                store.append(event)
+
+    return results

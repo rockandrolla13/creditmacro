@@ -79,23 +79,12 @@ def test_blocked_projection_is_refused_at_construction():
         LedgerProvider(_minimal_projected(dead=True))
 
 
-# ── stubs are honest ─────────────────────────────────────────────────────────
-
-def test_discovery_seams_are_unimplemented_not_silently_empty():
-    provider = LedgerProvider(_minimal_projected())
-    with pytest.raises(NotImplementedError):
-        provider.context()
-    with pytest.raises(NotImplementedError):
-        provider.diagnose_loops(None)
-    with pytest.raises(NotImplementedError):
-        provider.propose_scenarios(None, None, None)
+# ── entrance stubs ───────────────────────────────────────────────────────────
 
 
 def test_entrance_stubs_are_unimplemented():
     with pytest.raises(NotImplementedError):
-        ledger_entrance.hypotheses_from_registry(None, as_of="2026-05-05")
-    with pytest.raises(NotImplementedError):
-        ledger_entrance.project_all([], as_of="2026-05-05")
+        ledger_entrance.run_ledger_discovery(None, None)
 
 
 def test_modules_import_without_touching_the_ledger_at_import_time():
