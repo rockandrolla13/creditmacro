@@ -37,10 +37,13 @@ from pydantic import BaseModel, ConfigDict
 
 from .cases import PolicyConfig
 from .ledger.projection import to_theme_object
-from .ledger.runner import RegistryState
+from .ledger.runner import RegistryState, forward_ingest
 from .ledger.substrate.fold import fold
 from .ledger.substrate.hypothesis import ThemeDefinitionView, ThemeHypothesis
+from .ledger.substrate.store import JsonlEventStore
+from .ledger_bridge import LedgerProjectionNotRoutable, LedgerProvider
 from .schema import ThemeObject
+from .workflow import run_workflow
 
 
 class LedgerIngestSpec(BaseModel):
@@ -118,10 +121,51 @@ def run_ledger_discovery(
     `refused_reason`. A run over five documents that routes two themes and refuses three
     must say so — silently returning two is how a gate stops being visible.
     """
-    # TODO: 1. state = forward_ingest(spec.doc_ids, spec.corpus_dir, spec.existing_definitions)
-    #       2. hypotheses = hypotheses_from_registry(state, as_of=spec.as_of)
-    #       3. projected = project_all(hypotheses, as_of=spec.as_of)
-    #       4. per projected object: LedgerProvider(...) → run_workflow(..., "discovery"),
-    #          catching LedgerProjectionNotRoutable into refused_reason
-    #       5. optional: append events to the store when spec.persist_events
-    raise NotImplementedError("run_ledger_discovery")
+    if spec is None:
+        raise NotImplementedError("run_ledger_discovery requires a LedgerIngestSpec")
+
+    state = forward_ingest(
+        spec.doc_ids,
+        spec.corpus_dir,
+        spec.existing_definitions,
+    )
+    hypotheses = hypotheses_from_registry(state, as_of=spec.as_of)
+    projected_objects = project_all(hypotheses, as_of=spec.as_of)
+
+    results: list[LedgerDiscoveryResult] = []
+    for h, projected in zip(hypotheses, projected_objects):
+        status_str = h.status.value if hasattr(h.status, "value") else str(h.status)
+        try:
+            provider = LedgerProvider(projected)
+            routed_theme, memo = run_workflow(provider, policy, mode="discovery")
+            results.append(
+                LedgerDiscoveryResult(
+                    ledger_theme_id=h.theme_id,
+                    lifecycle_status=status_str,
+                    projected=projected,
+                    routed=routed_theme,
+                    memo=memo,
+                    refused_reason=None,
+                )
+            )
+        except LedgerProjectionNotRoutable as exc:
+            results.append(
+                LedgerDiscoveryResult(
+                    ledger_theme_id=h.theme_id,
+                    lifecycle_status=status_str,
+                    projected=projected,
+                    routed=None,
+                    memo=None,
+                    refused_reason=str(exc),
+                )
+            )
+
+    if spec.persist_events:
+        if spec.events_store is None:
+            raise ValueError("events_store path is required when persist_events is True")
+        store = JsonlEventStore(str(spec.events_store))
+        for admitted in state.admitted:
+            for event in admitted.events():
+                store.append(event)
+
+    return results
