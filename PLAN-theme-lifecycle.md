@@ -249,6 +249,39 @@ class FactorTractability(BaseModel):
     score: float                        # residual-alpha share; ≥ 0.40 → pass (D-L5-1)
     reason: str                         # harness-written; not model narrative
 
+class ConsensusEffect(BaseModel):       # the split-effect rule (D-A2-3, "quarantine")
+    # When N sell-side sources agree on a theme, the effect is SPLIT rather than compounded.
+    support_delta: float                # small; consensus supports EXISTENCE, weakly
+    consensus_delta: float              # larger; agreement is agreement
+    crowding_delta: float               # larger still; agreement raises priced-in risk
+    confidence_gamma_capped: bool       # confidence cannot exceed a ceiling on high crowding
+    reason: str                         # harness-written
+
+class SurpriseMetrics(BaseModel):       # narrative-level surprise (D-A2-6)
+    # L2 handles NUMERIC surprise for state transitions. This block handles THEME-level
+    # narrative surprise, which is what makes a transient theme valuable.
+    narrative_surprise: float           # is the theme new vs recent research consensus?
+    market_surprise: float              # is the theme not yet in spreads / basis / flows?
+    revision_surprise: float            # are analysts changing view? (Δ position, not level)
+    contradiction_surprise: float       # is strong evidence appearing against consensus?
+
+class AdversarialCase(BaseModel):       # mandatory bear case (D-A2-4)
+    # Every active theme MUST ship with the strongest case against itself, drawn from grounded
+    # evidence — not an optional red-team step.
+    against_theme: str                  # G8 closed-vocabulary; uses only kept atoms
+    supporting_evidence: list[dict]     # [{atom_id, source, role: "contradiction"|"technical"}]
+    system_response: str                # rebut, or move the numbers — one of the two
+    conviction_cap: Optional[float]     # applied if the bear case remains material
+
+class FalsifierTrigger(BaseModel):      # typed, not a free string (D-A2-5)
+    series: str                         # e.g. "CCC/BB OAS ratio"
+    condition: str                      # e.g. "compresses below 3-month median"
+    deadline: Optional[str]             # e.g. "within 3 weeks"; None = open-ended
+    implication: str                    # what its firing means for the theme
+    retirement_state: Literal[          # explicit surveillance mapping when it fires
+        "weakening", "contradicted", "invalidated", "played_out"
+    ]
+
 class ThemeCandidate(BaseModel):        # frozen
     theme_id: str
     canonical_name: str                 # deduped across the corpus
@@ -259,14 +292,17 @@ class ThemeCandidate(BaseModel):        # frozen
     source_coverage: SourceCoverage
     initial_lifecycle: InitialLifecycle # DEFAULTS ONLY; surveillance takes over at first tick
     evidence_scores: EvidenceScores
+    consensus_effect: ConsensusEffect   # required — the quarantine rule
+    surprise_metrics: SurpriseMetrics   # required — narrative surprise
+    adversarial_case: AdversarialCase   # required — bear case is mandatory
     mapped_regimes: MappedRegimes
     factor_map: FactorMap
     factor_tractability: FactorTractability
-    falsification_triggers: list[str]   # pre-registered at inference time; frozen
+    falsification_triggers: list[FalsifierTrigger]   # typed, ≥1 required
     horizon: Optional[str] = None
 
 class ThemeCandidateSet(BaseModel):     # frozen; emitted weekly
-    contract_version: str               # "themeset/2"  ← bumped for the fuller schema
+    contract_version: str               # "themeset/3"  ← bumped for consensus / surprise / adversarial / typed triggers
     as_of: str
     themes: list[ThemeCandidate]
     dedup_registry: dict[str, str]      # every alias → its canonical theme_id
@@ -289,6 +325,42 @@ class ThemeCandidateSet(BaseModel):     # frozen; emitted weekly
   stamps the formula, weights are constants in code, model never asserts them. `consensus_score`
   and `crowding_score` in particular consume the `ConsensusSignal` stream — attention data, not
   document counts.
+- **Consensus quarantine (D-A2-3).** Sell-side consensus is **not** evidence a theme is true;
+  it is evidence the theme is **crowded**. When N ≥ 2 additional sell-side sources agree, the
+  effect is **split** — a small bump to `support_score` for theme existence, a larger bump to
+  `consensus_score`, a larger bump still to `crowding_score`, and `confidence_gamma` is
+  **capped** on high crowding. Reference numbers from the paper import: `+0.10 support`,
+  `+0.20 consensus`, `+0.25 crowding` per additional independent publisher, cap at
+  configurable ceiling. Otherwise the mesh becomes a sell-side echo machine. Composes with
+  `SURVEILLANCE_BUILD_PLAN` §5.9 gate 3 ("attention ≠ evidence") — this is that gate's
+  scoring implementation at inference time.
+- **Contradiction increases informational value.** A credible contradicting source **lowers**
+  `crowding_score` and **raises** `contradiction_surprise` (see `SurpriseMetrics`) — the
+  opposite direction from a confirming one. Disagreement is signal.
+- **Narrative surprise is scored, not just level (D-A2-6).** `SurpriseMetrics` asks four
+  questions the paper insists on: is the theme new vs recent research consensus
+  (`narrative_surprise`); is it not yet in spreads / basis / flows (`market_surprise`); are
+  analysts changing view rather than restating (`revision_surprise`); is strong evidence
+  appearing against consensus (`contradiction_surprise`). A theme that scores high on all four
+  is **emerging**; one that scores low on all four is **already-priced consensus**. This is
+  distinct from L2's numeric surprise, which lives per-atom and drives the surveillance state
+  machine. Both exist; they operate at different layers.
+- **Mandatory adversarial case (D-A2-4).** Every theme ships with an `AdversarialCase` — the
+  strongest bear case, built only from grounded atoms (G8 closed-vocabulary), with a
+  `system_response` that either rebuts it or moves numbers. Missing bear case → theme is
+  **rejected** at A2 emit; a theme without a challenger is a theme without a fair test.
+  Surveillance §5.7 blind disconfirm passes still run at monitoring time — this is the
+  inference-time equivalent so the theme cannot be born unchallenged.
+- **Typed falsification triggers (D-A2-5).** Each `FalsifierTrigger` carries
+  `(series, condition, deadline, implication, retirement_state)` — not a free string. The
+  `retirement_state` is the **explicit** surveillance transition that fires when the trigger
+  breaches (weakening / contradicted / invalidated / played_out), so the state machine has no
+  interpretive freedom. Minimum **one** trigger per theme; theme without a trigger is rejected
+  (§5.9 gate 1 — "pre-registered falsifier is the primary trigger, not the narrative").
+- **Retirement mechanics — the explicit mapping.** Trigger fires → transition to
+  `retirement_state`. No fresh reinforcement past `half_life_days` → `fading`. Past
+  `max_life_days` with no resolution → reviewed for retirement (surveillance owns the actual
+  transition; A2 supplies the deadlines).
 - **Macro and credit factor maps are kept separate.** `factor_map.macro` (growth, inflation,
   policy, financial conditions) is context for the book and for cross-theme portfolio inspection.
   `factor_map.credit` is what L5's tractability gate reads. Conflating them is how "the trade is
@@ -296,11 +368,9 @@ class ThemeCandidateSet(BaseModel):     # frozen; emitted weekly
 - **Tractability is decided here, once.** `factor_tractability.decision` follows D-L5-1:
   residual-alpha share ≥ **0.40** → pass. Fail is retained but flagged `rv_layer_status="disabled"`;
   L5's gate short-circuits without recomputing.
-- **Falsification triggers are pre-registered on the candidate.** Surveillance and L5 read them
-  from here; they cannot be edited post-hoc (§5.9 gate 1 — "pre-registered falsifier is the
-  primary trigger, not the narrative").
 - **Contradicting atoms are first-class.** Every theme carries both `supporting_atom_ids` and
-  `contradicting_atom_ids`, satisfying the "mandatory adversarial evidence" spirit at inference,
+  `contradicting_atom_ids`, and every contradicting atom that survived G1/G2 is available to
+  the `AdversarialCase` writer — satisfying "mandatory adversarial evidence" at inference,
   not just at monitoring.
 
 ### How the assessment feeds L1–L5
