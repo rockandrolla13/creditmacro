@@ -151,6 +151,15 @@ confidence, a grounding verdict, or a ledger entry (G4/G1/G6).
 corpus is implicitly using. Each regime is a named cluster with defining features drawn from
 grounded atoms.
 
+**Opinion-driven, not number-driven (D-A1-1, decided 2026-08-09).** A1 clusters on
+**opinion-bearing atoms only** — analyst posture, narrative frame, qualitative view (e.g. *"we
+think the cycle is late,"* *"quality is under-priced,"* *"lending standards are tightening"*).
+Numeric-only atoms (a default-rate table, a spread level) are **excluded from regime clustering**
+— they belong to theme evidence (§4 L2), not to regime identity. A regime is the market's
+*posture*, not its measurement. Concretely: an atom qualifies for A1 clustering iff its
+`claim_kind ∈ {view, forecast, framing, mechanism}` — never `{measurement, level, tabular}`.
+`RegimeType.defining_features` and `prevalence` are computed from the opinion subset only.
+
 ```
 class RegimeType(BaseModel):        # frozen
     regime_id: str
