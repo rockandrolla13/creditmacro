@@ -6,7 +6,89 @@ Based on the Alaph four-step process (theme -> valuation -> trade selection
 -> portfolio construction). 
 It is an EPISTEMIC engine. It STOPS at a PM
 decision memo. 
-           -> Q13 open questions; hands control to the human
+
+## Architecture
+
+Status tags are load-bearing: ✅ wired and reachable from a production entry point ·
+⚠️ built and tested but NOT reachable from one · 🚧 scaffolded stubs · ❌ absent.
+Trust the tag over the prose. Verified 2026-08-11 against the import graph, not from memory.
+
+### The spine
+
+Stage 0 (ingestion) -> ThemeObject (shared typed state) populated by 4 engines -> PM gate.
+
+Stage 0 parses research into THREE typed streams, kept separate:
+  - Observation     (facts: developments, events) -> update driver levels
+  - CandidateTheme  (narratives: core themes)      -> become ThemeObjects
+  - ConsensusSignal (attention: hot topics)        -> prior for market-implied q
+Nominate candidate themes RANKED BY divergence(evidence, attention): high
+factual support + low attention = high latent edge. This is a pre-screen on (p - q).
+
+Engine 1  Driver + axis      -> Q1 theme, Q2 universe, Q3 axis (MUST be a computable series)
+Engine 2  Scenario pricing   -> Q4 normal FV, Q5 scenario FV = sum p_s X_s,
+                                Q6 priced-in q via max-entropy, Q7 edge = <p - q, X>
+Engine 3  Expression scoring -> Q8 candidates, Q9 best = gated multiplicative score
+Engine 4  Sizer + risk       -> Q10 size (Alaph grid), Q11 stop, Q12 falsifiers
+PM gate                       -> Q13 open questions; hands control to the human
+
+`engine/workflow.py::run_workflow(provider, policy, mode)` walks this. `mode="discovery"`
+stops at ranked strategy families; `mode="expression"` runs the full four. The four engines
+sit behind `Protocol` seams in `engine/protocols.py` — swap the provider, not the pipeline.
+
+### The two entrances, and which one works
+
+❌ **`stage0.parse_research_text`** — raw text -> the three streams. Raises
+NotImplementedError. This is the front door and it has never opened.
+⚠️ **`ledger.runner.forward_ingest`** — corpus doc -> AtomicClaims -> clustered ->
+admitted themes. It works and is tested. Until 2026-08-11 nothing called it.
+
+### The ledger (`engine/ledger/`) — event-sourced substrate
+
+A theme is NEVER stored as a row. θ = (M, σ, X, H, F) is a **fold over its event stream**
+(`substrate/fold.py`, the sole permitted constructor — invariant I5). Scores S_θ / B_θ are
+PURE derived views, never stored (I1). `d(θ) = σ·Πs_j` is computed, never a field (I6).
+`substrate/store.py` is append-only with no update or delete path — the constraint is
+enforced by absence, not by comment.
+
+`docs/ledger/ONTOLOGY.md` is NORMATIVE and wins every conflict with code, plan or comment.
+Every non-derivable decision goes in `ONTOLOGY_DELTA.md`; every undetermined question goes
+in `BLOCKED.md`. Changing a value in `constants.py` is an ONTOLOGY change requiring both —
+never a local override. **This is not ceremony.** `PLAN-wave1-grounding.md` tasks 1.4/1.5
+instructed agents to delete the `abs()` from the activation gate on a plausible reading of
+the code alone; that plan never mentions the ONTOLOGY, which states the rule twice. The
+result was a self-ratifying regression — the same commit wrote the bug and a test blessing
+it. See ONTOLOGY_DELTA D-09. Read the ontology before changing ledger behaviour.
+
+### Firewalls — four, all fail-closed
+
+1. **Method/case memory** (`memory.py`, `firewall.py`). Phase A retrieves ONLY `method`
+   pages and REFUSES everything else. `freeze()` emits a SHA-256 `FrozenSnapshot`; the hash
+   is published to the retriever BEFORE phase B unlocks, so any case read is provably
+   post-freeze. Phase B writes an additive `PostCaseCalibration` and mutates nothing.
+2. **Discovery/expression fence.** A provider missing `enumerate_expressions` /
+   `size_and_risk` cannot reach expression mode. Absence IS the guard — do not add seams
+   "for completeness".
+3. **Temporal** (`temporal.py`) — fail-closed on missing `current_date`.
+4. **No-trade** (`wiki_integration.py`) — no legs, sizing, hedge ratios or execution in
+   discovery output.
+
+### Grounding kernel (`engine/grounding/`) — "LLM proposes, harness disposes"
+
+✅ G1 span-grounded extraction · ✅ G2 numeric provenance · ❌ G3–G8 (no `confidence.py`,
+`emit_gate.py`, `provenance_ledger.py`). `SourceIndex.find_span` matches exact-then-
+normalized and NEVER fuzzy: a near-match is what a fabricating model produces. Known
+defect: the tokenizer's right-edge boundary guard drops real figures (`$1.2bn`, `500mn`,
+`10y` all return nothing), and because `verify_atom` treats it as ground truth, a correctly
+read figure can be marked ungrounded.
+
+### Where the code actually is
+
+✅ workflow + 4 engines · ✅ 4 firewalls · ✅ surveillance core + monitor agent
+(`surveillance.py`, `surveillance_agent.py`) · ✅ wiki integration + 14 validators
+⚠️ ledger substrate, ingest, projection — 20 modules, ~2000 lines, reachable only from
+   tests until the `ledger_bridge` seam lands
+🚧 `ledger_bridge.py` / `ledger_entrance.py` — typed stubs; `PLAN-ledger-entrance.md` fills them
+❌ compression (`ThemeCompressionAgent`), news critic, G3–G8, lifecycle L1–L5, A1/A2 assessment
 
 ## Hard discipline gates (refuse to emit a ThemeObject without these)
 1. axis is OPERATIONAL: a named spread/slope with a real historical time series
