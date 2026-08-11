@@ -58,19 +58,27 @@ def to_theme_object(theme: ThemeHypothesis, as_of: str) -> ThemeObject:
 
     # Top-level causal object (Discovery Gate 1) + a routable main_theme (Gate 2).
     node_ids = [edges[0].v_from] + [e.v_to for e in edges]
+    main_theme = CausalNode(
+        id=node_ids[-1],
+        statement=node_ids[-1],
+        kind="theme",
+        axis=axis,
+        axis_operational=True,
+    )
     causal_nodes = [
-        CausalNode(id=nid, statement=nid,
-                   kind="cause" if i == 0 else ("consequence" if i == len(node_ids) - 1 else "theme"))
-        for i, nid in enumerate(node_ids)
-    ]
+        CausalNode(
+            id=nid,
+            statement=nid,
+            kind="cause" if i == 0 else "theme",
+        )
+        for i, nid in enumerate(node_ids[:-1])
+    ] + [main_theme]
     causal_chain = CausalChain(
         nodes=causal_nodes,
-        edges=[CausalEdge(from_id=e.v_from, to_id=e.v_to, mechanism="transmission", inferred=False)
-               for e in edges],
-    )
-    main_theme = CausalNode(
-        id=f"theme:{theme.theme_id}", statement=f"routed theme {theme.theme_id}",
-        kind="theme", axis=axis, axis_operational=True,
+        edges=[
+            CausalEdge(from_id=e.v_from, to_id=e.v_to, mechanism="transmission", inferred=False)
+            for e in edges
+        ],
     )
 
     live = theme.status in _LIVE
