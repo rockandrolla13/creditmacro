@@ -45,7 +45,9 @@ value up" to "vk up" (+1) or "vk down" (−1). X must be a member of the
 tracked-axis registry.
 
 **H — forward horizon.** timedelta bounding valid time of the hypothesis.
-Constraint: H ≤ H_MAX = 120 days.
+Constraint: 0 < H ≤ H_MAX = 120 days. The lower bound is strict: H is the
+width of the valid-time window (§Bitemporal) and the base of the evidence
+half-life h = H/2 (§Scoring); at H ≤ 0 both are degenerate.
 
 **F — falsifier.** A decidable predicate over available market-data
 series, evaluated by the surveillance layer through the Breach Buffer.
@@ -156,12 +158,18 @@ A theme is admissible iff
     WF(θ) := (a) k ≥ 2                       — at least 1 intermediate node
            ∧ (b) decidable(F)                — per §Theme
            ∧ (c) X ∈ tracked-axis registry
-           ∧ (d) H ≤ H_MAX (= 120 days)
+           ∧ (d) 0 < H ≤ H_MAX (= 120 days)
            ∧ (e) any externally stated direction equals d(θ) = σ·Πsj
 
 Clause (a) is the theme/forecast boundary: a k = 1 "theme" ("spreads
 widen because risk-off") has no transmission to surveil and no falsifier
 other than its own prediction; it is a directional call and is rejected.
+Clause (d) is two-sided (⟦AMEND D-10⟧): the upper bound is the original
+H_MAX; the lower bound makes explicit what §Bitemporal and §Scoring already
+imply. A theme with H ≤ 0 has an empty valid-time window and a degenerate
+half-life, so it would be admitted, score a permanent S_θ = 0 / B_θ = 0, and
+never activate — silently invisible rather than rejected.
+
 Objects failing WF route to the NEEDS_STRUCTURING queue with the failing
 clause named. Nothing is ever force-admitted.
 
@@ -492,7 +500,7 @@ auto-applied. Bidirectional sync is forbidden (two-master problem).
 
 ## §Constants (single point of definition)
 
-    H_MAX            = 120 days
+    H_MAX            = 120 days      (H domain: 0 < H ≤ H_MAX)
     J_MERGE          = 0.5
     COS_COSMETIC     = 0.92
     COS_NOVELTY      = 0.88

@@ -73,6 +73,36 @@ def test_admits_and_synthesizes_wf_theme():
     assert all(l.polarity == 1 for l in out.founding_links)   # dir+1 · d(θ)+1 · sign+1
 
 
+# ── contested clusters are not directional (§Theme, D-11) ────────────────────
+def _contested_cluster(directions):
+    """Three institutions, one shared mechanism, differing directions."""
+    return OrphanCluster(claims=tuple(
+        _claim(f"c{i}", inst, ["funding_stress", "liquidity_premium"], direction=d,
+               date="2026-04-01")
+        for i, (inst, d) in enumerate(zip(("JPM", "GS", "PIMCO"), directions))
+    ))
+
+
+def test_contested_cluster_is_not_admitted_as_bullish():
+    """Σ direction == 0 must NOT resolve to σ = +1. Regression: the tie-break used
+    `>= 0`, admitting a maximally contested cluster as a bullish theme, silently."""
+    out = admit(_contested_cluster((1, -1, 0)))
+    assert out.status == "needs_structuring"
+    assert out.definition is None                 # no σ was invented
+    assert "contested" in out.reason
+
+
+def test_all_neutral_cluster_is_not_admitted_as_bullish():
+    """The degenerate tie: every claim is direction 0. Still no σ."""
+    assert admit(_contested_cluster((0, 0, 0))).status == "needs_structuring"
+
+
+def test_sigma_still_follows_a_real_majority_either_way():
+    """The tie guard must not swallow clusters that DO have a net direction."""
+    assert admit(_contested_cluster((1, 1, -1))).definition.shock_direction == 1
+    assert admit(_contested_cluster((-1, -1, 1))).definition.shock_direction == -1
+
+
 def test_out_of_vocab_modal_tag_routes_to_review():
     cluster = OrphanCluster(claims=(
         _claim("o0", "JPM", ["made_up_node"], date="2026-04-01"),

@@ -87,5 +87,23 @@ def test_wf_rejects_over_horizon():
     assert wf_predicate(_theme(horizon=200)).failing_clause == "d"
 
 
+# ── WF clause (d) is a two-sided bound: 0 < H ≤ H_MAX (D-10) ─────────────────
+def test_wf_rejects_zero_horizon():
+    """§WF (d) lower bound. H = 0 is an empty valid-time window (§Bitemporal) and a
+    degenerate half-life h = H/2 (§Scoring): the theme would be admitted, score a
+    permanent zero, and never surface. Reject at the gate instead."""
+    assert wf_predicate(_theme(horizon=0)).failing_clause == "d"
+
+
+def test_wf_rejects_negative_horizon():
+    assert wf_predicate(_theme(horizon=-30)).failing_clause == "d"
+
+
+def test_wf_accepts_boundary_horizons():
+    """Both ends of §WF (d) inclusive-above / exclusive-below: H = 1 and H = H_MAX."""
+    assert wf_predicate(_theme(horizon=1)).ok is True
+    assert wf_predicate(_theme(horizon=120)).ok is True
+
+
 def test_wf_wellformed_passes():
     assert wf_predicate(_theme(), stated_direction=1).ok is True

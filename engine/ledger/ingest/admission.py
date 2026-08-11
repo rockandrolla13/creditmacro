@@ -9,6 +9,9 @@ vocab modal tag → review queue (never auto-added).
 Synthesis rule (deterministic; ONTOLOGY leaves it heuristic — see ONTOLOGY_DELTA D-08):
 mechanism = top-2 modal in-vocab tags → SYNTH_VK, signs +1; σ = sign(Σ claim.direction);
 X = modal market_variable; H = min horizon; F = synthesized. theme_id = admitted:<a>-<b>.
+Σ claim.direction = 0 yields sign 0, which is not a legal σ ∈ {+1, −1} (§Theme): the
+cluster is CONTESTED and routes to needs_structuring, never to a synthesized direction
+(ONTOLOGY_DELTA D-11).
 """
 from __future__ import annotations
 
@@ -118,12 +121,23 @@ def admit(cluster: OrphanCluster) -> AdmissionOutcome:
     if len(in_vocab_modal) < 2:
         return AdmissionOutcome(status="needs_structuring", reason="fewer than 2 distinct in-vocab tags (k<2)")
 
+    # σ = sign(Σ direction). A cluster whose directions cancel exactly is CONTESTED:
+    # the evidence supports no σ ∈ {+1, −1}, and §Theme forbids representing "the
+    # market disagrees" as a direction. Breaking the tie toward +1 would invent a
+    # bullish theme out of a directionless one, silently. Route it for structuring.
+    net_direction = sum(c.direction for c in claims)
+    if net_direction == 0:
+        return AdmissionOutcome(
+            status="needs_structuring",
+            reason="contested cluster: Σ claim.direction == 0, no σ ∈ {+1,-1} supported",
+        )
+    sigma = 1 if net_direction > 0 else -1
+
     a, b = in_vocab_modal[0], in_vocab_modal[1]
     mechanism = Mechanism(edges=(
         TransmissionEdge(v_from=a, v_to=b, sign=1),
         TransmissionEdge(v_from=b, v_to=SYNTH_VK, sign=1),
     ))
-    sigma = 1 if sum(c.direction for c in claims) >= 0 else -1
     axis = Counter(c.market_variable for c in claims).most_common(1)[0][0]
     horizon = min(c.horizon_days for c in claims)
     falsifier = f"synthesized: axis {axis} fails to track the {a} channel over the horizon"

@@ -100,3 +100,105 @@ module-level named values (not a Pydantic config object). Runtime settings
 **Rationale.** §Constants mandates single-point named references and treats
 a change as an ONTOLOGY edit — these are invariants, not serialisable config.
 **Affected.** `constants.py`, `runner.py`.
+
+### D-09 — Activation is `|S_θ| ≥ 2`; commit e4b6740 dropped the absolute value
+**Decision.** The ONTOLOGY wins. `runner.forward_ingest` restores
+`abs(sv.S) >= ACTIVATION_ABS_SCORE_MIN`, and the test that codified the
+regression (`test_negative_score_with_required_breadth_does_not_activate`)
+is amended to assert ACTIVE, renamed
+`test_negative_score_with_required_breadth_activates_as_contested`.
+**Rationale.** §Lifecycle and §Constants both state the gate as
+`B_θ ≥ 2 ∧ |S_θ| ≥ 2`, and §Theme "Interpretation" plus §Lifecycle both say a
+theme with `S_θ < 0` and no breach is CONTESTED — "a reportable sub-state of
+ACTIVE, not dead". `engine/ledger/lifecycle.py:4,20` and `PLAN_TRACKER.md`
+already carried `|S|`, and the constant is literally named
+`ACTIVATION_ABS_SCORE_MIN`; only `runner.py:84` disagreed. Commit **e4b6740**
+("orch task 1.5", 2026-08-10) changed that line FROM `abs(sv.S) >= …` TO
+`sv.S >= …` and, in the same commit, added a test asserting the new wrong
+behaviour — so the regression was self-ratifying. The effect was not cosmetic:
+a theme the whole street agrees is NOT happening (strong negative consensus,
+breadth ≥ 2) is exactly as informative as one it agrees IS, and under the
+regression it was permanently parked at CANDIDATE and never reported.
+**Rejected.** (a) Amend the ONTOLOGY to match the code (drop the absolute
+value) — it would contradict §Theme's CONTESTED interpretation in two places
+and make `ACTIVATION_ABS_SCORE_MIN` a lie. (b) A local override in `runner.py`
+with a comment — Tier-1 discipline forbids it; the ONTOLOGY is the contract.
+**Affected.** `engine/ledger/runner.py:84`,
+`tests/unit/test_ledger_activation.py`. No ONTOLOGY edit: it was already
+right. Golden end-state unchanged (the golden theme scores S > 0).
+
+### D-10 — WF clause (d) is two-sided: `0 < H ≤ H_MAX`
+**Decision.** Amend ONTOLOGY §WF clause (d) and §Theme H to `0 < H ≤ H_MAX`;
+`substrate/identity.wf_predicate` rejects `horizon_days ≤ 0` as clause (d).
+The bound is expressed as strict positivity, not a new tunable constant, so
+`constants.py` is unchanged.
+**Rationale.** The predicate had only an upper bound, so `H = 0` and `H = -30`
+were well-formed. The consequence is silent, not loud: `ingest/scoring_view.
+_decay` returns 0.0 for `horizon_days ≤ 0`, so on identical evidence (three
+unanimous conviction-3 claims from three institutions dated 2026-04-01/03/06,
+as-of 2026-04-06) `H = 90` gives S = 8.64 / B = 3 and activates, while `H = 0`
+and `H = -30` both give S = 0.0 / B = 0 and can never activate under any
+evidence. Such a theme is admitted, well-formed, and permanently invisible —
+the worst failure mode for a ledger whose job is surfacing. The ONTOLOGY
+determines the bound rather than leaving it open: §Bitemporal defines valid
+time as the window `[effective_at, effective_at + H]` (empty at H = 0) and
+§Scoring keys the evidence half-life to `h = H/2` (degenerate at H = 0). At
+day granularity that fixes the interim floor at H ≥ 1 day.
+**Rejected.** (a) Leave WF alone and treat the `_decay` zero-guard as the
+defence — it converts a malformed theme into a silent one, which is what the
+NEEDS_STRUCTURING queue exists to prevent. (b) Introduce an `H_MIN` constant
+above 1 day (e.g. 7 or 30) — not determined by the ONTOLOGY, and a new
+constant is a §Constants edit; routed to BLOCKED **B-04** instead.
+**Affected.** `docs/ledger/ONTOLOGY.md` §Theme + §WF + §Constants (amended),
+`engine/ledger/substrate/identity.py`, `tests/unit/test_ledger_identity_wf.py`,
+`tests/unit/test_ledger_activation.py`, `docs/ledger/BLOCKED.md` (B-04).
+
+### D-11 — A directionless orphan cluster is CONTESTED, not bullish
+**Decision.** `ingest/admission.admit` routes a cluster whose claim directions
+cancel exactly (`Σ claim.direction == 0`) to `needs_structuring`. It no longer
+synthesizes a direction. No ONTOLOGY edit: §Theme already fixes the domain.
+**Rationale.** The synthesis rule (D-08) read `σ = 1 if sum(...) >= 0 else -1`,
+so the `>= 0` silently resolved an exact tie to +1. Reproduced, not inferred: a
+cluster of three claims from three distinct institutions with directions +1, −1
+and 0 — a maximally contested cluster — was **admitted with σ = +1**, with no
+flag and no review tag. §Theme line 36 fixes the domain at `σ ∈ {+1, −1}`, so
+`sign(0) = 0` has no legal representation and the old rule had to invent one.
+This is worse than a mislabel: §Identity line 111 makes theme identity the pair
+`(M, σ)`, so breaking the tie MINTS A DISTINCT THEME — evidence supporting
+neither direction founds the bullish one, and the bearish twin `(M, −σ)` is a
+different theme that now cannot be founded from the same claims. §Theme line 68
+forbids exactly this conflation: *"Never represent 'the opposite is happening'
+as a negative score on (M, +σ)."* It is also the failure the project exists to
+prevent — CLAUDE.md: *"A missing output is always preferable to an unsourced
+one. Blocked beats plausible."*
+**Rejected.** (a) Admit with σ = +1 and set a review tag — the theme is still
+founded with a fabricated identity; a tag on a wrong object does not unmake it.
+(b) Break the tie by conviction-weighted sum — invents a tie-break the ONTOLOGY
+does not license, and merely moves the exact-zero case rather than removing it.
+(c) Emit both `(M, +1)` and `(M, −1)` — founds two themes from evidence that
+supports neither, and doubles the registry on the least informative clusters.
+**Affected.** `engine/ledger/ingest/admission.py`,
+`tests/integration/test_ledger_admission.py`. Golden end-state unchanged (the
+golden corpus cluster has a non-zero net direction).
+
+### D-12 — `to_theme_object` refuses an empty mechanism rather than crashing
+**Decision.** `projection.to_theme_object` raises `ValueError` naming the theme
+when `mechanism.edges` is empty, and the dead `theme.mechanism.v0 or "driver"`
+fallback is deleted. No ONTOLOGY edit: WF clause (a) already rejects `k < 2`.
+**Rationale.** Two lines of one function disagreed about whether edges could be
+empty. Line 29 guarded for it (`v0 or "driver"`); line 48 indexed `edges[0]`
+unguarded and raised `IndexError: tuple index out of range`. Reproduced by
+folding a `CREATED` event carrying `{"edges": []}` — legal, because `fold` is
+the sole constructor (I5) and deliberately does NOT run WF, so a malformed
+hypothesis can reach the bridge. The guard was the wrong half to keep: a chain
+with no `v0` and no `vk` has no transmission to render, so `"driver"` was a
+fabricated node name entering a causal chain. Refusing names the failure at the
+boundary and routes the theme to NEEDS_STRUCTURING, where WF clause (a) already
+says it belongs.
+**Rejected.** (a) Keep the `"driver"` placeholder and guard line 48 to match —
+completes a `ThemeObject` whose driver name appears in no source. (b) Run
+`wf_predicate` inside the projection — makes the renderer a second WF gate;
+`substrate/identity.wf_predicate` is the single gate, and duplicating it invites
+the two copies to diverge, which is the failure D-09 records.
+**Affected.** `engine/ledger/projection.py`,
+`tests/integration/test_ledger_render_projection.py`.

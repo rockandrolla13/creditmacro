@@ -60,6 +60,12 @@ def wf_predicate(theme: ThemeShape, *, stated_direction: Optional[int] = None) -
         return WFResult(False, "b", "falsifier empty / not decidable")
     if not vocab.is_tracked_axis(theme.operational_axis):
         return WFResult(False, "c", f"axis {theme.operational_axis!r} not in tracked-axis registry")
+    if theme.horizon_days <= 0:
+        # H is the width of the valid-time window [effective_at, effective_at+H]
+        # (§Bitemporal) and the base of the evidence half-life h = H/2 (§Scoring).
+        # H ≤ 0 makes both degenerate: the theme claims nothing and scores a
+        # permanent 0. Rejected at the gate, not scored to zero (D-10).
+        return WFResult(False, "d", f"horizon {theme.horizon_days}d is not positive")
     if theme.horizon_days > H_MAX.days:
         return WFResult(False, "d", f"horizon {theme.horizon_days}d > H_MAX {H_MAX.days}d")
     if stated_direction is not None and stated_direction != derived_direction(theme):

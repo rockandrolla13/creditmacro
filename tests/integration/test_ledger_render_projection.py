@@ -3,6 +3,8 @@
 """
 from __future__ import annotations
 
+import pytest
+
 from engine.ledger.substrate.events import ThemeEvent, EventType, Provenance
 from engine.ledger.substrate.hypothesis import (
     Mechanism, TransmissionEdge, LifecycleStatus, derived_direction,
@@ -85,6 +87,21 @@ def test_projection_roundtrip():
     theme_nodes = [theme.mechanism.edges[0].v_from] + [e.v_to for e in theme.mechanism.edges]
     assert nodes == theme_nodes
     assert obj.provenance.evidence[0] == f"falsifier: {theme.falsifier}"
+
+
+def test_projection_refuses_empty_mechanism_instead_of_crashing():
+    """Regression: `edges[0]` raised a bare IndexError on a mechanism with no edges.
+    fold() never runs WF, so a k=0 hypothesis reaches the bridge; the projection must
+    refuse it by name rather than crash or invent a driver (D-12)."""
+    empty = fold([ThemeEvent(
+        event_id="e0", theme_id="t-empty", event_type=EventType.CREATED,
+        payload={"mechanism": {"edges": []}, "shock_direction": 1,
+                 "operational_axis": "C0A0_OAS", "horizon_days": 90, "falsifier": "f"},
+        effective_at="2026-05-01T00:00:00+00:00", recorded_at="2026-05-01T00:00:00+00:00",
+        provenance=Provenance.ANALYST)])
+    assert empty.mechanism.k == 0                                # fold admits it
+    with pytest.raises(ValueError, match="no edges"):
+        to_theme_object(empty, as_of="2026-05-05")
 
 
 def test_projection_maps_dead_status_to_blocked():
