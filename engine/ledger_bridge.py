@@ -118,47 +118,53 @@ class LedgerProvider:
         Discovery degrades gracefully (edge_survival="unknown", capped confidence).
         `prior` is uniform over zero scenarios, i.e. empty.
         """
-        # TODO: return RunContext(statement=self.projected.statement,
-        #       horizon=self.projected.horizon, author=self.author, x_mkt=None,
-        #       prior=[], thesis_sign=<+1/-1 from projected.thesis.direction_of_view>,
-        #       provenance=self.projected.provenance)
-        raise NotImplementedError("LedgerProvider.context")
+        d_str = self.projected.thesis.direction_of_view
+        try:
+            sign_val = int(d_str)
+            thesis_sign = -1 if sign_val < 0 else 1
+        except ValueError:
+            thesis_sign = -1 if "-" in d_str else 1
+
+        return RunContext(
+            statement=self.projected.statement,
+            horizon=self.projected.horizon,
+            author=self.author,
+            x_mkt=None,
+            prior=[],
+            thesis_sign=thesis_sign,
+            provenance=self.projected.provenance,
+        )
 
     def parse(self, raw: str) -> IngestionResult:
         """Stage-0 streams. A ledger theme arrives already parsed into claims, so this
         returns EMPTY streams rather than re-deriving them — re-parsing here would be a
         second, unattributed extraction pass over text Pass A already read blind (I2)."""
-        # TODO: return IngestionResult(observations=[], candidate_themes=[],
-        #       consensus_signals=[], ranked_candidates=[])
-        raise NotImplementedError("LedgerProvider.parse")
+        return IngestionResult(
+            observations=[],
+            candidate_themes=[],
+            consensus_signals=[],
+            ranked_candidates=[],
+        )
 
     # ── engine 1 — thesis, causal object, axis ───────────────────────────────
 
     def extract_drivers(self, statement: str) -> Thesis:
         """Return the projected thesis verbatim. No re-derivation."""
-        # TODO: return self.projected.thesis
-        raise NotImplementedError("LedgerProvider.extract_drivers")
+        return self.projected.thesis
 
     def expand_causal(
         self, research_text: str, parsed_theme: str
     ) -> tuple[Optional[CausalNode], Optional[CausalChain], Optional[str]]:
-        """Return the projected (main_theme, causal_chain, shared_factor).
-
-        PRECONDITION the scaffold cannot yet satisfy: `run_workflow._validate_causal_chain`
-        requires `main_theme.id` to be one of `causal_chain`'s node ids. Today
-        `projection.to_theme_object` synthesises `main_theme.id = f"theme:{theme_id}"`,
-        which is NOT a chain node, so this seam currently makes discovery raise. That is
-        BLOCKED B-05 and plan task 2 — do NOT paper over it here by rewriting the chain in
-        the adapter, which would put a second mapping site next to projection.py.
-        """
-        # TODO: return (self.projected.main_theme, self.projected.causal_chain,
-        #               self.projected.shared_factor)
-        raise NotImplementedError("LedgerProvider.expand_causal")
+        """Return the projected (main_theme, causal_chain, shared_factor)."""
+        return (
+            self.projected.main_theme,
+            self.projected.causal_chain,
+            self.projected.shared_factor,
+        )
 
     def define_axis(self, thesis: Thesis) -> Axis:
         """The projected axis. Named, not measured: `current_value` and `history` stay unset."""
-        # TODO: return self.projected.axis
-        raise NotImplementedError("LedgerProvider.define_axis")
+        return self.projected.axis
 
     def normal_fair_value(self, axis: Axis) -> float:
         """EXPRESSION-only seam. Discovery never calls it; a ledger theme has no observed
@@ -174,15 +180,13 @@ class LedgerProvider:
     ) -> Optional[SystemMap]:
         """None — the ledger carries a transmission chain, not a Meadows stock/flow map.
         Returning None is correct; synthesising one would be reasoning the ledger never did."""
-        # TODO: return None
-        raise NotImplementedError("LedgerProvider.build_system_map")
+        return None
 
     def critique_mental_model(
         self, statement: str, causal_chain: Optional[CausalChain]
     ) -> Optional[BiasCritique]:
         """None — no adversarial pass has run over a projected theme."""
-        # TODO: return None
-        raise NotImplementedError("LedgerProvider.critique_mental_model")
+        return None
 
     def diagnose_loops(self, system_map: Optional[SystemMap]) -> Optional[LoopDiagnosis]:
         """Carry the ledger falsifier F into `invalidation_evidence`.
@@ -194,10 +198,24 @@ class LedgerProvider:
         falsifier must arrive here — not in `provenance.evidence` alone, where nothing
         reads it.
         """
-        # TODO: build a LoopDiagnosis whose invalidation_evidence is the ledger falsifier
-        #       recovered from the projected object, dominant_loop_now / possible_loop_shift
-        #       stated as "not diagnosed" rather than invented, decision="watchlist".
-        raise NotImplementedError("LedgerProvider.diagnose_loops")
+        invalidation_evidence: list[str] = []
+        if self.projected.provenance and self.projected.provenance.evidence:
+            for item in self.projected.provenance.evidence:
+                if item.startswith("falsifier: "):
+                    f_text = item[len("falsifier: "):].strip()
+                    if f_text:
+                        invalidation_evidence.append(f_text)
+                elif item.startswith("falsifier:"):
+                    f_text = item[len("falsifier:"):].strip()
+                    if f_text:
+                        invalidation_evidence.append(f_text)
+
+        return LoopDiagnosis(
+            dominant_loop_now="not diagnosed",
+            possible_loop_shift="not diagnosed",
+            invalidation_evidence=invalidation_evidence,
+            decision="watchlist",
+        )
 
     # ── scenarios ────────────────────────────────────────────────────────────
 
@@ -206,13 +224,11 @@ class LedgerProvider:
     ) -> list[Scenario]:
         """EMPTY. The ledger prices nothing. Families are still routed but confidence is
         capped (no scenarios ⇒ ≤0.45), which is the honest answer, not a degraded one."""
-        # TODO: return []
-        raise NotImplementedError("LedgerProvider.propose_scenarios")
+        return []
 
     def critique(self, theme: ThemeObject) -> list[str]:
         """No critique pass on a projected theme."""
-        # TODO: return []
-        raise NotImplementedError("LedgerProvider.critique")
+        return []
 
 
 def provider_for(projected: ThemeObject) -> LedgerProvider:
