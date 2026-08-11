@@ -22,11 +22,23 @@ _LIVE = (LifecycleStatus.CANDIDATE, LifecycleStatus.ACTIVE)
 
 
 def to_theme_object(theme: ThemeHypothesis, as_of: str) -> ThemeObject:
-    d = derived_direction(theme)
     edges = theme.mechanism.edges
+    # fold() is the only constructor and deliberately does NOT run WF (I5), so a
+    # malformed hypothesis can reach the bridge. An empty chain has no v0, no vk and
+    # no transmission to render: every field below would be invented, not projected.
+    # Refuse it — WF clause (a) already rejects k < 2, and a missing output beats an
+    # unsourced one. Non-empty chains project as before; the projection is a renderer,
+    # not the WF gate (identity.wf_predicate is).
+    if not edges:
+        raise ValueError(
+            f"theme {theme.theme_id!r}: cannot project a mechanism with no edges "
+            "(WF clause (a) requires k >= 2). Route it to NEEDS_STRUCTURING instead."
+        )
+
+    d = derived_direction(theme)
     thesis = Thesis(
         drivers=[Driver(
-            name=theme.mechanism.v0 or "driver",
+            name=edges[0].v_from,
             sign="+" if theme.shock_direction > 0 else "-",
             proxy_observable=theme.operational_axis,
             mechanism="ledger transmission chain",
