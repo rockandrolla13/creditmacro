@@ -1,29 +1,12 @@
 # Theme-to-Trade Conversion Engine
 
 ## What this is
-A disciplined pipeline that converts a research document 
-into a falsifiable, Thematic HYPOTHESIS.
+The project is a highly disciplined, epistemic "Theme-to-Trade Conversion Engine" that transforms raw investment research into falsifiable thematic hypotheses and ranked strategy families. Based on the Alaph four-step process, it explicitly stops at a PM decision memo and structurally prevents the emission of execution details like exact trades, sizing, or hedge ratios in its discovery mode.  The architecture centers around a shared typed state (ThemeObject) populated by a Stage 0 ingestion phase—which separates facts, narratives, and consensus signals—and four subsequent analytical engines (Driver + Axis, Scenario Pricing, Expression Scoring, and Sizer + Risk). The system is fundamentally designed around an "LLM proposes, harness disposes" philosophy, ensuring deterministic code holds authority over generative model fluency. 
 Based on the Alaph four-step process (theme -> valuation -> trade selection
 -> portfolio construction). 
 It is an EPISTEMIC engine. It STOPS at a PM
 decision memo. 
-## Architecture
-Stage 0 (ingestion) -> ThemeObject (shared typed state) populated by 4
-engines -> PM gate.
-
-Stage 0 parses research into THREE typed streams, kept separate:
-  - Observation     (facts: developments, events) -> update driver levels
-  - CandidateTheme  (narratives: core themes)      -> become ThemeObjects
-  - ConsensusSignal (attention: hot topics)        -> prior for market-implied q
-Nominate candidate themes RANKED BY divergence(evidence, attention): high
-factual support + low attention = high latent edge. This is a pre-screen on (p - q).
-
-Engine 1  Driver + axis      -> Q1 theme, Q2 universe, Q3 axis (MUST be a computable series)
-Engine 2  Scenario pricing   -> Q4 normal FV, Q5 scenario FV = sum p_s X_s,
-                                Q6 priced-in q via max-entropy, Q7 edge = <p - q, X>
-Engine 3  Expression scoring -> Q8 candidates, Q9 best = gated multiplicative score
-Engine 4  Sizer + risk       -> Q10 size (Alaph grid), Q11 stop, Q12 falsifiers
-PM gate                       -> Q13 open questions; hands control to the human
+           -> Q13 open questions; hands control to the human
 
 ## Hard discipline gates (refuse to emit a ThemeObject without these)
 1. axis is OPERATIONAL: a named spread/slope with a real historical time series

@@ -1,7 +1,9 @@
 # Engine 2 Hardening + Generic Case System — Design
 
 **Status:** DESIGN ONLY — no implementation. Awaiting gate approval.
-**Supersedes (structurally):** `docs/engine2_hardening_design.md` (the spec/why).
+**Supersedes:** `docs/engine2_hardening_design.md`, deleted 2026-08-10 — this document
+carried its structure, and the mathematics it specified now lives in the `engine/engine2.py`
+module docstring and is locked by the golden master.
 **Incorporates:** `reviews/2026_06_06_architecture_review.md` findings
 AR-BND-001, AR-ABS-001/002/003, AR-DRY-001, AR-BND-002, AR-TST-001, AR-PAR-001.
 **Mode:** extending existing code → changes expressed as diffs to the current
@@ -338,7 +340,6 @@ creditmacro/
 │   └── integration/
 │       └── test_cases.py     # parametrized over cases/*.yaml; oracle.check()
 └── docs/
-    ├── engine2_hardening_design.md
     └── engine2_design.md      # this file
 ```
 

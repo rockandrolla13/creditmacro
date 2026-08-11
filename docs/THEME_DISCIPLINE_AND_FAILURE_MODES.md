@@ -1,8 +1,10 @@
 # Theme Discipline and Failure Modes
 
 > A focused design memo on the engine's biggest current problem: **too many themes, too little
-> human-analyst-style compression.** Companion to `docs/ENGINE_MANUAL.md` (§15–§17) and
-> `docs/ENGINE_CONTEXT_PACK.md`. Written 2026-06-13 from code (`engine/theme_aggregation.py`,
+> human-analyst-style compression.** Companion to `docs/SPEC_AND_STATE.md` (Part 3.2 and
+> the failure-mode catalogue in Part 2.5), which superseded the `ENGINE_MANUAL` /
+> `ENGINE_CONTEXT_PACK` pair on 2026-08-10.
+> Written 2026-06-13 from code (`engine/theme_aggregation.py`,
 > `engine/schema/theme_aggregation.py`). Status tags: ✅ implemented · ⚠️ partial · 🚧 planned ·
 > ❌ missing.
 

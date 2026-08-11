@@ -43,7 +43,7 @@ never require my input.
 1. Confirm you are in the right repo: `engine/workflow.py` and
    `tests/integration/test_golden_master.py` exist. If not, stop and tell me the cwd is wrong.
 2. Read, in order: `SURVEILLANCE_BUILD_PLAN.md` (the spec — especially §0, §11, §12, §13), then
-   `docs/ENGINE_MANUAL.md`, `docs/ENGINE_CONTEXT_PACK.md`, `docs/THEME_DISCIPLINE_AND_FAILURE_MODES.md`.
+   `docs/SPEC_AND_STATE.md`, `docs/THEME_DISCIPLINE_AND_FAILURE_MODES.md`.
 3. `/scout` (or `/map`) the `engine/` package to ground yourself in the real module layout, then
    reconcile against the plan's §0.5 integration map. Note any path drift in the Execution Log; trust the
    **status tags** over any README.

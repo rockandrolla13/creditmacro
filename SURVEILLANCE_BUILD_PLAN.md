@@ -3,8 +3,9 @@
 > **What this is.** A phased, implementation-ready plan to complete the discovery engine and add
 > **post-confirmation theme surveillance** — the loop that watches a theme *after* it is confirmed and
 > trades are on, tracks it via new reports/news, and routes its status without ever touching execution.
-> Written to be read by **Claude Code** for `/ideate`. Companion to `docs/ENGINE_MANUAL.md`,
-> `docs/ENGINE_CONTEXT_PACK.md`, `docs/THEME_DISCIPLINE_AND_FAILURE_MODES.md`.
+> Written to be read by **Claude Code** for `/ideate`. Companion to `docs/SPEC_AND_STATE.md`
+> (which superseded the `ENGINE_MANUAL` / `ENGINE_CONTEXT_PACK` pair on 2026-08-10) and
+> `docs/THEME_DISCIPLINE_AND_FAILURE_MODES.md`.
 >
 > **Status tags:** ✅ implemented · ⚠️ partial · 🚧 planned/contract_only · ❌ missing · 🔒 firewall/gate.
 > **Do not assume planned features exist.** Trust the tags. Every "add" below is new code; every
