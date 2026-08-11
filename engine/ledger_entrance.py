@@ -36,6 +36,9 @@ from typing import Optional, Sequence
 from pydantic import BaseModel, ConfigDict
 
 from .cases import PolicyConfig
+from .ledger.projection import to_theme_object
+from .ledger.runner import RegistryState
+from .ledger.substrate.fold import fold
 from .ledger.substrate.hypothesis import ThemeDefinitionView, ThemeHypothesis
 from .schema import ThemeObject
 
@@ -74,7 +77,7 @@ class LedgerDiscoveryResult(BaseModel):
 
 
 def hypotheses_from_registry(
-    state,                                # ledger.runner.RegistryState
+    state: RegistryState,
     *,
     as_of: str,
 ) -> list[ThemeHypothesis]:
@@ -86,10 +89,13 @@ def hypotheses_from_registry(
     event whenever the activation gate fired, so that the folded status reproduces the
     status `forward_ingest` computed instead of restating it as a string.
     """
-    # TODO: for each admitted theme, collect its events from `state` and call
-    #       engine.ledger.substrate.fold.fold(events); drop themes that fold to None
-    #       (no CREATED event). Never construct ThemeHypothesis directly (I5).
-    raise NotImplementedError("hypotheses_from_registry: needs RegistryState to carry events")
+    hypotheses: list[ThemeHypothesis] = []
+    for admitted in state.admitted:
+        events = admitted.events()
+        hyp = fold(events)
+        if hyp is not None:
+            hypotheses.append(hyp)
+    return hypotheses
 
 
 def project_all(
@@ -98,9 +104,7 @@ def project_all(
     as_of: str,
 ) -> list[ThemeObject]:
     """Map each hypothesis through `projection.to_theme_object` — the ONLY mapping site."""
-    # TODO: from .ledger.projection import to_theme_object
-    #       return [to_theme_object(h, as_of=as_of) for h in hypotheses]
-    raise NotImplementedError("project_all")
+    return [to_theme_object(h, as_of=as_of) for h in hypotheses]
 
 
 def run_ledger_discovery(
