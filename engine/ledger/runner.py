@@ -81,7 +81,10 @@ def forward_ingest(
             as_of = max(c.doc_date for c in cluster.claims)
             sv = score(out.theme_id, as_of, list(out.founding_links), claims_by_id,
                        horizon_days=out.definition.horizon_days)
-            active = sv.B >= ACTIVATION_BREADTH_MIN and sv.S >= ACTIVATION_ABS_SCORE_MIN
+            # §Lifecycle: B_θ ≥ 2 ∧ |S_θ| ≥ 2. The ABSOLUTE value is load-bearing —
+            # S_θ < 0 with no breach is CONTESTED (a sub-state of ACTIVE), not dead
+            # (§Theme "Interpretation", §Lifecycle; ONTOLOGY_DELTA D-09).
+            active = sv.B >= ACTIVATION_BREADTH_MIN and abs(sv.S) >= ACTIVATION_ABS_SCORE_MIN
             admitted.append(AdmittedTheme(out.theme_id, "ACTIVE" if active else "CANDIDATE"))
         elif out.status == "needs_structuring":
             needs.extend(cluster_ids)
