@@ -586,24 +586,24 @@ outputs are ledger nodes; its narratives are G8-gated briefs.
 
 ---
 
-## 6. Open questions (need your call before A1, A2, L2, L5)
+## 6. Decisions — resolved (2026-08-09)
 
-1. **Regime vocabulary count (A1).** The cap is stated as 3–7. Do you want a hard floor of 3, or
-   is it acceptable for the model to emit fewer when the corpus is genuinely narrow?
-   *Recommend: hard floor 3 — an over-narrow vocabulary is a red flag.*
-2. **Assessment cadence (A1, A2).** Weekly matches the L4 book. Should the assessment also run
-   on-demand when a large batch of new sources lands (e.g. >20 markdowns in a day), or is weekly
-   the only cadence? *Recommend: weekly + explicit trigger, never automatic on ingest.*
-3. **Dedup similarity threshold (A2).** 0.85 as a starting point — should it be tuned per
-   asset class or held global?
-4. **Expectation source for surprise (L2).** Where does `expected` come from — consensus forecast
-   from a source markdown, the prior print, or a model path? Each has a different grounding story.
-   *Recommend: consensus from a grounded span first; prior print as fallback; never a model path.*
-5. **Residual-alpha threshold (L5).** What `residual_alpha_share` counts as factor-tractable? This
-   is a risk-appetite call, not a technical one.
-6. **Book cadence and recipient (L4).** Weekly Monday? Just you, or a PM distribution?
-7. **Pack retention (L3).** Keep evidence packs indefinitely, or age out the raw atom text after N
-   months and retain the scorecard inputs only?
+All seven questions are answered. Binding on the build.
+
+| # | Ref | Decision |
+|---|-----|----------|
+| 1 | **D-A1-1** | **Regime vocabulary — hard floor of 3.** Fewer than three → A1 halts and keeps last week's vocabulary (`stale_regime=True`). No false-narrow. |
+| 2 | **D-A1-2 / D-A2-2** | **Assessment cadence — weekly + explicit trigger.** Weekly by default; manual re-fire on large ingests or on user request. Never automatic on ingest. |
+| 3 | **D-A2-1** | **Dedup thresholds — per asset class.** IG 0.85 · HY 0.75 · cross-asset 0.85 (stricter of the two) · other classes 0.80 placeholder. |
+| 4 | **D-A1-3** | **A1 regime clustering — opinion-only.** Clusters on `claim_kind ∈ {view, forecast, framing, mechanism}`; numeric-only atoms are excluded. A regime is the market's posture, not its measurement. |
+| 5 | **D-L2-1** | **Expectation source for surprise (L2) — tiered.** Consensus forecast from a grounded source span first; prior print as fallback; **never** a model-generated expectation. None available → `kind="level"`; cannot move status toward `confirming`. |
+| 6 | **D-L5-1** | **Residual-alpha threshold — 0.40.** Below → tractability=fail, RV layer disabled. Revisit after a quarter of data. |
+| 7 | **D-L4-1** | **Book cadence & recipients — Monday morning, private.** Just the PM. Distribution decided later once the format has earned trust. |
+| 8 | **D-L3-1** | **Pack retention — 24 months full; then age out raw atom text.** Metadata, outcomes, and scorecard inputs kept forever. |
+
+Decisions are recorded in code as constants under a `LIFECYCLE_DECISIONS_VERSION` stamp
+(mirroring harness D4). Changing one is a reviewed code change plus a version bump; every past
+pack and book stays interpretable against the version it was built under.
 
 ---
 
