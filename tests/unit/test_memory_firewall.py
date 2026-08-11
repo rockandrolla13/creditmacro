@@ -153,3 +153,96 @@ def test_real_wiki_pages_have_valid_access_class():
     assert pages, "expected wiki pages to load"
     findings = check_access_class(pages)
     assert findings == [], f"wiki pages missing/invalid access_class: {findings}"
+
+
+# ── coverage view: history sets the agenda, it does not supply the answer ─────
+#
+# The firewall keeps prior CONCLUSIONS out of fresh reasoning. It was never meant to
+# keep out the knowledge that a question had already been asked -- reasoning fresh is
+# not reasoning blind. These tests pin the line between the two.
+
+from engine.memory import (  # noqa: E402
+    CONCLUSION_KEYS, COVERAGE_FIELDS, CoverageEntry, CoverageStatus, MemoryRetriever, WikiPage,
+)
+
+
+def _cov_case_page(slug: str, **fm) -> WikiPage:
+    frontmatter = {"type": "theme", "access_class": "case", "slug": slug, **fm}
+    return WikiPage(slug=slug, access_class="case", type=frontmatter.get("type"),
+                    frontmatter=frontmatter, body="CONCLUSION: spreads widened 40bp.")
+
+
+def _cov_pages() -> dict[str, WikiPage]:
+    return {
+        "prior-funding": _cov_case_page(
+            "prior-funding", status="closed", sources=["s1", "s2", "s3"], updated="2026-05-01",
+            causal_chain=["funding stress -> spreads widen"],
+            strategy_families=["long_short"], falsifiers=["differentials compress"],
+        ),
+        "prior-open": _cov_case_page("prior-open", status="active", sources=["s1"]),
+        "how-to-reason": WikiPage(slug="how-to-reason", access_class="method", type="concept",
+                                  frontmatter={"type": "concept"}, body="method content"),
+    }
+
+
+def test_coverage_is_readable_in_phase_a() -> None:
+    """Phase A may learn WHERE prior work exists. That is agenda, not answer."""
+    r = MemoryRetriever(_cov_pages(), phase="A")
+    cov = r.coverage()
+
+    assert [e.slug for e in cov] == ["prior-funding", "prior-open"]   # case pages only, sorted
+    settled = cov[0]
+    assert settled.status is CoverageStatus.SETTLED
+    assert settled.evidence_breadth == 3          # a count, not the sources
+    assert cov[1].status is CoverageStatus.OPEN
+
+
+def test_coverage_entry_exposes_no_conclusion_bearing_field() -> None:
+    """Structural guard: the field set is pinned.
+
+    Adding a field that carries a conclusion -- the causal chain, the routed families,
+    the falsifier -- fails HERE rather than silently widening what phase A can see.
+    """
+    assert set(CoverageEntry.model_fields) == COVERAGE_FIELDS
+    assert not (set(CoverageEntry.model_fields) & CONCLUSION_KEYS)
+
+    dumped = CoverageEntry(slug="x").model_dump()
+    assert "body" not in dumped
+    for leaky in CONCLUSION_KEYS:
+        assert leaky not in dumped, f"coverage leaked {leaky!r}"
+
+
+def test_coverage_does_not_open_a_back_door_to_case_bodies() -> None:
+    """The load-bearing one. Coverage must not become a way to read a case page.
+
+    If this ever fails, the firewall is gone: an agent could enumerate coverage and
+    then fetch the very conclusions the freeze exists to keep out of phase A.
+    """
+    r = MemoryRetriever(_cov_pages(), phase="A")
+    r.coverage()
+
+    assert r.retrieve("prior-funding") is None           # still refused, still fail-closed
+    assert "prior-funding" in r.refusals
+    assert r.retrieve("how-to-reason") is not None       # method memory unaffected
+
+
+def test_coverage_direction_of_a_settled_question_is_withheld() -> None:
+    """'It was answered' is agenda. 'The answer was no' is the answer.
+
+    A falsified prior theme reports SETTLED, exactly like a confirmed one -- phase A
+    learns the ground is covered, not which way it fell.
+    """
+    pages = {
+        "confirmed": _cov_case_page("confirmed", status="closed"),
+        "falsified": _cov_case_page("falsified", status="falsified"),
+    }
+    by_slug = {e.slug: e.status for e in MemoryRetriever(pages, phase="A").coverage()}
+    assert by_slug["confirmed"] is by_slug["falsified"] is CoverageStatus.SETTLED
+
+
+def test_coverage_read_is_audited() -> None:
+    """Every case-memory touch stays in the audit log, coverage included."""
+    r = MemoryRetriever(_cov_pages(), phase="A")
+    r.coverage()
+    entry = next(x for x in r.reads if x["slug"] == "<coverage>")
+    assert entry["phase"] == "A" and entry["entries"] == 2

@@ -151,6 +151,15 @@ confidence, a grounding verdict, or a ledger entry (G4/G1/G6).
 corpus is implicitly using. Each regime is a named cluster with defining features drawn from
 grounded atoms.
 
+**Opinion-driven, not number-driven (D-A1-1, decided 2026-08-09).** A1 clusters on
+**opinion-bearing atoms only** — analyst posture, narrative frame, qualitative view (e.g. *"we
+think the cycle is late,"* *"quality is under-priced,"* *"lending standards are tightening"*).
+Numeric-only atoms (a default-rate table, a spread level) are **excluded from regime clustering**
+— they belong to theme evidence (§4 L2), not to regime identity. A regime is the market's
+*posture*, not its measurement. Concretely: an atom qualifies for A1 clustering iff its
+`claim_kind ∈ {view, forecast, framing, mechanism}` — never `{measurement, level, tabular}`.
+`RegimeType.defining_features` and `prevalence` are computed from the opinion subset only.
+
 ```
 class RegimeType(BaseModel):        # frozen
     regime_id: str
@@ -178,37 +187,118 @@ class RegimeVocabulary(BaseModel):  # frozen; emitted weekly
 
 ### A2 — Theme discovery + factor mapping
 
-**Job.** Cluster grounded atoms into recurring themes. For each theme, immediately test whether it
-is tradeable via the known credit factor set — that gate happens **at inference time**, not later
-at expression time. A theme that is factor-untractable is still tracked, but the RV layer (L5)
-never sees it.
+**Job.** Cluster grounded atoms into recurring themes. This is the **many-to-few** funnel — every
+stage down is stricter than the one above:
 
 ```
-class ThemeCandidate(BaseModel):    # frozen
+150 markdowns
+     ↓ harness (G1–G8)
+~900 grounded claims / atoms
+     ↓ A2 clustering + dedup + factor tractability
+~12 candidate themes
+     ↓ surveillance §5.3 state machine + L2 surprise
+~4 active themes
+     ↓ L5 aliveness + factor-tractability gate
+~2 RV-ready themes
+```
+
+A theme's job in A2 is to survive clustering and pass tractability. Its job in surveillance is to
+survive the state machine. Its job at L5 is to be both alive and cleanly expressible. Numbers are
+illustrative — the funnel counts are recorded on every emit so drift is visible.
+
+Factor tractability is decided **at inference time**, not at expression time. A theme that is
+factor-untractable is still tracked, but the RV layer (L5) never sees it.
+
+```
+class SourceCoverage(BaseModel):
+    markdowns_reviewed: int
+    supporting_markdowns: int
+    contradicting_markdowns: int
+    background_markdowns: int
+    unique_publishers_supporting: int
+    first_seen: str
+    last_reinforced: str
+
+class InitialLifecycle(BaseModel):      # A2 sets DEFAULTS; surveillance owns runtime state
+    created_at: str
+    expected_review_at: str
+    expected_retirement_at: str
+    half_life_days: int                 # default 21
+    max_life_days: int                  # default 90
+
+class EvidenceScores(BaseModel):        # every score harness-computed (G4 / D4)
+    support_score: float
+    contradiction_score: float
+    freshness_score: float
+    novelty_score: float
+    consensus_score: float
+    crowding_score: float
+
+class MappedRegimes(BaseModel):         # links to A1's RegimeVocabulary
+    primary: list[str]                  # regime_ids
+    secondary: list[str]
+
+class FactorMap(BaseModel):
+    macro: dict[str, float]             # growth, inflation, policy_rates, financial_conditions
+    credit: dict[str, float]            # decompression, rating_quality, default_risk,
+                                        # liquidity_quality, broad_credit_beta,
+                                        # carry_roll_down, cash_cds_basis, …
+
+class FactorTractability(BaseModel):
+    decision: Literal["pass", "fail"]
+    score: float                        # residual-alpha share; ≥ 0.40 → pass (D-L5-1)
+    reason: str                         # harness-written; not model narrative
+
+class ThemeCandidate(BaseModel):        # frozen
     theme_id: str
-    canonical_name: str             # deduped across the corpus
-    thesis_statement: str           # one sentence, harness-verified
+    canonical_name: str                 # deduped across the corpus
+    thesis_statement: str               # one sentence, harness-verified (G8)
+    aliases_seen: list[str]             # every paraphrase the dedup registry collapsed here
     supporting_atom_ids: list[str]
     contradicting_atom_ids: list[str]
-    regime_ids: list[str]           # which regimes this theme lives in
-    factor_map: Optional[FactorMap] = None  # A2 projection; None if untractable
+    source_coverage: SourceCoverage
+    initial_lifecycle: InitialLifecycle # DEFAULTS ONLY; surveillance takes over at first tick
+    evidence_scores: EvidenceScores
+    mapped_regimes: MappedRegimes
+    factor_map: FactorMap
+    factor_tractability: FactorTractability
+    falsification_triggers: list[str]   # pre-registered at inference time; frozen
     horizon: Optional[str] = None
 
-class ThemeCandidateSet(BaseModel): # frozen; emitted weekly
-    contract_version: str           # "themeset/1"
+class ThemeCandidateSet(BaseModel):     # frozen; emitted weekly
+    contract_version: str               # "themeset/2"  ← bumped for the fuller schema
     as_of: str
     themes: list[ThemeCandidate]
-    dedup_registry: dict[str, str]  # near-duplicate name → canonical
+    dedup_registry: dict[str, str]      # every alias → its canonical theme_id
+    funnel: dict[str, int]              # markdowns / atoms / candidates / active / rv_ready
     ledger_root: str
 ```
 
 **Rules.**
-- **Dedup is mandatory.** Two analysts phrase one idea differently; the dedup registry matches on
-  embedding similarity and canonical-name normalization, and any theme ≥0.85 similar to an
-  existing canonical one is merged, not spawned. This is what stops theme proliferation.
-- **Factor mapping runs at inference time.** `factor_map` uses the `factor-r2-router` skill card
-  (already in the repo). A theme with `factor_map=None` is retained for tracking but flagged
-  `rv_layer_status="disabled"` — L5's gate will refuse it.
+- **Aliases are first-class.** Every candidate carries every paraphrase the dedup registry
+  collapsed under it. What you read in the book is exactly what the machine saw and merged —
+  no hidden mergers.
+- **Dedup thresholds (D-A2-1, Q3):** **IG 0.85**, **HY 0.75**, **cross-asset 0.85** (the
+  stricter of the two so cross-class merging is deliberate), **other classes 0.80** as a
+  placeholder pending data.
+- **A2 sets initial lifecycle only.** `initial_lifecycle` is a set of **defaults**
+  (half-life 21, max 90). Surveillance's state machine takes over from first tick and owns
+  `lifecycle_state` thereafter (`SURVEILLANCE_BUILD_PLAN` §5.2, gate 5). A2 never authors
+  runtime state.
+- **All evidence scores are harness-computed** (G4). D4 applies: `CONFIDENCE_VERSION`
+  stamps the formula, weights are constants in code, model never asserts them. `consensus_score`
+  and `crowding_score` in particular consume the `ConsensusSignal` stream — attention data, not
+  document counts.
+- **Macro and credit factor maps are kept separate.** `factor_map.macro` (growth, inflation,
+  policy, financial conditions) is context for the book and for cross-theme portfolio inspection.
+  `factor_map.credit` is what L5's tractability gate reads. Conflating them is how "the trade is
+  actually a rates duration bet" hides.
+- **Tractability is decided here, once.** `factor_tractability.decision` follows D-L5-1:
+  residual-alpha share ≥ **0.40** → pass. Fail is retained but flagged `rv_layer_status="disabled"`;
+  L5's gate short-circuits without recomputing.
+- **Falsification triggers are pre-registered on the candidate.** Surveillance and L5 read them
+  from here; they cannot be edited post-hoc (§5.9 gate 1 — "pre-registered falsifier is the
+  primary trigger, not the narrative").
 - **Contradicting atoms are first-class.** Every theme carries both `supporting_atom_ids` and
   `contradicting_atom_ids`, satisfying the "mandatory adversarial evidence" spirit at inference,
   not just at monitoring.
@@ -496,24 +586,24 @@ outputs are ledger nodes; its narratives are G8-gated briefs.
 
 ---
 
-## 6. Open questions (need your call before A1, A2, L2, L5)
+## 6. Decisions — resolved (2026-08-09)
 
-1. **Regime vocabulary count (A1).** The cap is stated as 3–7. Do you want a hard floor of 3, or
-   is it acceptable for the model to emit fewer when the corpus is genuinely narrow?
-   *Recommend: hard floor 3 — an over-narrow vocabulary is a red flag.*
-2. **Assessment cadence (A1, A2).** Weekly matches the L4 book. Should the assessment also run
-   on-demand when a large batch of new sources lands (e.g. >20 markdowns in a day), or is weekly
-   the only cadence? *Recommend: weekly + explicit trigger, never automatic on ingest.*
-3. **Dedup similarity threshold (A2).** 0.85 as a starting point — should it be tuned per
-   asset class or held global?
-4. **Expectation source for surprise (L2).** Where does `expected` come from — consensus forecast
-   from a source markdown, the prior print, or a model path? Each has a different grounding story.
-   *Recommend: consensus from a grounded span first; prior print as fallback; never a model path.*
-5. **Residual-alpha threshold (L5).** What `residual_alpha_share` counts as factor-tractable? This
-   is a risk-appetite call, not a technical one.
-6. **Book cadence and recipient (L4).** Weekly Monday? Just you, or a PM distribution?
-7. **Pack retention (L3).** Keep evidence packs indefinitely, or age out the raw atom text after N
-   months and retain the scorecard inputs only?
+All seven questions are answered. Binding on the build.
+
+| # | Ref | Decision |
+|---|-----|----------|
+| 1 | **D-A1-1** | **Regime vocabulary — hard floor of 3.** Fewer than three → A1 halts and keeps last week's vocabulary (`stale_regime=True`). No false-narrow. |
+| 2 | **D-A1-2 / D-A2-2** | **Assessment cadence — weekly + explicit trigger.** Weekly by default; manual re-fire on large ingests or on user request. Never automatic on ingest. |
+| 3 | **D-A2-1** | **Dedup thresholds — per asset class.** IG 0.85 · HY 0.75 · cross-asset 0.85 (stricter of the two) · other classes 0.80 placeholder. |
+| 4 | **D-A1-3** | **A1 regime clustering — opinion-only.** Clusters on `claim_kind ∈ {view, forecast, framing, mechanism}`; numeric-only atoms are excluded. A regime is the market's posture, not its measurement. |
+| 5 | **D-L2-1** | **Expectation source for surprise (L2) — tiered.** Consensus forecast from a grounded source span first; prior print as fallback; **never** a model-generated expectation. None available → `kind="level"`; cannot move status toward `confirming`. |
+| 6 | **D-L5-1** | **Residual-alpha threshold — 0.40.** Below → tractability=fail, RV layer disabled. Revisit after a quarter of data. |
+| 7 | **D-L4-1** | **Book cadence & recipients — Monday morning, private.** Just the PM. Distribution decided later once the format has earned trust. |
+| 8 | **D-L3-1** | **Pack retention — 24 months full; then age out raw atom text.** Metadata, outcomes, and scorecard inputs kept forever. |
+
+Decisions are recorded in code as constants under a `LIFECYCLE_DECISIONS_VERSION` stamp
+(mirroring harness D4). Changing one is a reviewed code change plus a version bump; every past
+pack and book stays interpretable against the version it was built under.
 
 ---
 
