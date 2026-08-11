@@ -6,10 +6,12 @@ Modelled as a typed, frozen node/edge graph.
 """
 from __future__ import annotations
 
+import hashlib
+
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
 class ModelType(str, Enum):
@@ -67,9 +69,29 @@ class ModelNode(BaseModel):
 
 
 class ModelEdge(BaseModel):
-    """A signed, typed causal or logical edge v_from --sign--> v_to in a ResearchModel."""
+    """A signed, typed causal or logical edge v_from --sign--> v_to in a ResearchModel.
+
+    `edge_id` exists because of spec §11.1: a CandidateHypothesis records
+    `derived_from.research_model_edge_ids`, and §40 requires the lineage to be
+    traversable BACKWARD from an accepted claim to the question it came from. Without a
+    stable id on the edge those references resolve to nothing -- the hypothesis names an
+    edge that cannot be found, and the chain the whole spec exists to guarantee is
+    broken at its first link.
+
+    This was found the hard way: `model.py` and `hypothesis.py` were written in parallel
+    against the same spec, merged cleanly, and were still unjoinable. The integration
+    test raised `MissingModelEdgeIdentityError` on the spec's own worked example
+    (RM-018 / H-018-4). Clean merges prove modules do not collide, never that they agree.
+
+    It defaults to a deterministic id derived from the edge's own content, so no caller
+    is forced to invent one and two identical edges always resolve identically. A
+    content-derived id changes when the edge changes, which is the intended reading: a
+    revised transmission is a different edge, and a hypothesis derived from the old one
+    should stop resolving rather than silently re-point at the new claim.
+    """
     model_config = ConfigDict(frozen=True)
 
+    edge_id: str = ""
     v_from: str
     v_to: str
     sign: int = 1
@@ -78,6 +100,16 @@ class ModelEdge(BaseModel):
     literature: tuple[str, ...] = ()
     experiments: tuple[str, ...] = ()
     decisions: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def _derive_edge_id(self) -> "ModelEdge":
+        """Fill a stable content-derived id when the caller did not name one."""
+        if not self.edge_id:
+            digest = hashlib.sha256(
+                f"{self.v_from}|{self.v_to}|{self.sign}".encode("utf-8")
+            ).hexdigest()[:12]
+            object.__setattr__(self, "edge_id", f"e:{digest}")
+        return self
 
     @field_validator("sign", mode="before")
     @classmethod
@@ -172,6 +204,18 @@ class ResearchModel(BaseModel):
     def vk(self) -> Optional[str]:
         """End node of the edge chain (if any)."""
         return self.edges[-1].v_to if self.edges else None
+
+    def edge_by_id(self, edge_id: str) -> Optional[ModelEdge]:
+        """Resolve an edge named by `HypothesisDerivation.research_model_edge_ids`.
+
+        Returns None rather than raising: an unresolvable reference is a FINDING the
+        caller must surface (spec §40 -- a claim that cannot be traversed back means the
+        implementation is incomplete), not an error to swallow at the lookup site.
+        """
+        for edge in self.edges:
+            if edge.edge_id == edge_id:
+                return edge
+        return None
 
     def sign_product(self) -> int:
         """Product of edge signs along the edge list: Π_j s_j."""
