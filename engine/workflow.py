@@ -15,6 +15,7 @@ from .probability_evidence import (
     update_probabilities_from_evidence,
 )
 from .scoring import compute_omega, score_expression
+from .emit_observer import observe_emit
 from .protocols import Provider, RunContext
 from .schema import (
     Axis, Expression, ProbabilityEvidenceBundle, ProbabilitySetJustification, Scenario,
@@ -107,8 +108,19 @@ def run_workflow(
     provider: Provider,
     policy: PolicyConfig,
     mode: Literal["discovery", "expression"] = "discovery",
+    *,
+    provenance=None,
+    review_queue=None,
+    enforce_emit: bool = False,
 ) -> tuple[ThemeObject, str]:
-    """Run the pipeline in the requested mode and return (ThemeObject, memo)."""
+    """Run the pipeline in the requested mode and return (ThemeObject, memo).
+
+    `provenance` / `review_queue` switch on the emit gate in OBSERVE mode at the routing
+    boundary: it records what a strict gate WOULD have stopped, into the review queue,
+    and does not halt. Both default to None, so every existing caller is unchanged and
+    the gate cannot affect a run that did not ask for it. `enforce_emit=True` makes it
+    halt — see engine/emit_observer.py for the measurement that should precede that.
+    """
     if mode == "expression":
         # Expression mode must not run on a discovery-only (live LLM) provider.
         if not hasattr(provider, "enumerate_expressions"):
@@ -117,7 +129,8 @@ def run_workflow(
                 "(LLMProvider is discovery-only; use ScriptedProvider for expression mode)."
             )
         return _run_expression(provider, policy)
-    return _run_discovery(provider, policy)
+    return _run_discovery(provider, policy, provenance=provenance,
+                          review_queue=review_queue, enforce_emit=enforce_emit)
 
 def _causal_stage(provider, ctx, thesis, *, fallback_axis: bool):
     """EXPAND_CAUSAL + the system-map / critique / loop-diagnosis block shared by both"""
@@ -141,7 +154,19 @@ def _causal_stage(provider, ctx, thesis, *, fallback_axis: bool):
 
 # ── DISCOVERY mode — idea → causal object → ranked families → STOP ────────────
 
-def _run_discovery(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObject, str]:
+def _evidence_node_ids(ctx: RunContext) -> list[str]:
+    """The provenance nodes this run's claims rest on.
+
+    `record_enforced` keys an atom node by its `evidence_id`, so these ARE the node ids —
+    no mapping table, nothing to fall out of step. Only current-input evidence appears
+    here, which is correct: archived case evidence is firewall-refused in phase A, so a
+    theme that cited it would be a firewall bug, not an emit-gate finding.
+    """
+    return [a.evidence_id for a in ctx.current_input_evidence_atoms if a.evidence_id]
+
+
+def _run_discovery(provider: Provider, policy: PolicyConfig, *, provenance=None,
+                   review_queue=None, enforce_emit: bool = False) -> tuple[ThemeObject, str]:
     ctx = provider.context()
 
     # Iceberg classification (Stage 0). Scripted cases carry empty streams; this is the
@@ -232,6 +257,14 @@ def _run_discovery(provider: Provider, policy: PolicyConfig) -> tuple[ThemeObjec
                 "probability_update_audit_hash": _h,
             }) for f in families]
         status = "strategy_family_routed" if families else "discovery_complete"
+        # Emit boundary. Routing a theme is the moment it stops being working state and
+        # becomes something a human may act on, so it is where "does this rest on
+        # anything?" is worth asking. Observe-only unless the caller says otherwise.
+        if status == "strategy_family_routed":
+            observe_emit(
+                _evidence_node_ids(ctx), provenance, stage="strategy_family_routed",
+                queue=review_queue, enforce=enforce_emit,
+            )
     else:
         families = []
         status = "discovery_complete"

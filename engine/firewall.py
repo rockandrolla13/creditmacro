@@ -9,6 +9,7 @@ from typing import Callable, Optional
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from .cases import PolicyConfig
+from .emit_observer import observe_emit
 from .memory import MemoryRetriever, WikiPage
 from .protocols import Provider
 from .schema import ThemeObject
@@ -139,6 +140,9 @@ def run_two_phase(
     retriever: Optional[MemoryRetriever] = None,
     calibrator: Optional[Calibrator] = default_calibrator,
     now: Optional[str] = None,
+    provenance=None,
+    review_queue=None,
+    enforce_emit: bool = False,
 ) -> FirewalledResult:
     """Run the firewalled two-phase pass and emit a FirewalledResult."""
     # Both are optional and public, and `pages` is only read when no retriever is
@@ -159,6 +163,15 @@ def run_two_phase(
     theme, _memo = run_workflow(provider, policy, mode="discovery")
     if theme.status == "expression_complete":  # defensive: the firewall never expresses
         raise RuntimeError("phase A must not produce expression_complete")
+
+    # EMIT BOUNDARY, before the freeze. Checking here rather than after is deliberate: the
+    # snapshot is the artefact a reader trusts, so "does this rest on anything?" belongs
+    # BEFORE it is sealed, not as a note attached afterwards. Observe-only unless asked.
+    observe_emit(
+        [a.evidence_id for a in provider.context().current_input_evidence_atoms
+         if a.evidence_id],
+        provenance, stage="pre_freeze", queue=review_queue, enforce=enforce_emit,
+    )
 
     # FREEZE — record the immutable snapshot and publish its hash to the retriever.
     snapshot = freeze(theme, now=now)
