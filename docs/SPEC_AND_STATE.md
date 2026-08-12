@@ -612,6 +612,46 @@ not model.
 whatever is in place after the compression work; if rows 7 and 8 still score 0.00, the
 metric change was cosmetic.
 
+### 4.8b — VERIFIED 2026-08-12, after the weighted-Jaccard change. Half fixed.
+
+Re-ran the table against the shipped metric (weighted Jaccard, threshold 0.55,
+alias anchors ×3), scoring **names only**:
+
+| pair | old coef | new score | want | result |
+|---|---|---|---|---|
+| growth / rates not pricing growth | 1.00 | **0.25** | separate | **fixed** |
+| growth / china growth slowdown | 1.00 | **0.33** | separate | **fixed** |
+| funding stress / funding | 1.00 | **0.50** | separate | **fixed** |
+| european / japanese bank spreads | 0.67 | **0.50** | separate | **fixed** (+ guard) |
+| hyperscaler bond basis / …risk premium | 1.00 | 0.50 | merge | still separates |
+| ai capex funding / ai capex credit supply | 0.67 | 0.40 | merge | still separates |
+| ai capex debt funded buildout / hyperscaler issuance surge | 0.00 | **0.00** | merge | still separates |
+| rates not pricing growth / market underpricing recovery | 0.00 | **0.00** | merge | still separates |
+
+**All four over-merges are fixed. None of the four under-merges are fixed by the metric.**
+That is the expected result, not a regression — a symmetric set function cannot see that
+two disjoint vocabularies mean the same thing. Rows 5–8 are now handled by three other
+mechanisms instead, and the caveat has moved with them:
+
+1. **Curated aliases** (`alias_map`, anchors weighted ×3). This works — it lifts the one
+   labelled merge pair from 0.33 to 0.60. But **there are 5 aliases**, 1 discriminator
+   group and 3 distinct pairs. Coverage of the synonym space is therefore ~nil today, and
+   the metric's own test docstring concedes the vocabulary "is hand-curated and will
+   always be incomplete".
+2. **The other five dimensions.** `_similarity` takes the max over tokens, concepts,
+   entities, market_vars, axes and causal. The table above scores NAMES only; real items
+   carry evidence-derived tokens, and rows 5–6 would likely merge on a shared axis or
+   market variable. **This is untested against a real corpus** — the labelled set is names.
+3. **Pass 2, mechanism match.** The only mechanism that can reach rows 7–8 in principle.
+
+**What is actually still open**, and it is narrower than 4.8 first stated: not "which
+metric", but **whether alias coverage and pass 2 carry the synonym cases on real
+documents**. The threshold was tuned on 13 labelled *name* pairs whose only non-trivial
+merge case is alias-anchored. Before trusting this, run the aggregator over a real
+multi-source batch from `markdowns/` and count how many true duplicates survive as
+separate clusters. If the number is high, the answer is more aliases or a stronger pass 2
+— not a lower threshold, which would re-break rows 1–4.
+
 ---
 
 # Part 5 — Recommended build order, and why
