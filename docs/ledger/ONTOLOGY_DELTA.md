@@ -237,3 +237,30 @@ would move `recorded_at` ownership out of the store and make persistence
 mandatory rather than opt-in.
 **Affected.** `engine/ledger/runner.py`, `engine/ledger_entrance.py`,
 `tests/integration/test_ledger_admission.py`.
+
+### D-15 — The human review queue is shared infrastructure, above both subsystems
+**Decision.** The queue lives at `engine/review_queue.py`, owned by neither the hypothesis
+ledger nor the grounding harness. `engine/ledger/wiki/review_queue.py` is retired to a
+refusing pointer with NO re-export. User decision, 2026-08-12 (`SPEC_AND_STATE` §4.2/§4.3).
+**Rationale.** D1 routed the harness's human gate into `engine/ledger/wiki/review_queue.py`,
+describing it as *"small, finished, and already does this"*. Verified 2026-08-12: it was a
+23-line stub whose only function raised `NotImplementedError`, with zero callers ever — a
+builder following D1 as written would have added an enum member to a function that cannot
+run. The structural problem is the larger one: D5 keeps the provenance ledger out of the
+hypothesis ledger because *"two in-flight systems joined together is how both stall"*, and
+`engine/ledger/` has exactly one outward import and NOTHING importing inward. Siting the
+shared queue there would have created the ledger's first inbound edge, into the least
+finished subsystem, on behalf of a caller living elsewhere. A queue owned by its first
+caller is a queue its second caller must depend on sideways — precisely the coupling D5
+exists to prevent. The harness is caller one; the ledger will be caller two.
+**Rejected.** (a) Build it inside `engine/ledger/wiki/` as D1 says — creates that inbound
+edge and contradicts D5 in the same tree. (b) Build it inside `engine/grounding/` next to
+its only current caller — simplest today, but the ledger's out-of-vocabulary tags and
+contested-direction clusters (D-11) are its obvious second and third producers, and moving
+it later costs more than siting it correctly now. (c) Leave a re-export shim at the old
+path — it would let the wrong dependency direction survive as a habit, and not creating
+that edge was the whole point.
+**Affected.** `engine/review_queue.py` (new), `engine/ledger/wiki/review_queue.py`
+(retired to a pointer), `tests/unit/test_review_queue.py`, `docs/SPEC_AND_STATE.md`
+§4.2 + §4.3. No ONTOLOGY edit: §Admission already routes out-of-vocabulary tags to "a
+review queue" without naming its location.

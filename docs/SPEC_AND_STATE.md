@@ -515,7 +515,10 @@ original numbers are kept there so existing references still resolve, and the or
 reasoning is kept underneath each resolution — you need it to judge whether the resolution
 still applies.
 
-## 4.2 🟠 D1's human gate rests on a stub
+## 4.2 ✅ RESOLVED 2026-08-12 — the queue moved above both subsystems (D-15)
+
+**Decision (user, 2026-08-12): the queue is shared infrastructure and lives at `engine/review_queue.py`, owned by neither subsystem.** D1's named module was a 23-line stub with zero callers; siting the queue inside `engine/ledger/` would have created that package's first inbound edge, which is exactly what D5 protects against. The old path is a refusing pointer with no re-export — a shim would let the wrong dependency direction survive as a habit. Recorded as `ONTOLOGY_DELTA` D-15.
+
 
 D1 was corrected on 2026-08-09 to reuse `engine/ledger/wiki/review_queue.py`, described
 as *"small, finished, and already does this."* Its only function raises
@@ -529,7 +532,10 @@ where the queue should live — see 4.3.
 `grep -rn "review_queue\|enqueue" --include=*.py engine tests` returns exactly one hit,
 the definition itself.
 
-## 4.3 🟠 D1 and D5 pull in opposite directions
+## 4.3 ✅ RESOLVED 2026-08-12 — resolved together with 4.2, by siting the queue above both (D-15)
+
+**Decision (user, 2026-08-12): the queue is shared infrastructure and lives at `engine/review_queue.py`, owned by neither subsystem.** D1's named module was a 23-line stub with zero callers; siting the queue inside `engine/ledger/` would have created that package's first inbound edge, which is exactly what D5 protects against. The old path is a refusing pointer with no re-export — a shim would let the wrong dependency direction survive as a habit. Recorded as `ONTOLOGY_DELTA` D-15.
+
 
 D5 keeps the provenance ledger separate from the hypothesis ledger, on the stated grounds
 that *"two in-flight systems joined together is how both stall."* D1 then routes the
