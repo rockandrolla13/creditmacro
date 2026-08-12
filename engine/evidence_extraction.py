@@ -230,7 +230,10 @@ def _direction_for(text: str) -> Optional[str]:
     return None
 
 
-def extract_evidence(inp: EvidenceExtractionInput) -> EvidenceExtractionBundle:
+def extract_evidence(
+    inp: EvidenceExtractionInput,
+    grounding: Optional[GroundingPolicy] = None,
+) -> EvidenceExtractionBundle:
     md = inp.normalized_markdown
     slug = inp.source_slug
     full = md.lower()
@@ -267,7 +270,24 @@ def extract_evidence(inp: EvidenceExtractionInput) -> EvidenceExtractionBundle:
             source_span=sent,
         ))
 
-    grounded = enforce(atoms, index, GroundingPolicy(mode="lint"))
+    # D2 makes this the CALLER's choice, and `GroundingPolicy()` defaults to strict — so a
+    # new caller that says nothing gets the safe direction, which is halt.
+    #
+    # This caller passes lint DELIBERATELY (user decision, 2026-08-12, SPEC_AND_STATE §4.4).
+    # Under strict, one figure the tokenizer cannot verify aborts the whole extraction, and
+    # the tokenizer is demonstrably incomplete: the magnitude/tenor allow-list fixed $1.2bn
+    # and 3-5y, but §4.8b shows curated aliases number FIVE, so coverage of real corpus
+    # vocabulary is thin. Halting today would block good runs on the harness's own gaps
+    # rather than on bad evidence, which inverts what the gate is for.
+    #
+    # Rejected: hardcoding lint with no parameter (what this was until today) — it made a
+    # policy choice unreadable as a choice, so nobody could see it had been made.
+    #
+    # FLIP THIS TO STRICT when ungrounded rejections on a real corpus batch are dominated
+    # by genuinely absent figures rather than by tokenizer misses. That is a measurement,
+    # not a judgement: count `bundle.warnings` over `markdowns/` and read a sample.
+    policy = grounding if grounding is not None else GroundingPolicy(mode="lint")
+    grounded = enforce(atoms, index, policy)
     atoms = grounded.kept
     all_ids = [a.evidence_id for a in atoms if a.evidence_id]
 

@@ -157,3 +157,24 @@ def test_extractor_no_longer_invents_numbers_from_dates_and_word_digits():
     # And every atom that survived carries a verdict the harness authored.
     for atom in bundle.evidence_atoms:
         assert atom.grounding is not None and atom.grounding.is_grounded
+
+
+# ── D2: the grounding mode is the caller's choice (SPEC_AND_STATE 4.4) ────────
+
+def test_extract_evidence_defaults_to_lint_but_honours_an_explicit_policy():
+    """User decision 2026-08-12: this caller lints; the parameter makes that visible.
+
+    Until today the mode was hardcoded, so a policy choice was unreadable AS a choice.
+    D2 requires the caller to decide, and `GroundingPolicy()` defaults to strict so a
+    NEW caller that says nothing gets the safe direction.
+    """
+    import inspect
+    from engine.evidence_extraction import extract_evidence
+    from engine.grounding import GroundingPolicy
+
+    sig = inspect.signature(extract_evidence)
+    assert "grounding" in sig.parameters, "D2: the caller must be able to choose"
+    assert sig.parameters["grounding"].default is None
+
+    # The safe direction is the default of the POLICY, not of this call site.
+    assert GroundingPolicy().mode == "strict"

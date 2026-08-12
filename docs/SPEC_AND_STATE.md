@@ -543,7 +543,30 @@ above both subsystems, not inside one.
 **Still open, re-verified 2026-08-12.** Unresolved architectural question; nothing in the
 code has moved either way.
 
-## 4.4 🟠 ⏳ AWAITING YOUR DECISION — the grounding mode is inverted relative to D2
+## 4.4 ✅ RESOLVED 2026-08-12 — grounding LINTS for now; the caller can choose
+
+**Decision (user, 2026-08-12): lint, not halt — for now.**
+
+D2's *structure* is implemented: `extract_evidence(inp, grounding=None)` takes a policy,
+and `GroundingPolicy()` defaults to **strict**, so any NEW caller that says nothing gets
+the safe direction. This caller passes `lint` deliberately, and the call site says why.
+
+**Why lint today.** Under strict, a single figure the tokenizer cannot verify aborts the
+whole extraction. The tokenizer is demonstrably incomplete — the magnitude/tenor
+allow-list fixed `$1.2bn` and `3-5y`, but §4.8b shows the curated alias map has **five**
+entries, so coverage of real corpus vocabulary is thin. Halting today would block good
+runs on the harness's own gaps rather than on bad evidence, which inverts what the gate
+is for.
+
+**Rejected:** leaving it hardcoded (what it was until today). That made a policy choice
+unreadable *as* a choice — nobody could see a decision had been taken, which is how it
+sat inverted against D2 without anyone noticing.
+
+**The condition for flipping to strict**, and it is a measurement rather than a
+judgement: count `EnforcedBundle.warnings` over a real `markdowns/` batch and read a
+sample. Flip when rejections are dominated by genuinely absent figures rather than by
+tokenizer misses.
+
 
 **This one is blocked on you, not on more work.** It is the only entry in Part 4 that a
 builder should not touch until you say which way it goes.
