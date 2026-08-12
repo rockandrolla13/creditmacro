@@ -55,6 +55,24 @@ _STOPWORDS = frozenset({
     "for", "by", "with", "up", "down", "into", "as", "at", "be", "it", "its", "this",
 })
 
+# Mutually EXCLUSIVE qualifier vocabularies. Two themes that each name a qualifier from the
+# same group, with no qualifier in common, are about different things however much of the rest
+# of their wording they share ("european bank spreads" vs "japanese bank spreads" — same
+# mechanism, different market). Blocking these is a MEANING judgement no token metric can make:
+# the shared words are exactly the ones that make the pair look similar. Extensible via
+# ThemeAggregationPolicy.discriminator_groups; geography only in v1, deliberately.
+_DEFAULT_DISCRIMINATOR_GROUPS = [
+    ("region", frozenset({
+        "europe", "european", "eurozone", "emea",
+        "us", "usa", "america", "american",
+        "uk", "britain", "british",
+        "japan", "japanese",
+        "china", "chinese",
+        "germany", "german", "france", "french", "italy", "italian", "spain", "spanish",
+        "asia", "asian", "em", "emerging",
+    })),
+]
+
 
 _BUZZ_TERMS = frozenset({
     "everyone", "consensus", "crowded", "popular", "hot", "bubble", "mania", "buzz",
@@ -65,9 +83,29 @@ _BUZZ_TERMS = frozenset({
 @dataclass
 class ThemeAggregationPolicy:
     """Tunable weights for clustering + PART-4 corroboration/attention/promotion scoring."""
-    min_similarity_to_merge: float = 0.5
+    # Bar for the PASS-1 lexical merge, in units of `_similarity` (alias-anchored weighted
+    # Jaccard — see `_weighted_jaccard`). RE-TUNED for that metric: 0.55 is the max-min-margin
+    # point of the band (0.500, 0.600] over the labelled pair set in
+    # tests/unit/test_theme_aggregation.py::test_merge_metric_separates_the_measured_cases.
+    # It was 0.5 under the old overlap coefficient, where NO threshold separated the cases.
+    min_similarity_to_merge: float = 0.55
+    # Weight on tokens an alias substitution introduced. An alias is curated domain knowledge
+    # that two phrasings MEAN the same thing, so agreeing on one is worth more than agreeing on
+    # an incidental word. 1.0 turns this off and leaves plain Jaccard.
+    alias_anchor_weight: float = 3.0
     alias_map: dict = field(default_factory=lambda: dict(_DEFAULT_ALIASES))
     distinct_pairs: list = field(default_factory=lambda: list(_DEFAULT_DISTINCT_PAIRS))
+    discriminator_groups: list = field(
+        default_factory=lambda: list(_DEFAULT_DISCRIMINATOR_GROUPS))
+    # ── pass 2: mechanism merge ──
+    # Pass 1 is a DISJUNCTION over six dimensions at a high bar ("any one signal is strong").
+    # Pass 2 is a CONJUNCTION over three structural ones ("driver/outcome, mechanism AND
+    # observable all agree"), so it is right for it to accept a lower per-dimension bar —
+    # otherwise pass 1 has already fired on whichever dimension cleared 0.55 and pass 2 can
+    # never add anything. Must stay < min_similarity_to_merge for the pass to do any work;
+    # test_mechanism_bar_must_sit_below_the_lexical_bar pins that.
+    mechanism_pass: bool = True
+    min_mechanism_similarity: float = 0.34   # "more than a third of each structure in common"
     publisher_groups: dict = field(default_factory=dict)   # source_slug -> independence group
     # ── corroboration ──
     independent_source_bonus: float = 0.35
@@ -120,10 +158,39 @@ def _normalize(name: str, alias_map: dict) -> tuple[str, frozenset]:
     return " ".join(toks), frozenset(toks)
 
 
-def _overlap(a: frozenset, b: frozenset) -> float:
+def _containment(a: frozenset, b: frozenset) -> float:
+    """Overlap coefficient — "how much of the SMALLER set is inside the larger".
+
+    Correct for asking whether a short theme name is covered by a long evidence atom
+    (`_CONTENT_LINK_MIN`), where Jaccard is always tiny because the atom has far more tokens.
+    WRONG as a similarity: it returns 1.0 for any subset, so 'growth' scored 1.00 against
+    'china growth slowdown' and merged at every threshold <= 1.0. Do not use it to merge.
+    """
     if not a or not b:
         return 0.0
     return len(a & b) / min(len(a), len(b))
+
+
+def _weighted_jaccard(a: frozenset, b: frozenset, anchors: frozenset, weight: float) -> float:
+    """Symmetric similarity: weighted |a ∩ b| / |a ∪ b|.
+
+    Jaccard, so containment no longer saturates — the whole of BOTH sides counts, and a token
+    set that is a subset of another is scored by how much it leaves out. Tokens in `anchors`
+    (introduced by an alias substitution) count `weight` times, because a curated alias is
+    evidence about MEANING while incidental word-sharing is not.
+
+    Plain Jaccard alone was measured and rejected: it scores 'growth' vs 'china growth
+    slowdown' (must not merge) and 'private credit risk' vs 'direct lending spreads' (must
+    merge) at the same 0.333, so no threshold separates them. Anchoring the alias-derived
+    tokens moves the second to 0.600 and leaves the first at 0.333.
+    """
+    union = a | b
+    if not union:
+        return 0.0
+    if weight == 1.0 or not (anchors & union):
+        return len(a & b) / len(union)
+    mass = lambda s: sum(weight if t in anchors else 1.0 for t in s)   # noqa: E731
+    return mass(a & b) / mass(union)
 
 
 def _matches_side(tokens: frozenset, side: frozenset) -> bool:
@@ -136,6 +203,20 @@ def _distinct_blocked(ta: frozenset, tb: frozenset, pairs) -> bool:
            (_matches_side(ta, s2) and _matches_side(tb, s1)):
             return True
     return False
+
+
+def _discriminator_conflict(ta: frozenset, tb: frozenset, groups) -> Optional[str]:
+    """Name the qualifier group on which `ta` and `tb` disagree outright, if any.
+
+    Both sides must name a qualifier from the same group and share NONE of them. One-sided use
+    is not a conflict: 'european bank spreads' vs 'bank spreads' is a candidate subtheme, not a
+    contradiction, so it is left to the metric.
+    """
+    for name, vocab in groups:
+        da, db = ta & vocab, tb & vocab
+        if da and db and not (da & db):
+            return name
+    return None
 
 
 # ── per-source temporal/classification helpers ───────────────────────────────
@@ -179,6 +260,20 @@ def _eligibility(slug: str, sc, tc, policy: "ThemeAggregationPolicy") -> tuple:
 _CONTENT_LINK_MIN = 0.5   # overlap to link an atom to a theme by content (PART 7.1 fallback)
 
 
+def _alias_anchors(name: str, alias_map: dict) -> frozenset:
+    """Tokens an alias substitution INTRODUCED into `name` — the high-signal ones (see
+    `_weighted_jaccard`). Recomputed rather than threaded out of `_normalize` so the
+    normaliser keeps its two-value contract for its many other callers."""
+    if not alias_map:
+        return frozenset()
+    low = name.lower()
+    out: set = set()
+    for phrase, repl in alias_map.items():
+        if phrase in low:
+            out |= _normalize(repl, {})[1]
+    return frozenset(out)
+
+
 def _tok_set(strings) -> frozenset:
     """Flatten a list of phrase strings into one normalised token set (for the
     concept / entity / market-variable similarity signals)."""
@@ -208,6 +303,7 @@ class _Item:
     market_vars: frozenset = frozenset()
     axes: frozenset = frozenset()
     causal: frozenset = frozenset()
+    anchors: frozenset = frozenset()   # tokens an alias introduced — see _weighted_jaccard
 
 
 def _collect_items(bundle: EvidenceExtractionBundle, alias_map: dict) -> list[_Item]:
@@ -243,7 +339,7 @@ def _collect_items(bundle: EvidenceExtractionBundle, alias_map: dict) -> list[_I
         if not explicit:
             for a in bundle.evidence_atoms:
                 if (a.evidence_id and a.evidence_id not in ev
-                        and _overlap(toks, _atom_tokens(a)) >= _CONTENT_LINK_MIN):
+                        and _containment(toks, _atom_tokens(a)) >= _CONTENT_LINK_MIN):
                     ev.append(a.evidence_id)
         evset = set(ev)
         concepts: set = set()
@@ -257,12 +353,16 @@ def _collect_items(bundle: EvidenceExtractionBundle, alias_map: dict) -> list[_I
                 mvars |= _tok_set(a.market_variables)
         axes: set = set()
         causal: set = set()
+        anchors = set(_alias_anchors(name, alias_map))
         for ax in bundle.operational_axes:
             if evset & set(ax.source_evidence_ids):
                 axes |= _normalize(ax.axis_name, alias_map)[1]
+                anchors |= _alias_anchors(ax.axis_name, alias_map)
         for cc in bundle.causal_claims:
             if evset & set(cc.source_evidence_ids):
                 causal |= _normalize(cc.driver, alias_map)[1] | _normalize(cc.outcome, alias_map)[1]
+                anchors |= (_alias_anchors(cc.driver, alias_map)
+                            | _alias_anchors(cc.outcome, alias_map))
 
         if norm in merged:
             it = merged[norm]
@@ -273,12 +373,13 @@ def _collect_items(bundle: EvidenceExtractionBundle, alias_map: dict) -> list[_I
             it.market_vars |= frozenset(mvars)
             it.axes |= frozenset(axes)
             it.causal |= frozenset(causal)
+            it.anchors |= frozenset(anchors)
         else:
             merged[norm] = _Item(
                 slug=bundle.source_slug, raw_name=name, norm=norm, tokens=toks,
                 from_hot=is_hot, evidence_ids=ev, concepts=frozenset(concepts),
                 entities=frozenset(entities), market_vars=frozenset(mvars),
-                axes=frozenset(axes), causal=frozenset(causal),
+                axes=frozenset(axes), causal=frozenset(causal), anchors=frozenset(anchors),
             )
     return list(merged.values())
 
@@ -293,58 +394,154 @@ class _Cluster:
     axes: set
     causal: set
     items: list
+    anchors: set = field(default_factory=set)
+
+    @property
+    def key(self) -> str:
+        """Content-derived identity, for deterministic tie-breaks and ordering."""
+        return min(it.norm for it in self.items)
+
+    def absorb(self, other: "_Cluster") -> None:
+        self.items.extend(other.items)
+        for attr in ("tokens", "concepts", "entities", "market_vars", "axes", "causal",
+                     "anchors"):
+            getattr(self, attr).update(getattr(other, attr))
 
 
-def _similarity(it: _Item, cl: _Cluster) -> float:
+def _as_cluster(it: _Item) -> _Cluster:
+    return _Cluster(
+        tokens=set(it.tokens), concepts=set(it.concepts), entities=set(it.entities),
+        market_vars=set(it.market_vars), axes=set(it.axes), causal=set(it.causal),
+        anchors=set(it.anchors), items=[it])
+
+
+def _similarity(it: _Item, cl: _Cluster, policy: "ThemeAggregationPolicy") -> float:
     """PART 3 step 3: similarity is the STRONGEST shared signal across name tokens, concepts,
     entities, market_variables, axes, and causal driver/outcome — so two differently-worded
-    themes that share a market variable or an axis still cluster."""
+    themes that share a market variable or an axis still cluster.
+
+    Each dimension is scored by `_weighted_jaccard`, which is SYMMETRIC: unlike the overlap
+    coefficient this replaced, a theme whose tokens are a subset of another's no longer scores
+    1.0 on that fact alone.
+    """
+    anchors = it.anchors | frozenset(cl.anchors)
+    return _cluster_similarity(_as_cluster(it), cl, anchors, policy.alias_anchor_weight)
+
+
+def _cluster_similarity(a: _Cluster, b: _Cluster, anchors: frozenset, weight: float) -> float:
     return max(
-        _overlap(it.tokens, frozenset(cl.tokens)),
-        _overlap(it.concepts, frozenset(cl.concepts)),
-        _overlap(it.entities, frozenset(cl.entities)),
-        _overlap(it.market_vars, frozenset(cl.market_vars)),
-        _overlap(it.axes, frozenset(cl.axes)),
-        _overlap(it.causal, frozenset(cl.causal)),
+        _weighted_jaccard(frozenset(a.tokens), frozenset(b.tokens), anchors, weight),
+        _weighted_jaccard(frozenset(a.concepts), frozenset(b.concepts), anchors, weight),
+        _weighted_jaccard(frozenset(a.entities), frozenset(b.entities), anchors, weight),
+        _weighted_jaccard(frozenset(a.market_vars), frozenset(b.market_vars), anchors, weight),
+        _weighted_jaccard(frozenset(a.axes), frozenset(b.axes), anchors, weight),
+        _weighted_jaccard(frozenset(a.causal), frozenset(b.causal), anchors, weight),
     )
 
 
+def _blocked(ta: frozenset, tb: frozenset, policy) -> Optional[str]:
+    """Reason these two token sets may never merge, or None. Both guards are checked in both
+    passes: structure agreeing does not license merging things the guards call distinct."""
+    if _distinct_blocked(ta, tb, policy.distinct_pairs):
+        return "distinct_marker_guard: related but structurally distinct themes"
+    group = _discriminator_conflict(ta, tb, policy.discriminator_groups)
+    if group:
+        return (f"discriminator_guard[{group}]: both name a {group} and they do not match — "
+                "same mechanism, different market")
+    return None
+
+
 def _cluster_items(items: list, policy: ThemeAggregationPolicy):
+    """Pass 1 (lexical recall) then pass 2 (mechanism precision), both deterministic.
+
+    ORDER-INDEPENDENCE: items are sorted into a canonical, content-derived order first, so the
+    result is a function of the input SET, not of the order the caller happened to supply. The
+    pass stays greedy — it is not a global optimum — but the same themes now always produce the
+    same clusters. Ties resolve to the lowest cluster key, not to whichever was seen first.
+    """
     clusters: list[_Cluster] = []
-    rejected: list[dict] = []
-    for it in items:
-        best = None
-        best_sim = 0.0
+    for it in sorted(items, key=lambda i: (i.norm, i.slug)):
+        best, best_sim = None, 0.0
         for cl in clusters:
-            if _distinct_blocked(it.tokens, frozenset(cl.tokens), policy.distinct_pairs):
+            if _blocked(it.tokens, frozenset(cl.tokens), policy):
                 continue
-            sim = _similarity(it, cl)
-            if sim > best_sim:
+            sim = _similarity(it, cl, policy)
+            if sim > best_sim or (best is not None and sim == best_sim and cl.key < best.key):
                 best_sim, best = sim, cl
         if best is not None and best_sim >= policy.min_similarity_to_merge:
-            best.items.append(it)
-            best.tokens |= it.tokens
-            best.concepts |= it.concepts
-            best.entities |= it.entities
-            best.market_vars |= it.market_vars
-            best.axes |= it.axes
-            best.causal |= it.causal
+            best.absorb(_as_cluster(it))
         else:
-            clusters.append(_Cluster(
-                tokens=set(it.tokens), concepts=set(it.concepts), entities=set(it.entities),
-                market_vars=set(it.market_vars), axes=set(it.axes), causal=set(it.causal),
-                items=[it]))
+            clusters.append(_as_cluster(it))
+
+    if policy.mechanism_pass:
+        clusters = _mechanism_merge(clusters, policy)
+    # canonical final order, so cluster_id is a function of CONTENT — not of formation order and
+    # not of whether pass 2 ran.
+    clusters.sort(key=lambda c: c.key)
+
     # record related-but-distinct near misses across the final clusters
+    rejected: list[dict] = []
     for i in range(len(clusters)):
         for j in range(i + 1, len(clusters)):
-            if _distinct_blocked(frozenset(clusters[i].tokens),
-                                 frozenset(clusters[j].tokens), policy.distinct_pairs):
+            reason = _blocked(frozenset(clusters[i].tokens), frozenset(clusters[j].tokens),
+                              policy)
+            if reason:
                 rejected.append({
                     "theme_a": clusters[i].items[0].norm,
                     "theme_b": clusters[j].items[0].norm,
-                    "reason": "distinct_marker_guard: related but structurally distinct themes",
+                    "reason": reason,
                 })
     return clusters, rejected
+
+
+def _mechanism_match(a: _Cluster, b: _Cluster, policy) -> bool:
+    """Do two clusters describe the SAME causal story? Words are not consulted.
+
+    All three must hold, using only the sets the clusters already carry:
+      • driver + outcome — `causal`, the driver→outcome tokens of the linked causal claims
+      • mechanism        — `axes`, the operational axis the transmission is observed on
+      • outcome variable — `market_vars`, the observable that actually moves
+
+    A missing set is never evidence of sameness: a cluster with no causal claim, no axis or no
+    market variable cannot mechanism-merge at all. That keeps this pass strictly additive —
+    it can only join clusters that both carry real structure.
+
+    The bar is `min_mechanism_similarity`, deliberately BELOW the pass-1 bar: three moderate
+    agreements that must all hold is stronger evidence than one strong agreement on its own.
+    """
+    t = policy.min_mechanism_similarity
+    for x, y in ((a.causal, b.causal), (a.axes, b.axes), (a.market_vars, b.market_vars)):
+        if not x or not y:
+            return False
+        if _weighted_jaccard(frozenset(x), frozenset(y), frozenset(), 1.0) < t:
+            return False
+    return True
+
+
+def _mechanism_merge(clusters: list, policy) -> list:
+    """Pass 2: merge clusters that agree on driver, mechanism and outcome even when they share
+    no wording. This is the half that fixes FRAGMENTATION — two long, differently-worded
+    descriptions of one theme have no tokens in common and pass 1 will never join them.
+
+    Runs to a fixpoint over a deterministically ordered list, so merges compose transitively.
+    """
+    merged = True
+    while merged:
+        merged = False
+        clusters.sort(key=lambda c: c.key)
+        for i in range(len(clusters)):
+            for j in range(i + 1, len(clusters)):
+                a, b = clusters[i], clusters[j]
+                if _blocked(frozenset(a.tokens), frozenset(b.tokens), policy):
+                    continue
+                if _mechanism_match(a, b, policy):
+                    a.absorb(b)
+                    clusters.pop(j)
+                    merged = True
+                    break
+            if merged:
+                break
+    return clusters
 
 
 # ── attribution + scoring ────────────────────────────────────────────────────
@@ -357,6 +554,7 @@ def _build_cluster(idx, cl, classes, temporals, bundles_by_slug, slug_cluster_co
         by_source.setdefault(it.slug, []).append(it)
 
     cluster_tokens = frozenset(cl.tokens)
+    cluster_anchors = frozenset(cl.anchors)
     evidence_ids: set = set()
     current_evidence_ids: set = set()    # PART 5: only current-input evidence corroborates
     attrs: list[SourceAttribution] = []
@@ -384,9 +582,14 @@ def _build_cluster(idx, cl, classes, temporals, bundles_by_slug, slug_cluster_co
             members.append(ThemeClusterMember(
                 source_slug=slug, original_theme_name=it.raw_name,
                 evidence_ids=it.evidence_ids, temporal_role=role,
-                similarity_score=round(_overlap(it.tokens, cluster_tokens), 3),
+                # the SAME metric the merge decision used, so a reader can see why it merged.
+                # Under the old overlap coefficient this was 1.000 for every member (each
+                # member's tokens are a subset of the cluster union), which said nothing.
+                similarity_score=round(_weighted_jaccard(
+                    it.tokens, cluster_tokens, it.anchors | cluster_anchors,
+                    policy.alias_anchor_weight), 3),
                 from_hot_topic=it.from_hot, is_current_input=cur,
-                rationale="token/alias overlap with cluster",
+                rationale="alias-anchored weighted Jaccard against the cluster",
             ))
         # contribution type from the firewall klass (PART 5)
         if klass == "method":

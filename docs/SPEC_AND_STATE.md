@@ -569,6 +569,49 @@ is in fact clean; the gate is vacuous. One-line fix.
 - **Multi-falsifier themes** — the schema assumes one; real theses often have two or
   three. AND or OR, and does any breach terminate or does it take a quorum?
 
+## 4.8 🟠 REVISIT: the theme distance metric — swapping it trades errors, it does not fix them
+
+**Raised 2026-08-11, with measurements. Needs a decision after the compression work lands.**
+
+`_overlap` in `engine/theme_aggregation.py` is the **overlap coefficient**
+(`|A∩B| / min(|A|,|B|)`), not Jaccard — `THEME_DISCIPLINE_AND_FAILURE_MODES.md` said
+Jaccard and was wrong. The obvious fix is to swap in Jaccard. **Measured, that is not a
+clean win.** Both metrics on the same eight pairs, threshold 0.5:
+
+| A | B | coef | jac | should |
+|---|---|---|---|---|
+| growth | rates not pricing growth | **1.00** merge | 0.33 sep | **separate** |
+| growth | china growth slowdown | **1.00** merge | 0.33 sep | **separate** |
+| funding stress | funding | **1.00** merge | **0.50** merge | **separate** |
+| european bank spreads | japanese bank spreads | **0.67** merge | **0.50** merge | **separate** |
+| hyperscaler bond basis | hyperscaler project bond basis risk premium | 1.00 merge | 0.50 merge | merge ✓ |
+| ai capex funding | ai capex credit supply | 0.67 merge ✓ | **0.40 sep** | **merge** |
+| ai capex debt funded buildout | hyperscaler issuance surge | **0.00 sep** | **0.00 sep** | **merge** |
+| rates not pricing growth | market underpricing recovery | **0.00 sep** | **0.00 sep** | **merge** |
+
+**What this shows.**
+
+1. Jaccard fixes the two `growth` containment blowups and breaks a correct merge
+   (`ai capex funding` / `ai capex credit supply` drops to 0.40 and separates). It trades
+   one error class for another.
+2. **Both metrics fail identically on the last two rows — score 0.00.** Two descriptions
+   of the same theme sharing no vocabulary are invisible to any token-counting function.
+   That is the fragmentation half of the problem, and **no threshold and no choice of
+   set-similarity metric reaches it.**
+3. Rows 3 and 4 are wrong under *both*. `funding stress`/`funding` is a parent/child
+   relation being scored as equality — the hierarchy the engine lacks. `european`/
+   `japanese` differ by exactly the token the metric discards.
+
+**So the real question to revisit is not which metric.** It is whether merge should be a
+lexical decision at all, or a *mechanism* decision — same driver, same transmission, same
+outcome — with tokens demoted to a cheap pre-filter for recall. Rows 6–8 are only
+separable that way. Rows 3–4 need a parent/subtheme relation, which `ThemeCluster` does
+not model.
+
+**Do not re-tune the threshold and call it fixed.** Re-run the table above against
+whatever is in place after the compression work; if rows 7 and 8 still score 0.00, the
+metric change was cosmetic.
+
 ---
 
 # Part 5 — Recommended build order, and why
