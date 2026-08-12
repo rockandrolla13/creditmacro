@@ -15,9 +15,17 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 from .grounding import GroundingPolicy, SourceIndex, enforce
+from .grounding.provenance_ledger import ProvenanceLedger
+from .grounding.record import record_enforced
+
 from .grounding.numbers import numbers_in
 from .schema import EvidenceAtom
 from .temporal import ForecastHorizon, TemporalClaimStatus, TemporalContext
+
+#: Used only when a caller supplies a provenance ledger but the input carries no date at
+#: all. Explicit and obviously-not-real, so a node stamped with it is visibly unstamped
+#: rather than plausibly dated. Never the wall clock (I8).
+_PROVENANCE_EPOCH = "0001-01-01T00:00:00+00:00"
 
 # ── schemas ─────────────────────────────────────────────────────────────────────
 
@@ -233,6 +241,7 @@ def _direction_for(text: str) -> Optional[str]:
 def extract_evidence(
     inp: EvidenceExtractionInput,
     grounding: Optional[GroundingPolicy] = None,
+    provenance: Optional[ProvenanceLedger] = None,
 ) -> EvidenceExtractionBundle:
     md = inp.normalized_markdown
     slug = inp.source_slug
@@ -288,6 +297,22 @@ def extract_evidence(
     # not a judgement: count `bundle.warnings` over `markdowns/` and read a sample.
     policy = grounding if grounding is not None else GroundingPolicy(mode="lint")
     grounded = enforce(atoms, index, policy)
+
+    # G6 population, OBSERVE MODE (user decision, 2026-08-12). Recording both halves --
+    # kept and rejected -- is what lets the emit gate refuse a claim by rule rather than by
+    # its absence, and lets a human ask why. Off unless a caller passes a ledger, so
+    # existing callers and the golden master are untouched.
+    #
+    # This module RECORDS and does not GATE. Wiring `assert_emittable` here would halt a
+    # run on the harness's own coverage gaps, which is the same trade already decided
+    # against in §4.4 -- and the gate belongs at the emit boundary (firewall/workflow),
+    # not in the middle of extraction.
+    if provenance is not None:
+        record_enforced(
+            grounded.kept, grounded.rejected, provenance,
+            source_slug=slug,
+            created_at=inp.current_date or inp.source_date or _PROVENANCE_EPOCH,
+        )
     atoms = grounded.kept
     all_ids = [a.evidence_id for a in atoms if a.evidence_id]
 
