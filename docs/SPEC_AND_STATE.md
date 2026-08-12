@@ -591,6 +591,47 @@ flipping to strict is unsafe until the number tokenizer stops dropping real figu
 lifted — 4.5 is fixed (Part 4C). So the blocker is now only the decision, not the
 tokenizer.
 
+## 4.9 🟠 The §4.4 flip measurement is UNINFORMATIVE on the rule extractor — measured 2026-08-12
+
+Ran the emit gate over **19,792 atoms from 14 real documents** in `markdowns/`, with the
+provenance ledger populated. Result: **100% grounded, 0 blocked.**
+
+**Do not read that as a green light to flip §4.4 to strict.** The rule-based extractor
+*cannot fail its own check*, by construction:
+
+```
+producer   engine/evidence_extraction.py:260,279   nums = [n.value for n in numbers_in(sent)]
+                                                    source_span = sent
+verifier   engine/grounding/__init__.py:147         found = numbers_in(markdown[start:end])
+```
+
+Both sides run **the same tokenizer on the same string**. The span is located trivially
+because it was copied out of the document, and the numbers agree because they came from the
+identical function. The check is a tautology on this path, so a 0% rejection rate measures
+the producer's determinism, not the corpus's cleanliness.
+
+**The gate is not broken — it has no purchase here.** Against a producer that writes its own
+quote it bites correctly, measured on the same fixture:
+
+| producer behaviour | verdict |
+|---|---|
+| copies the sentence verbatim (rule extractor) | grounded |
+| paraphrases the quote | **blocked** — quote not found |
+| right quote, invented figure | **blocked** — numbers absent from span |
+| quote lifted from a different document | **blocked** — quote not found |
+
+**What follows.**
+1. §4.4's flip condition cannot be settled from the rule extractor. It has to be measured
+   on an **LLM producer**, where quote and numbers are generated rather than copied. That
+   producer is `engine/llm_provider.py`, and this measurement has never been run against it.
+2. Strict mode on the rule path is therefore *free today* — it would reject nothing — but
+   free because it is inert, which is not a reason to turn it on. It buys no safety and
+   creates a halt path that fires the day the tokenizer changes.
+3. The real exposure is unchanged and unmeasured: **G3 adjudication and G8 briefs are
+   scaffolded stubs**, and those are the LLM-authored surfaces the gate exists for.
+
+---
+
 ## 4.6 🟡 Invariant I8 cannot fail
 
 Its gate command in `PLAN-authoritative-harness.md:31` greps `engine/grounding.py`,
