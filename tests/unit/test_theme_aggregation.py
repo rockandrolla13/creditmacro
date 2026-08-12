@@ -256,6 +256,314 @@ def test_source_attribution_rationale_describes_contribution():
     assert "attention" in rats["buzz"] or "mention" in rats["buzz"]
 
 
+# ── the merge metric: the five measured cases ────────────────────────────────
+# The aggregator used to score similarity with the OVERLAP COEFFICIENT
+# (|a∩b| / min(|a|,|b|)), which returns 1.0 for ANY token set that is a subset of the other.
+# 'growth' therefore scored 1.00 against every theme containing the word "growth" and merged at
+# every threshold <= 1.0, so `min_similarity_to_merge` was not doing the work it appeared to.
+# The replacement is an alias-anchored WEIGHTED JACCARD (`_weighted_jaccard`): symmetric, so
+# containment no longer saturates, with tokens introduced by an alias substitution weighted
+# `alias_anchor_weight` because a curated alias is evidence about MEANING.
+#
+# Each case below carries its OLD overlap-coefficient score in a comment.
+MEASURED_CASES = [
+    # (a, b, should_merge, new_score, old_overlap_score)
+    ("growth", "rates not pricing growth", False, 0.25, 1.00),
+    ("growth", "china growth slowdown", False, 0.33, 1.00),
+    ("growth", "growth in ai capex funding needs", False, 0.20, 1.00),
+    # blocked by the discriminator guard, not by the score: two regions, no shared region.
+    ("european bank spreads", "japanese bank spreads", False, 0.50, 0.67),
+    # the alias `direct lending -> private credit` anchors the shared tokens, lifting a real
+    # merge from 0.33 (plain Jaccard, below the bar) to 0.60 (above it).
+    ("Private credit risk is mispriced", "Direct lending spreads too tight", True, 0.60, 0.50),
+]
+
+
+def _score(a, b, policy=None):
+    """The merge decision for two raw theme names: (score, blocked_reason, merges?)."""
+    from engine.theme_aggregation import (
+        _alias_anchors, _blocked, _normalize, _weighted_jaccard,
+    )
+    pol = policy or ThemeAggregationPolicy()
+    ta, tb = _normalize(a, pol.alias_map)[1], _normalize(b, pol.alias_map)[1]
+    anchors = _alias_anchors(a, pol.alias_map) | _alias_anchors(b, pol.alias_map)
+    score = _weighted_jaccard(ta, tb, anchors, pol.alias_anchor_weight)
+    reason = _blocked(ta, tb, pol)
+    return score, reason, reason is None and score >= pol.min_similarity_to_merge
+
+
+@pytest.mark.parametrize("a,b,should_merge,new_score,old_score", MEASURED_CASES)
+def test_measured_case_has_its_new_score_and_merge_decision(
+        a, b, should_merge, new_score, old_score):
+    from engine.theme_aggregation import _containment, _normalize
+    pol = ThemeAggregationPolicy()
+    ta, tb = _normalize(a, pol.alias_map)[1], _normalize(b, pol.alias_map)[1]
+    assert _containment(ta, tb) == pytest.approx(old_score, abs=0.005)   # what it used to be
+    score, _reason, merges = _score(a, b)
+    assert score == pytest.approx(new_score, abs=0.005)
+    assert merges is should_merge
+
+
+def test_overlap_coefficient_saturated_on_containment_but_the_new_metric_does_not():
+    """The defect in one assertion: a subset scored a perfect 1.0 on being a subset."""
+    from engine.theme_aggregation import _containment, _normalize
+    a, b = _normalize("growth", {})[1], _normalize("china growth slowdown", {})[1]
+    assert a < b                                    # 'growth' is a strict subset
+    assert _containment(a, b) == 1.0                # old metric: indistinguishable from equal
+    assert _score("growth", "china growth slowdown")[0] < 1.0
+
+
+_LABELLED_PAIRS = [(a, b, m) for a, b, m, _n, _o in MEASURED_CASES] + [
+    ("AI capex funding gap", "AI capex funding gap", True),
+    ("AI capex funding gap", "AI chip demand", False),
+    ("AI capex funding gap", "AI software margins", False),
+    ("AI chip demand", "AI software margins", False),
+    ("ETF basket basis", "Software refinancing stress", False),
+    ("HY HPC crowding", "Hyperscaler project bond basis", False),
+    ("Private credit risk is mispriced", "Front-end rates catch up", False),
+    ("alpha credit mispriced", "bravo rates dislocation", False),
+]
+
+
+def test_merge_metric_separates_the_measured_cases():
+    """The re-tuning measurement behind `min_similarity_to_merge = 0.55`.
+
+    The bar must sit ABOVE every pair that must not merge and AT OR BELOW every pair that must.
+    Measured over the labelled set WITHOUT help from the guards, the band is (0.500, 0.600] and
+    0.55 is its max-min-margin point. The threshold is deliberately derived this way: the
+    discriminator vocabulary is hand-curated and will always be incomplete, so the metric is
+    required to stand on its own and the guards are defence in depth, not a crutch.
+
+    This is NOT the old 0.5 carried over. Under the overlap coefficient the band was EMPTY at
+    every threshold — that is why no dial could fix the behaviour.
+    """
+    pol = ThemeAggregationPolicy()
+    scored = [(_score(a, b)[0], m) for a, b, m in _LABELLED_PAIRS]
+    ceiling = max(s for s, m in scored if not m)     # highest must-NOT-merge
+    floor = min(s for s, m in scored if m)           # lowest must-merge
+    assert ceiling < floor, "no threshold separates the cases"
+    assert (round(ceiling, 3), round(floor, 3)) == (0.5, 0.6)
+    assert ceiling < pol.min_similarity_to_merge <= floor
+    assert pol.min_similarity_to_merge == pytest.approx((ceiling + floor) / 2, abs=0.005)
+
+
+def test_old_overlap_coefficient_had_no_separating_threshold():
+    """The finding that made this a metric change rather than a tuning change: on the same
+    labelled set the old metric scored must-merge and must-NOT-merge pairs into the same range,
+    so raising the bar worsened fragmentation and lowering it worsened over-merging."""
+    from engine.theme_aggregation import _containment, _normalize
+    al = ThemeAggregationPolicy().alias_map
+    old = [(_containment(_normalize(a, al)[1], _normalize(b, al)[1]), m)
+           for a, b, m in _LABELLED_PAIRS]
+    assert max(s for s, m in old if not m) >= min(s for s, m in old if m)
+
+
+def test_guards_are_defence_in_depth_not_load_bearing():
+    """Every labelled pair is classified correctly by the threshold ALONE, guards switched
+    off — so an incomplete discriminator vocabulary degrades the result, it does not break it."""
+    naked = ThemeAggregationPolicy(discriminator_groups=[], distinct_pairs=[])
+    for a, b, should_merge in _LABELLED_PAIRS:
+        assert _score(a, b, naked)[2] is should_merge, f"{a!r} vs {b!r}"
+
+
+def test_plain_jaccard_would_not_have_worked():
+    """Why the metric is weighted, not the 'obvious' plain Jaccard.
+
+    Plain Jaccard scores a must-NOT-merge pair and a must-merge pair identically at 0.333, so
+    it has no separating threshold either. The alias anchoring is what breaks the tie.
+    """
+    from engine.theme_aggregation import _normalize, _weighted_jaccard
+    pol = ThemeAggregationPolicy()
+    plain = lambda a, b: _weighted_jaccard(          # noqa: E731 — weight 1.0 == plain Jaccard
+        _normalize(a, pol.alias_map)[1], _normalize(b, pol.alias_map)[1], frozenset(), 1.0)
+    assert plain("growth", "china growth slowdown") == pytest.approx(0.333, abs=0.005)
+    assert plain("Private credit risk is mispriced",
+                 "Direct lending spreads too tight") == pytest.approx(0.333, abs=0.005)
+
+
+def test_containment_is_still_used_to_link_atoms_to_a_theme():
+    """The overlap coefficient is CORRECT for atom linking and is retained there: it asks
+    whether a short theme name is covered by a much longer atom, where Jaccard is always tiny.
+    A theme with no `themes` on its atoms still picks the atom up by content."""
+    atom = EvidenceAtom(evidence_id="e1", source_slug="src-a",
+                        claim="bdc nav discount widened sharply on private credit stress",
+                        entities=["private credit"], market_variables=["bdc_nav_discount"])
+    b = _bundle("src-a", themes=["Private credit"], atoms=[atom])
+    res = _run([b], [_sc("src-a")], [_tc("src-a")])
+    assert res.clusters[0].evidence_ids == ["e1"]
+
+
+# ── the discriminator guard ──────────────────────────────────────────────────
+def test_two_regions_with_the_same_mechanism_do_not_merge():
+    b1 = _bundle("src-a", themes=["European bank spreads"])
+    b2 = _bundle("src-b", themes=["Japanese bank spreads"])
+    res = _run([b1, b2], [_sc("src-a"), _sc("src-b")])
+    assert len(res.clusters) == 2                       # old overlap coefficient: 0.67 → MERGED
+    assert any("discriminator_guard[region]" in r["reason"] for r in res.rejected_merges)
+
+
+def test_one_sided_region_is_not_a_conflict():
+    """'european bank spreads' vs 'bank spreads' is a candidate subtheme, not a contradiction —
+    the guard needs a region on BOTH sides, and leaves this to the metric."""
+    from engine.theme_aggregation import _discriminator_conflict, _normalize
+    pol = ThemeAggregationPolicy()
+    ta = _normalize("european bank spreads", {})[1]
+    tb = _normalize("bank spreads", {})[1]
+    assert _discriminator_conflict(ta, tb, pol.discriminator_groups) is None
+
+
+# ── pass 2: the mechanism merge ──────────────────────────────────────────────
+def _mech_bundle(slug, theme, eid, *, driver, outcome, axis, mvars):
+    """A source whose theme carries a full causal story: driver→outcome, an axis, variables."""
+    from engine.evidence_extraction import CausalClaimCandidate
+    return EvidenceExtractionBundle(
+        source_slug=slug, core_theme_candidates=[theme],
+        evidence_atoms=[EvidenceAtom(evidence_id=eid, source_slug=slug, claim=f"claim {eid}",
+                                     themes=[theme.lower()], market_variables=list(mvars))],
+        causal_claims=[CausalClaimCandidate(
+            driver=driver, transmission="funding channel", outcome=outcome,
+            source_evidence_ids=[eid], confidence=0.7, rationale="r")],
+        operational_axes=[OperationalAxisCandidate(
+            axis_name=axis, axis_shape="basis", observable_series=f"{axis}_s",
+            source_evidence_ids=[eid])],
+    )
+
+
+# Two sources describing ONE theme in completely different words. Every individual dimension
+# sits BELOW the pass-1 bar of 0.55 (names 0.00, market_vars 0.40, axes 0.50, causal 0.43), so
+# no single signal is strong enough for pass 1. All three structural dimensions clear the pass-2
+# bar of 0.34 at once, which is what makes them the same theme.
+_MECH_A = dict(theme="Sponsor-backed borrowers face a refinancing wall", eid="e1",
+               driver="policy rate path", outcome="funding cost",
+               axis="hy_oas_basis", mvars=["hy_oas", "ig_oas"])
+_MECH_B = dict(theme="Leveraged issuers cannot roll their maturities", eid="e2",
+               driver="policy rate path", outcome="issuance volume",
+               axis="hy_oas_curve", mvars=["hy_oas", "bdc_nav"])
+
+
+def _mech_pair(**overrides):
+    b = dict(_MECH_B, **overrides)
+    return [_mech_bundle("src-a", **_MECH_A), _mech_bundle("src-b", **b)]
+
+
+def _mech_run(bundles, policy=None):
+    return _run(bundles, [_sc("src-a"), _sc("src-b")], [_tc("src-a"), _tc("src-b")], policy)
+
+
+def test_mechanism_pass_merges_themes_that_share_no_words():
+    """The fragmentation half. Two differently-worded descriptions of ONE theme share no name
+    tokens at all, so pass 1 will never join them. Pass 2 joins them because driver/outcome,
+    the axis and the observable all agree at once."""
+    assert _score(_MECH_A["theme"], _MECH_B["theme"])[0] == 0.0      # no shared word
+    res = _mech_run(_mech_pair())
+    assert len(res.clusters) == 1
+    assert res.clusters[0].source_count == 2
+
+
+def test_mechanism_pass_is_the_only_thing_that_merges_them():
+    """Same fixture with pass 2 off stays split — proving the merge above is pass 2's doing and
+    not pass 1 quietly clearing its bar on one dimension."""
+    res = _mech_run(_mech_pair(), ThemeAggregationPolicy(mechanism_pass=False))
+    assert len(res.clusters) == 2
+
+
+def test_mechanism_pass_keeps_a_different_outcome_apart():
+    """Same driver and axis, but a different outcome and a different observable. Keep-separate,
+    not merge — the conjunction is exactly what stops this."""
+    res = _mech_run(_mech_pair(outcome="equity multiple expansion",
+                               axis="index_earnings_yield", mvars=["index_pe", "spx_div"]))
+    assert len(res.clusters) == 2
+
+
+def test_mechanism_pass_needs_all_three_not_two():
+    """Driver/outcome and axis agree, but the observables do not overlap at all. Two out of
+    three is not a mechanism match."""
+    res = _mech_run(_mech_pair(mvars=["index_pe", "spx_div"]))
+    assert len(res.clusters) == 2
+
+
+def test_mechanism_pass_never_merges_on_missing_structure():
+    """Two clusters with NO causal claim, axis or market variable must not merge just because
+    they are equally empty — that is what makes pass 2 strictly additive."""
+    res = _run([_bundle("src-a", themes=["Alpha wholly unrelated topic"]),
+                _bundle("src-b", themes=["Bravo entirely different subject"])],
+               [_sc("src-a"), _sc("src-b")])
+    assert len(res.clusters) == 2
+
+
+def test_mechanism_bar_must_sit_below_the_lexical_bar():
+    """Why `min_mechanism_similarity` (0.34) is not simply the pass-1 bar.
+
+    Pass 1 is a disjunction over six dimensions; pass 2 a conjunction over three of them. Raise
+    the conjunction's bar to the disjunction's and pass 2 becomes dead code: any dimension that
+    clears it has already caused pass 1 to merge.
+    """
+    pol = ThemeAggregationPolicy()
+    assert pol.min_mechanism_similarity < pol.min_similarity_to_merge
+    subsumed = ThemeAggregationPolicy(
+        min_mechanism_similarity=ThemeAggregationPolicy().min_similarity_to_merge)
+    assert len(_mech_run(_mech_pair(), subsumed).clusters) == 2      # pass 2 did nothing
+    assert len(_mech_run(_mech_pair()).clusters) == 1               # at the tuned bar it acts
+
+
+def test_mechanism_pass_respects_the_distinct_marker_guard():
+    """Structure agreeing does not license merging what the guards call distinct."""
+    res = _mech_run([
+        _mech_bundle("src-a", **dict(_MECH_A, theme="AI capex project-bond basis")),
+        _mech_bundle("src-b", **dict(_MECH_B,
+                                     theme="HY HPC crowding high performance computing")),
+    ])
+    assert len(res.clusters) == 2
+    assert res.rejected_merges
+
+
+def test_mechanism_pass_respects_the_discriminator_guard():
+    res = _mech_run([
+        _mech_bundle("src-a", **dict(_MECH_A, theme="European bank funding stress")),
+        _mech_bundle("src-b", **dict(_MECH_B, theme="Japanese bank funding stress")),
+    ])
+    assert len(res.clusters) == 2
+    assert any("discriminator_guard[region]" in r["reason"] for r in res.rejected_merges)
+
+
+# ── determinism / order-independence ─────────────────────────────────────────
+def _fingerprint(res):
+    """Everything about the clustering that a caller can observe, order-insensitively."""
+    return sorted(
+        (c.cluster_id, c.canonical_theme_name,
+         tuple(sorted((m.source_slug, m.original_theme_name) for m in c.members)),
+         c.promotion_score)
+        for c in res.clusters
+    )
+
+
+def test_clustering_is_independent_of_input_order():
+    """`_cluster_items` was a greedy pass over the caller's list, so the same themes in a
+    different order produced different clusters. Items are now sorted into a canonical,
+    content-derived order first, so the result is a function of the input SET."""
+    import itertools
+    specs = [("src-a", "Private credit risk is mispriced"),
+             ("src-b", "Direct lending spreads too tight"),
+             ("src-c", "European bank spreads"),
+             ("src-d", "Japanese bank spreads"),
+             ("src-e", "AI capex funding gap")]
+    runs = []
+    for order in itertools.permutations(range(len(specs))):
+        picked = [specs[i] for i in order]
+        res = _run([_bundle(s, themes=[t]) for s, t in picked],
+                   [_sc(s) for s, _ in picked], [_tc(s) for s, _ in picked])
+        runs.append(_fingerprint(res))
+    assert all(r == runs[0] for r in runs), "clustering still depends on input order"
+
+
+def test_repeated_runs_are_byte_identical():
+    b = [_bundle("src-a", themes=["Private credit risk is mispriced"]),
+         _bundle("src-b", themes=["Direct lending spreads too tight"])]
+    c = [_sc("src-a"), _sc("src-b")]
+    first = _run(b, c).model_dump_json()
+    assert all(_run(b, c).model_dump_json() == first for _ in range(3))
+
+
 def test_no_trade_confirmation_and_no_trade_fields():
     res = _run([_bundle("src-a", themes=["x theme"])], [_sc("src-a")])
     assert res.no_trade_confirmation

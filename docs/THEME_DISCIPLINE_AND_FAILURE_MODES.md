@@ -7,6 +7,11 @@
 > Written 2026-06-13 from code (`engine/theme_aggregation.py`,
 > `engine/schema/theme_aggregation.py`). Status tags: ✅ implemented · ⚠️ partial · 🚧 planned ·
 > ❌ missing.
+>
+> **Revised 2026-08-11.** The original description of the similarity metric was wrong — it named a
+> function the code did not contain and drew the opposite conclusion about the threshold. See
+> "Correction" below and the rewritten "Merge rules". Measurements here are reproduced as tests in
+> `tests/unit/test_theme_aggregation.py`; that file, not this memo, is authoritative.
 
 ## Problem statement
 
@@ -17,20 +22,46 @@ topics promoted as if they were core themes.
 
 This is **structural, not a tuning bug.** Grounded in `engine/theme_aggregation.py`:
 
-- **Greedy, order-dependent single-pass clustering** (`_cluster_items`): each candidate joins the
-  *best* existing cluster only if `_similarity ≥ min_similarity_to_merge` (default **0.5**).
-- `_similarity` is the **max** over six Jaccard overlaps (tokens, concepts, entities, market_vars,
-  axes, causal). A 0.5 *max-overlap* bar is **high** — two phrasings of the same theme that don't
-  share ≥50% of tokens on any single dimension stay **separate** → near-duplicate clusters survive.
+- **Greedy single-pass clustering** (`_cluster_items`): each candidate joins the *best* existing
+  cluster only if `_similarity ≥ min_similarity_to_merge`.
 - **Canonical naming is raw-member based**: `canonical = max(members, key=(len(evidence_ids),
   len(name)))`. It picks the longest existing member name; it never **synthesizes** a parent theme.
 - **No parent-theme / subtheme schema** — `ThemeCluster` is flat (members, attributions, scores,
   status). There is no "Main Development → Parent Theme → Subtheme" hierarchy.
-- **No cap** on clusters per batch; **no second-pass compression**; **no human-analyst synthesis.**
+- **No cap** on clusters per batch; **no human-analyst synthesis.**
 
-You cannot fix this by lowering a threshold. Lowering `min_similarity_to_merge` would over-merge
-unrelated themes; the missing piece is a **compression / synthesis stage** that reasons about
-mechanism, not token overlap.
+You cannot fix this by moving a threshold. The missing piece is a **compression / synthesis stage**
+that reasons about mechanism, not token overlap.
+
+### Correction (2026-08-11): what the similarity metric actually was
+
+An earlier revision of this memo described `_similarity` as "the **max** over six Jaccard overlaps"
+and concluded that "a 0.5 max-overlap bar is **high**", so near-duplicates survived. **Both claims
+were wrong, and they described code that did not exist.** The function was:
+
+```python
+def _overlap(a, b):                      # the OVERLAP COEFFICIENT, not Jaccard
+    return len(a & b) / min(len(a), len(b))
+```
+
+Because the denominator was `min`, **any token set that was a subset of another scored exactly
+1.0**. Measured:
+
+| pair | old `_overlap` | Jaccard |
+|---|---|---|
+| `growth` vs `rates not pricing growth` | **1.00** | 0.25 |
+| `growth` vs `china growth slowdown` | **1.00** | 0.33 |
+| `growth` vs `growth in ai capex funding needs` | **1.00** | 0.20 |
+| `european bank spreads` vs `japanese bank spreads` | 0.67 → merged | 0.50 |
+
+So the bar was not uniformly high: every one of those `growth` pairs merged at **any** threshold
+≤ 1.0, and `min_similarity_to_merge` was not doing the work this memo claimed for it. Meanwhile two
+long, differently-worded descriptions of the same theme share no tokens, score 0.0, and stay apart.
+
+**Both failure modes were live at once** — that is the finding that matters. Raising the threshold
+worsened fragmentation; lowering it worsened over-merging. No single dial fixed it, which is why the
+fix was a change of metric plus a second pass, not a retune. See "Merge rules" below for what
+replaced it.
 
 ## Desired behavior
 
@@ -87,9 +118,50 @@ A **parent theme** must have *all* of:
 - axis,
 - strategy family.
 
-> Today the merge decision is **token/alias Jaccard ≥ 0.5 on any one dimension** — a lexical proxy,
-> not a mechanism match. Two themes with the same driver/outcome but different vocabulary do not
-> merge. ⚠️
+> Today (2026-08-11) the aggregator runs **two passes**, and the mechanism half of this rule is
+> implemented. ⚠️→✅ for driver/mechanism/outcome; axis + family are not yet required. ⚠️
+
+**Pass 1 — lexical recall.** `_similarity` is still the **max** over the six dimensions (tokens,
+concepts, entities, market_vars, axes, causal), but each is now scored by `_weighted_jaccard`:
+symmetric weighted Jaccard, so containment no longer saturates. Tokens introduced by an **alias**
+substitution carry `alias_anchor_weight` (default 3.0), because a curated alias is evidence about
+*meaning* whereas incidental word-sharing is not. `min_similarity_to_merge` was **re-tuned to
+0.55** for this metric — the max-min-margin point of the measured band `(0.500, 0.600]`; the old
+0.5 was calibrated against a different function.
+
+Plain Jaccard was measured and **rejected**: it scores `growth` vs `china growth slowdown` (must
+not merge) and `private credit risk` vs `direct lending spreads` (must merge) at the **same 0.333**,
+so it has no separating threshold either. The alias anchoring is what breaks that tie.
+
+**Pass 2 — mechanism precision** (`_mechanism_merge`). Merges two clusters only when *all three*
+hold, using the sets the clusters already carry:
+
+| rule element | cluster set |
+|---|---|
+| driver + outcome | `causal` (driver→outcome tokens of the linked causal claims) |
+| mechanism | `axes` (the operational axis the transmission is observed on) |
+| outcome variable | `market_vars` (the observable that actually moves) |
+
+A missing set is never evidence of sameness, so a cluster lacking any of the three cannot
+mechanism-merge at all — the pass is strictly **additive**. Its bar (`min_mechanism_similarity`,
+0.34) sits **below** the pass-1 bar on purpose: pass 1 is a *disjunction* over six dimensions
+("any one signal is strong"), pass 2 a *conjunction* over three ("all three agree at once"). Set
+them equal and pass 2 becomes dead code, because whichever dimension cleared 0.55 already caused
+pass 1 to merge. This is the pass that fixes **fragmentation**: two long, differently-worded
+descriptions of one theme share no tokens and pass 1 can never join them.
+
+**Guards** (both passes). A merge is refused, and recorded in `rejected_merges`, when either the
+existing `distinct_pairs` marker guard fires, or the **discriminator guard** does: both sides name a
+qualifier from the same closed vocabulary (geography in v1) and share none of them —
+`european bank spreads` vs `japanese bank spreads`, same mechanism, different market. Structure
+agreeing does not license merging what the guards call distinct. The guards are **defence in
+depth**: the threshold alone classifies the whole labelled pair set correctly with the guards
+switched off, so an incomplete discriminator vocabulary degrades the result rather than breaking it.
+
+**Ordering.** Items are sorted into a canonical, content-derived order before pass 1, so the output
+is a function of the input *set*, not of the order the caller supplied. The pass remains greedy —
+it is not a global optimum — but the same themes now always yield the same clusters, and ties
+resolve to the lowest cluster key rather than to whichever cluster happened to be seen first.
 
 ## Keep-separate rules (make them subthemes, not merges)
 
