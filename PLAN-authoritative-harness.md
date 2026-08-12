@@ -28,7 +28,7 @@ Base commit: `dc4af9c` (Wire Anthropic LLM seams behind Pass A / Pass B).
 | I5 | Verbatim-leak check intact | `pytest tests/unit/test_leak_check.py -q` |
 | I6 | New frozen-model fields are `Optional` w/ defaults (hash unchanged) | `pytest tests/integration/test_golden_master.py tests/integration/test_discovery_firewall.py -q` |
 | I7 | No-trade boundary | `pytest tests/integration/test_posterior_firewall_and_output.py -q` + `validate_discovery_output` leakage gates |
-| I8 | Determinism (no wall clock in new modules) | `grep -rInE "datetime\.now\|date\.today\|time\.time" engine/grounding.py engine/confidence.py engine/emit_gate.py` → none (callers pass `now`) |
+| I8 | Determinism (no wall clock in new modules) | `grep -rInE "datetime\.now\|date\.today\|time\.time" engine/grounding/` → none (callers pass `now`); enforced as a test by `pytest tests/unit/test_harness_determinism.py -q`, which walks the package and also covers the schema contracts |
 
 **Hard rule for every new schema field on a frozen model** (`EvidenceAtom`, `ThemeObject`,
 `StrategyFamilyRec`): `Optional` with a safe default, and excluded from the content hash in

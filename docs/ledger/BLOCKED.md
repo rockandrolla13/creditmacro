@@ -20,6 +20,13 @@ client is built only under the opt-in, tests inject a fake client. The
 StructuralSemanticMapper default scorer stays deterministic (node-Jaccard) so
 gates remain LLM-free. STILL OPEN: the calibration harness measuring
 match_confidence precision/recall on the golden corpus.
+**Status (2026-08-12) — STILL OPEN, and one detail of the proposal was not
+followed.** No calibration harness exists. The proposal said to expose
+`MATCH_CONFIDENCE_FLOOR = τ_ORPHAN`; that name does not exist anywhere. The code
+reads `TAU_ORPHAN` directly (`constants.py:27`, used at `ingest/pass_b.py:140`).
+That is arguably better — one name, no alias to drift — but it means anyone
+grepping for the name in this entry finds nothing. Verify with
+`grep -rn "MATCH_CONFIDENCE_FLOOR\|TAU_ORPHAN" --include=*.py engine`.
 **Affected.** `ingest/pass_a.py`, `ingest/pass_b.py`, `ingest/prompts/`,
 `llm_json.py`, `tests/golden/corpus/`.
 
@@ -30,8 +37,22 @@ and is it available offline for deterministic gates?
 **Proposed resolution.** Behind an `Embedder` protocol; a deterministic
 hash-based stub embedder for gates, real model wired at runtime via
 `LedgerRunConfig`. Constant names unchanged.
+**Status (2026-08-12) — STILL OPEN; half the proposal landed and the other half is
+an inert knob.** What exists: the deterministic default, `bow_cosine` in
+`engine/ledger/textsim.py`, injected as a `Callable[[str, str], float]` seam at
+`ingest/scoring_view.py:73` and used by `wiki/wiki_import.py:96`. Constants
+`COS_NOVELTY` / `COS_COSMETIC` are unchanged (`constants.py:19-20`). What does NOT
+exist: any `Embedder` protocol — the seam is a bare callable — and, more
+importantly, **`LedgerRunConfig.embedder` is a dead string**. It is declared
+`embedder: str = "hash_stub"` at `runner.py:31` and **nothing reads it**; setting
+it to a real model name changes nothing, silently. Verify with
+`grep -rn "embedder" --include=*.py .` — the only non-comment hits are the
+declaration itself. Either wire it or drop it before someone trusts it. (The same
+pattern bites `breach_mode` in `engine/surveillance.py`; see
+`docs/SPEC_AND_STATE.md` §4.7.)
 **Affected.** `ingest/scoring_view.py`, `ingest/admission.py`,
-`wiki/wiki_import.py` (cosmetic pre-filter).
+`wiki/wiki_import.py` (cosmetic pre-filter), `runner.py` (`LedgerRunConfig`),
+`textsim.py`.
 
 ### B-03 — Tracked-axis registry contents
 **Question.** WF(c) requires X ∈ tracked-axis registry, but the registry's
@@ -41,6 +62,18 @@ data feeds) is not enumerated in the ONTOLOGY.
 axes already named on the 4 curated theme pages + the standard credit
 indices (C0A0, H0A0, CDX.IG/HY, 3M10Y); mark it a review-gated registry
 like V. Out-of-registry axis → WF(c) fail → NEEDS_STRUCTURING.
+**Status (2026-08-12) — MOSTLY IMPLEMENTED, still open on membership.** The
+mechanism is built and enforced: `TRACKED_AXES` is seeded with 7 axes at
+`vocab.py:120` (C0A0_OAS, H0A0_OAS, CDX_IG_5Y, CDX_HY_5Y, 3M10Y, plus
+HYPER_IG_PROJECT_BASIS and IG_EXCESS_RETURN, the last carrying sign −1), `axis_sign`
+raises a descriptive error rather than `KeyError` outside the registry, and
+`substrate/identity.py:61-62` fails WF clause (c) with the axis named. Two of the
+proposal's five standard seeds were not added as separate entries — the proposal
+listed curve series generically and only 3M10Y is present. **What remains open is
+the question this entry actually asks: the registry's contents.** `vocab.py:119`
+still carries `# TODO extend — see BLOCKED B-03`, and nothing makes it review-gated
+"like V" — it is an ordinary module-level dict any edit can extend. Verify with
+`grep -n "TRACKED_AXES" -A 15 engine/ledger/vocab.py`.
 **Affected.** `vocab.py`, `substrate/identity.py` (WF).
 
 ### B-04 — Is there an economically meaningful `H_MIN` above 1 day?
@@ -89,7 +122,19 @@ transmission meaning and would inflate `k`, which is a WF-gated quantity.
 **Which side is right.** The engine invariant is right and the projection is
 wrong; the ONTOLOGY is silent, so this needs a `D-NN` delta once decided, not a
 local override.
-**Status (2026-08-11).** Resolved by `D-13`.
+**RESOLVED 2026-08-11, verified in code 2026-08-12 (delta `D-13`).** The proposed
+resolution was ACCEPTED and is implemented: `projection.to_theme_object` now sets
+`main_theme = CausalNode(id=node_ids[-1], …)` — the terminal node `vk` — and
+appends it to the chain's node list rather than synthesising a `theme:<id>` node
+outside it (`engine/ledger/projection.py:61-75`). `_validate_causal_chain` now
+accepts the projected object. No ONTOLOGY edit was needed: §Theme already fixes
+`X` as the observable proxy for `vk`, so the code was made to say what the
+ontology already said.
+**Rejected.** Appending a synthetic node after `vk` and extending the chain
+through it — it carries no transmission meaning and inflates `k`, which is
+WF-gated.
+**Verify in one command.** `grep -n "node_ids\[-1\]" engine/ledger/projection.py`
+— hits at the `main_theme` construction.
 **Affected.** `engine/ledger/projection.py`,
 `tests/integration/test_ledger_render_projection.py`, `engine/ledger_bridge.py`.
 
@@ -112,7 +157,19 @@ restating it as a string. Persistence to `JsonlEventStore` stays **opt-in** via
 `recorded_at` keeps being stamped only inside the store (I7). No constant
 changes; no change to `RegistryState`'s existing fields, so
 `tests/golden/corpus/expected_registry.json` stays valid.
-**Status (2026-08-11).** Resolved by `D-14`.
+**RESOLVED 2026-08-11, verified in code 2026-08-12 (delta `D-14`).** The proposed
+resolution was ACCEPTED and is implemented additively: `AdmittedTheme` now carries
+`created_event` and `status_changed_event` (both `Optional`, defaulting to `None`)
+plus an `events()` accessor that folds them in order, and `forward_ingest` passes
+`created_event=out.created_event` through from the `AdmissionOutcome`
+(`engine/ledger/runner.py:38-46, 122`). The registry is therefore foldable,
+projectable and queryable as-of, as §Bitemporal and I5 require. Persistence stayed
+opt-in via `LedgerRunConfig.events_store`, so gate tests remain deterministic and
+`recorded_at` is still stamped only inside the store (I7). No constant changed and
+`RegistryState` gained no field, so `tests/golden/corpus/expected_registry.json`
+remained valid.
+**Verify in one command.** `grep -n "created_event" engine/ledger/runner.py` —
+hits on the field, the `events()` fold and the `forward_ingest` call site.
 **Affected.** `engine/ledger/runner.py`, `engine/ledger_entrance.py`,
 `tests/integration/test_ledger_admission.py`.
 

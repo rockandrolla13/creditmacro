@@ -704,4 +704,91 @@ pack and book stays interpretable against the version it was built under.
 
 ---
 
-*Design doc only. No engine code is modified by this PR.*
+## 8. Scaffold landed — and what this plan got wrong (2026-08-12)
+
+`engine/lifecycle/` now exists as **typed stubs only**: every model is real and frozen, every
+function raises `NotImplementedError` naming its phase. Nothing is wired into the engine, so no
+existing module gained a dependency and the golden master is untouched.
+`tests/unit/test_lifecycle_scaffold.py` adds 36 tests.
+
+### File layout
+
+| Module | Responsibility |
+|---|---|
+| `lifecycle/decisions.py` | The twelve §6 decisions as constants under `LIFECYCLE_DECISIONS_VERSION` |
+| `lifecycle/theme_view.py` | **L1** — the read-only join contract, `project`, `require_contract` |
+| `lifecycle/regime.py` | **A1** — `RegimeVocabulary` and `discover_regimes` |
+| `lifecycle/theme_enrichment.py` | **A2** — the blocks compression does not produce, keyed to `parent_id` |
+| `lifecycle/surprise.py` | **L2** — `NumericContext`, `classify_number`, `collapse_levels` |
+| `lifecycle/evidence_pack.py` | **L3a** — `EvidencePack` frozen at a terminal transition |
+| `lifecycle/scorecard.py` | **L3b** — the cross-theme roll-up, recomputed from packs alone |
+| `lifecycle/theme_book.py` | **L4** — the Monday artifact, a render of stored state only |
+| `lifecycle/factor_projection.py` | **L5** — decomposition and the alive-and-tractable gate |
+
+`engine/lifecycle/` is a different concept from the existing `engine/ledger/lifecycle.py`
+(the ledger's own activation/falsification transitions). Every docstring says so.
+
+### Four corrections to this document
+
+**1. §3's `ThemeCandidateSet` is obsolete — `engine/compression.py` already does most of A2.**
+`AnalystThemeMap` / `ParentTheme` already carry the canonical name, the causal mechanism, the
+falsifier, the axis-or-watchlist, evidence-by-source, `why_it_might_be_wrong`, merged-cluster
+accounting and the 3–7 cap; `CompressionStats` *is* the `funnel`, and `SourceCoverageMatrix`
+*is* `SourceCoverage`. Building `ThemeCandidate` beside `ParentTheme` would give the repo two
+theme types with two promotion gates. A2 is therefore scaffolded as **enrichment**:
+`EnrichedThemeMap` holds a *reference* to the `AnalystThemeMap` and adds only the genuine gaps
+(consensus effect, narrative surprise, mapped regimes, factor map, tractability, initial
+lifecycle defaults, contradicting atom ids) plus structured upgrades of two partials — the
+adversarial case (a sentence today) and the falsifier triggers (untyped today).
+
+**2. §4/L1's `ThemeView` schema breaks the repo's own governing rule.** Four fields are typed
+non-`Optional` — `surveillance_status: str`, `confidence: float`, `horizon: str`,
+`ledger_root: str` — while L1's own test requires *"a blocked theme projects with
+`surveillance_status` absent rather than guessed."* A required `float` forces `0.0`, which is
+the "no data rendering as measured zero" that `engine/ledger/projection.py` explicitly refuses.
+All four are `Optional` in the scaffold, and a test pins that decision. `ThemeView` also gains
+`assembled_from` (required, non-empty — a hand-built view cannot name real source hashes) and
+`unavailable` (which fields are `None` because their *producer* does not exist, as distinct
+from measured-absent).
+
+**3. §4/L3's `EvidencePack` leans on the wrong object.** It types `outcome` as
+`ThemeOutcomeRecord`, but `engine/outcomes.py::ThemeOutcomeRecord` is a plain dataclass of
+*pricing* calibration inputs (`p`, `q`, `X_s`, `X_mkt`, `predicted_edge`, `edge_std`) that a
+discovery-only theme never has. Requiring it would force six fabricated numbers into the one
+record that exists to be honest. The scaffold uses a local `TerminalOutcome` and points at the
+pricing record via `outcome_ref` when one exists. The plan's `db/migrations/0004` is still
+owed — existing migrations stop at `0002`.
+
+**4. §5's ordering no longer holds.** L1 does not need A1 and A2 first: its existing-source
+fields (`ThemeObject` + `ThemeWatch`) are available today, and `regime_ids` / `candidate_ref`
+are `Optional`. L1 can be implemented immediately.
+
+### What actually blocks implementation
+
+§6 is **resolved**, so none of its questions block. But one resolved decision is stated in
+vocabulary the codebase does not have, and that does block:
+
+> **D-A1-3 is unbuildable as written.** It filters on
+> `claim_kind ∈ {view, forecast, framing, mechanism}`, excluding `{measurement, level, tabular}`.
+> **None of those seven strings exist in this repo.** The real vocabularies are
+> `engine/temporal.py::ClaimKind` (`historical_fact, historical_forecast, source_opinion,
+> current_fact, current_forecast, method_rule, unknown`) and
+> `engine/evidence_extraction.py::_claim_kind` (`source_opinion, source_forecast, source_fact`).
+> `view` and `forecast` map over cleanly; **`framing` and `mechanism` have no counterpart** — a
+> mechanism is a *causal claim*, a separate extraction stream, not a claim kind at all.
+> `decisions.OPINION_CLAIM_KINDS` is therefore an **empty frozenset** carrying the reason, and
+> `discover_regimes` refuses while it is empty. This needs one human sentence.
+
+Routed around rather than blocked: **G8 briefs and the G6 ledger** — `ThemeView` v1 omits
+`briefs` and references the ledger by id, so L1 needs neither. **L5's factor data** — every
+share is `Optional` and the gate closes on absence. **`no_view_twin`** — named in `unavailable`
+rather than defaulted.
+
+Also worth reconciling before A1 is implemented: `engine/schema/macro.py::MacroContext` and the
+already-wired `macro-regime-classifier` skill produce a qualitative macro framing per theme.
+That is a fixed taxonomy applied to one theme; A1 is a vocabulary inferred from the whole
+corpus. Different jobs, but they must not emit two competing regime labels for the same week.
+
+---
+
+*Sections 1–7 are design only. Section 8 records the scaffold.*
