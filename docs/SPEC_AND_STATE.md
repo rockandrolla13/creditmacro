@@ -1,6 +1,9 @@
 # creditmacro — Specification and State of the Project
 
 **Written 2026-08-10** from the plan documents and the code, both read directly.
+**Open items re-verified against the code 2026-08-12** — every entry in Part 4 was checked
+by running the command it now cites. Two were fixed and are moved to Part 4C. One (§4.4)
+is waiting on a human decision, not on work.
 
 > **This document is a map, not a territory.** Where it summarises a rule, the linked
 > document is canonical and wins on any conflict. Its job is to let you see the whole
@@ -178,7 +181,8 @@ deliberate: §Theme states that a theme with `S < 0` is **contested, not reverse
 contra-evidence never falsifies, it decrements the score. The stated rationale: *analyst
 disagreement is opinion flow; market breach is realized state.*
 
-> ⚠️ **The code no longer implements this rule.** See Part 4, item 1.
+> ✅ **The code implements this rule.** It briefly did not; the divergence was closed on
+> 2026-08-12 by restoring `abs()` in `engine/ledger/runner.py`. See Part 4C, item 4.1.
 
 **Three status axes, orthogonal, never to be conflated** (amendment A3): pipeline
 progress (`ThemeObject.status`), surveillance observation (`WatchStatus`), and market
@@ -297,8 +301,8 @@ the contradiction was closed.
 
 # Part 2 — State of the project
 
-Test baseline **898 passing** (verified 2026-08-10). Engine: 85 modules, 13,277 lines.
-Branch `master`, clean, in sync with origin.
+Test baseline **1065 passing** (`python -m pytest -q`, verified 2026-08-12 on branch
+`harness-and-lifecycle`; was 898 on 2026-08-10). Engine: 99 modules, 18,132 lines.
 
 ## 2.1 Built and working ✅
 
@@ -319,7 +323,7 @@ row also says how far you can trust it.
 | **Theme Hypothesis Ledger** | `engine/ledger/` | All 7 phases: event log, fold, as-of queries, wiki import, blind Pass A, Pass B mapper, scoring view, orphan clustering, admission, renderer, drift diff, projection | `lifecycle.py` is a stub; `queries.valid_over` deferred; match-confidence calibration is open (BLOCKED B-01) |
 | **Surveillance** | `surveillance.py`, `surveillance_agent.py` | State machine, three guardrails, monitor agent, terminal write-back, discovery→CASE persistence, forward horizon | Single falsifier per theme; the scheduled-read source in production is undecided |
 | **Thesis tracker** | `thesis_tracker.py` | SQLite sidecar, computed view, audit log, CLI | Deliberately isolated — does not touch discovery, the firewall, or sizing, and infers nothing priceable |
-| **Grounding kernel** | `engine/grounding/` | Span matching (exact + normalised, **no fuzzy**), unit-aware tokenizer, `verify_atom`, `enforce`, wired into extraction | Tokenizer drops figures with unrecognised suffixes (Part 4.5); mode hardcoded to lint (Part 4.4); Tier C not built |
+| **Grounding kernel** | `engine/grounding/` | Span matching (exact + normalised, **no fuzzy**), unit-aware tokenizer incl. magnitudes and tenors (Part 4C/4.5, fixed 2026-08-12), `verify_atom`, `enforce`, wired into extraction | Mode hardcoded to lint (Part 4.4, awaiting your decision); Tier C not built; a bare year is still extracted from inside a date |
 | **Provider seam** | `provider_select.py`, `llm_provider.py` | Scripted default; live LLM discovery-only, fails closed without explicit opt-in; capture/replay | The live provider supplies no scenarios and no evidence maps, so the live Q4 posterior always equals the prior |
 
 **Agent registry** (`engine/wiki_agents.py`). Eight agents registered. Five implement
@@ -368,7 +372,8 @@ fresh report inform reasoning without re-opening the whole case archive.
 
 ## 2.3 Missing ❌
 
-Twelve `NotImplementedError` stubs remain. The ones that matter:
+Thirteen `raise NotImplementedError` stubs remain (counted 2026-08-12:
+`grep -rn "raise NotImplementedError" --include=*.py engine | wc -l`). The ones that matter:
 
 | Stub | What it blocks |
 |---|---|
@@ -379,15 +384,17 @@ Twelve `NotImplementedError` stubs remain. The ones that matter:
 | `ledger/substrate/queries.valid_over` | Outcome attribution over valid time |
 | `ledger/wiki/breadcrumbs` | Card→source provenance map |
 
-And these modules do not exist at all:
+And these modules do not exist at all (re-checked 2026-08-12):
 
-- `engine/compression.py` — the **ThemeCompressionAgent**, which
-  `docs/THEME_DISCIPLINE_AND_FAILURE_MODES.md` calls *"the single highest-leverage build
-  on the roadmap."*
+- ~~`engine/compression.py`~~ — **now built** (commit 88b700b, 1,084 lines): the
+  ThemeCompressionAgent, screen → group → merge → cap → synthesis → gate, with the
+  synthesis step behind a `ThemeSynthesizer` seam. See §4.8b for what the shipped merge
+  metric does and does not fix.
 - `engine/news_critic.py` — external corroboration tagged attention-not-evidence.
 - `engine/theme_view.py`, `engine/factor_projection.py`, `engine/theme_book.py` — the
   whole of `PLAN-theme-lifecycle.md` (L1, L5, L4).
-- `engine/grounding/confidence.py`, `emit_gate.py` — harness G4 and G6.
+- `engine/grounding/emit_gate.py` — harness G6. (`engine/grounding/confidence.py`, harness
+  G4, landed 2026-08-12 while this pass was running — see §4.6.)
 
 ## 2.4 The skill surface overstates capability
 
@@ -487,26 +494,26 @@ that already define "done", and a promotion gate, merge rules, keep-separate rul
 downgrade rules. `SURVEILLANCE_BUILD_PLAN.md` §4 places it in the discovery flow, never
 in the scripted expression path the golden master locks.
 
+> **Update 2026-08-12 — the missing piece now exists, but this gap is not closed.**
+> `engine/compression.py` shipped (commit 88b700b) and does group by driver rather than by
+> tokens. What it has NOT had is a run against a real multi-source batch. §4.8b measured
+> the shipped merge metric on labelled *name* pairs only: it fixes every over-merge and
+> **none of the four under-merges**, and two true-duplicate pairs still score 0.00 because
+> they share no vocabulary. So the fragmentation half of the problem is unfixed and the
+> alias vocabulary that would reach it has 5 entries. Read this section as *specified and
+> built, not yet demonstrated*.
+
 ---
 
 # Part 4 — Open contradictions and pending decisions
 
 These are live. Each needs a decision, not more analysis.
 
-## 4.1 🔴 The activation rule: code and specification now disagree
-
-`ONTOLOGY.md` defines activation twice — §Lifecycle and §Constants — as
-`B ≥ 2 ∧ |S| ≥ 2`. The absolute value is load-bearing: a contested theme is meant to go
-ACTIVE precisely so that it gets watched.
-
-Wave 1 removed the absolute value from `engine/ledger/runner.py:84`, treating it as a
-sign-blindness bug. No `ONTOLOGY_DELTA` entry was recorded, which §Constants requires.
-`engine/ledger/lifecycle.py` and `docs/ledger/PLAN_TRACKER.md` still state the rule with
-the absolute value, so the code is now the outlier, not the documents.
-
-**Decide:** either the ontology is right and the change is a regression to revert, or the
-ontology is wrong and needs an amendment plus a recorded delta. The sign audit is the
-precedent for how to settle it. *Under-claiming is free; a silent divergence is not.*
+**Live:** 4.2, 4.3, 4.4, 4.6, 4.7, 4.8b.
+**Closed since this document was written:** 4.1 and 4.5, moved to **Part 4C** below. Their
+original numbers are kept there so existing references still resolve, and the original
+reasoning is kept underneath each resolution — you need it to judge whether the resolution
+still applies.
 
 ## 4.2 🟠 D1's human gate rests on a stub
 
@@ -517,6 +524,10 @@ an enum member to a function that cannot run.
 
 **Decide:** re-scope D1 to acknowledge that Tier C pulls forward Phase-0/7 work, and
 where the queue should live — see 4.3.
+
+**Still open, re-verified 2026-08-12.** `enqueue` still raises and still has no callers:
+`grep -rn "review_queue\|enqueue" --include=*.py engine tests` returns exactly one hit,
+the definition itself.
 
 ## 4.3 🟠 D1 and D5 pull in opposite directions
 
@@ -529,45 +540,80 @@ create the first inbound edge.
 **Decide:** together, not separately. If the queue is shared infrastructure it belongs
 above both subsystems, not inside one.
 
-## 4.4 🟠 The grounding mode is inverted relative to D2
+**Still open, re-verified 2026-08-12.** Unresolved architectural question; nothing in the
+code has moved either way.
+
+## 4.4 🟠 ⏳ AWAITING YOUR DECISION — the grounding mode is inverted relative to D2
+
+**This one is blocked on you, not on more work.** It is the only entry in Part 4 that a
+builder should not touch until you say which way it goes.
 
 `extract_evidence` hardcodes lint mode with no caller override. D2 requires the mode be
 an explicit caller-supplied parameter defaulting to HALT. Note the ordering constraint:
 flipping to strict is unsafe until the number tokenizer stops dropping real figures
 (4.5), because strict mode turns a dropped figure into a halt on correct work.
 
-## 4.5 🟠 The number tokenizer silently deletes real figures
+**Still open, re-verified 2026-08-12.** `engine/evidence_extraction.py:270` still reads
+`enforce(atoms, index, GroundingPolicy(mode="lint"))`, with no `mode` parameter on
+`extract_evidence`. Verify with
+`grep -n "GroundingPolicy" engine/evidence_extraction.py`.
 
-Measured: any figure followed by a suffix the tokenizer does not recognise returns
-nothing at all — `$1.1tn`, `$440bn`, `500mn`, `250k`, and also the tenor and period forms
-`10y`, `5y`, `12m`, `3Q`. A sentence whose only figure is unreadable is discarded before
-it can become evidence (7 sentences in one credit research note, 0 in another — it is
-document-dependent).
-
-The diagnosis is clean and the fix is narrow. Every phantom number the guard exists to
-block (`Q1`, `2022-12-28`) is a **left-edge** violation. Every real figure it destroys is
-a **right-edge** violation. The guard can stay strict on the left and stop deleting on
-the right.
-
-Full detail in `reviews/2026_08_10_grounding_harness_review.md` (CR-BUG-001).
+**What changed under it:** the ordering constraint that made this unsafe to flip has been
+lifted — 4.5 is fixed (Part 4C). So the blocker is now only the decision, not the
+tokenizer.
 
 ## 4.6 🟡 Invariant I8 cannot fail
 
-Its gate command names `engine/grounding.py`, `engine/confidence.py`,
-`engine/emit_gate.py` — three paths that do not exist, because the layout moved to
-`engine/grounding/`. The grep errors, produces no output, and reads as green. The code
-is in fact clean; the gate is vacuous. One-line fix.
+Its gate command in `PLAN-authoritative-harness.md:31` greps `engine/grounding.py`,
+`engine/confidence.py`, `engine/emit_gate.py` — three paths that do not exist, because the
+layout moved to the `engine/grounding/` package. The grep errors, produces no output, and
+reads as green. The code is in fact clean; the gate is vacuous. One-line fix.
+
+**Still open, re-verified 2026-08-12 (state at time of writing — this one is moving).** All
+three named paths are still absent, so the gate is still vacuous. The package layout is:
+
+- `engine/grounding/__init__.py` — holds `GroundingPolicy`, `SourceIndex`, `enforce`. The
+  gate's `engine/grounding.py` was never renamed to this, so the grep misses it.
+- `engine/grounding/numbers.py` — the tokenizer. Not named by the gate at all.
+- `engine/grounding/confidence.py` — **just landed** (G4). The gate names
+  `engine/confidence.py`, which does not exist, so it misses this too.
+- `engine/grounding/emit_gate.py` — still not written (G6).
+
+So fixing the gate is **not** a path rename: one of its three targets does not exist yet in
+any location, and two exist at different paths than it names. **Point the grep at
+`engine/grounding/` as a directory** — it becomes non-vacuous today and stays correct as
+G6 lands, with no further edit. Verify the current state with `ls engine/grounding/`; if
+that listing has grown since this was written, the directory form is the reason to prefer
+it.
 
 ## 4.7 Decisions the plans defer to you
 
+Reviewed against the code 2026-08-12. All six are still yours to make — none has been
+quietly settled. One has changed shape and is now more urgent than it reads above.
+
 - **Expectation source for surprise scoring** (L2) — consensus from a grounded span,
   the prior print, or a model path. Plan recommends the first, never the last.
+  *Still open; nothing built. `engine/theme_view.py` does not exist.*
 - **Residual-alpha threshold** (L5) — a risk-appetite call, not a technical one.
-- **Book cadence and recipient** (L4).
-- **Evidence-pack retention** (L3).
+  *Still open; `engine/factor_projection.py` does not exist.*
+- **Book cadence and recipient** (L4). *Still open; `engine/theme_book.py` does not exist.*
+- **Evidence-pack retention** (L3). *Still open; no `EvidencePack` anywhere in `engine/`.*
 - **Breach mode** — ship consecutive-only, or expose the decayed-integral variant.
+  🔴 **Now a live trap, not just a deferred choice.** `engine/surveillance.py:55` declares
+  `breach_mode: Literal["consecutive", "integral"] = "consecutive"`, and that line is the
+  **only** occurrence of `breach_mode` in the repo — nothing reads it, and no test covers
+  it. So the integral variant is *selectable but inert*: setting `breach_mode="integral"`
+  is accepted by the type and silently gives consecutive behaviour. Verify with
+  `grep -rn "breach_mode" --include=*.py .` — one hit. Either implement the branch or drop
+  the field; a knob that does nothing is worse than an absent one, because it reads as a
+  capability. This is exactly the "surface overstates capability" pattern of Part 2.4.
 - **Multi-falsifier themes** — the schema assumes one; real theses often have two or
   three. AND or OR, and does any breach terminate or does it take a quorum?
+  *Still open, and the two halves of the codebase disagree with each other:*
+  `engine/schema/risk.py:39` carries `falsifiers: list[Falsifier]` (plural) while
+  `engine/surveillance.py:166` watches a single `falsifier: FalsifierState`. A theme may
+  therefore be *authored* with three falsifiers and *surveilled* on one, with no error
+  raised and no record of which one was picked.
 
 ## 4.8 🟠 REVISIT: the theme distance metric — swapping it trades errors, it does not fix them
 
@@ -654,13 +700,100 @@ separate clusters. If the number is high, the answer is more aliases or a strong
 
 ---
 
+# Part 4C — Closed since this document was written
+
+Entries that were live in Part 4 and are now settled. **They keep their original numbers**
+so older references still resolve, and **the original text is kept underneath each
+resolution** — a resolution you cannot see the reasoning for is a resolution you cannot
+tell has gone stale.
+
+## 4.1 ✅ RESOLVED 2026-08-12 — the activation rule; the ontology was right
+
+**Resolution.** The ONTOLOGY wins and the code was the regression. `abs()` is restored:
+`engine/ledger/runner.py:107` now reads
+
+```
+active = sv.B >= ACTIVATION_BREADTH_MIN and abs(sv.S) >= ACTIVATION_ABS_SCORE_MIN
+```
+
+Recorded as `ONTOLOGY_DELTA` **D-09**, which names commit **e4b6740** ("orch task 1.5",
+2026-08-10) as the regression that dropped the absolute value *and*, in the same commit,
+added a test asserting the wrong behaviour — so the regression was self-ratifying. The
+restoring commit is **86086ac**. The test was renamed
+`test_negative_score_with_required_breadth_activates_as_contested`. No ONTOLOGY edit was
+needed; it was already right.
+
+**Verify in one command:** `grep -n "abs(sv.S)" engine/ledger/runner.py` — one hit.
+
+This is a fixed bug, not a decision that could be revisited: it followed the sign-audit
+precedent, established which side was right, and closed the divergence. Note the line
+number moved from 84 to 107; grep for the expression, not the line.
+
+**Original entry, kept for the reasoning:**
+
+> `ONTOLOGY.md` defines activation twice — §Lifecycle and §Constants — as
+> `B ≥ 2 ∧ |S| ≥ 2`. The absolute value is load-bearing: a contested theme is meant to go
+> ACTIVE precisely so that it gets watched.
+>
+> Wave 1 removed the absolute value from `engine/ledger/runner.py:84`, treating it as a
+> sign-blindness bug. No `ONTOLOGY_DELTA` entry was recorded, which §Constants requires.
+> `engine/ledger/lifecycle.py` and `docs/ledger/PLAN_TRACKER.md` still state the rule with
+> the absolute value, so the code is now the outlier, not the documents.
+>
+> **Decide:** either the ontology is right and the change is a regression to revert, or
+> the ontology is wrong and needs an amendment plus a recorded delta. The sign audit is
+> the precedent for how to settle it. *Under-claiming is free; a silent divergence is not.*
+
+## 4.5 ✅ RESOLVED 2026-08-12 — the number tokenizer no longer deletes real figures
+
+**Resolution.** Fixed as diagnosed: the boundary guard stays strict on the left edge and
+stops deleting on the right, via a magnitude/tenor allow-list in
+`engine/grounding/numbers.py`. Commit **473d095** ("grounding: stop the boundary guard
+deleting magnitudes and tenors"). This was a bug fix, not a decision, so there is no delta
+entry.
+
+**Verify in one command:**
+
+```
+python -c "from engine.grounding.numbers import numbers_in; print([n.raw for s in ['\$1.2bn','\$1.1tn','\$440bn','500mn','250k','10y','5y','12m','3Q'] for n in numbers_in(s)])"
+```
+
+Expected: all nine tokens returned, each with a unit (`usd_bn`, `usd_tn`, `mn`, `k`, `y`,
+`m`, `q`). Measured 2026-08-12: all nine present.
+
+**One thing the fix did not address, and it is not the reported bug.** The left-edge guard
+still lets a bare year through from inside a date: `numbers_in('2022-12-28')` returns
+`2022` as an unbounded, unitless number, and `numbers_in('Q1 2022')` likewise returns
+`2022`. The original entry listed `2022-12-28` as a phantom the guard *exists to block*.
+It blocks the `12` and the `28`, not the year. Whether a year is a real figure or a
+phantom is a judgement call — treat this as a note for whoever next touches the guard, not
+as a reopening of 4.5.
+
+**Original entry, kept for the reasoning:**
+
+> Measured: any figure followed by a suffix the tokenizer does not recognise returns
+> nothing at all — `$1.1tn`, `$440bn`, `500mn`, `250k`, and also the tenor and period
+> forms `10y`, `5y`, `12m`, `3Q`. A sentence whose only figure is unreadable is discarded
+> before it can become evidence (7 sentences in one credit research note, 0 in another —
+> it is document-dependent).
+>
+> The diagnosis is clean and the fix is narrow. Every phantom number the guard exists to
+> block (`Q1`, `2022-12-28`) is a **left-edge** violation. Every real figure it destroys
+> is a **right-edge** violation. The guard can stay strict on the left and stop deleting
+> on the right.
+>
+> Full detail in `reviews/2026_08_10_grounding_harness_review.md` (CR-BUG-001).
+
+---
+
 # Part 5 — Recommended build order, and why
 
 The plans do not agree on what comes next, because they were written at different times
 against different bottlenecks. Reconciled against the stated goal:
 
-**Step 1 — Fix the tokenizer, then invert the grounding default.** Small, measured, and
-it unblocks 4.4. Without it, strict mode halts on correct work.
+**Step 1 — ✅ tokenizer done; ⏳ the grounding default is now waiting on you.** The
+tokenizer half shipped 2026-08-12 (Part 4C/4.5), which removes the reason strict mode was
+unsafe. Inverting the default to HALT is a one-parameter change gated on your call in 4.4.
 
 **Step 2 — Finish harness G4 (computed confidence).** The extractor currently attaches
 three author-picked confidence constants. G4 replaces them with a number computed from
@@ -675,15 +808,20 @@ now exists precisely to catch what a generative parser gets wrong. These two bel
 together: ingestion is the moment the system first becomes capable of inventing, and G1,
 G2 and G4 are the net under it.
 
-**Step 4 — Build theme compression.** This is what turns forty near-duplicates into five
-themes a person would recognise. Its ten acceptance tests are already written down. It
-goes in the discovery flow, never the scripted expression path.
+**Step 4 — ✅ theme compression built** (`engine/compression.py`, commit 88b700b). It turns
+a flat list of near-duplicates into three to seven parent themes with subthemes, and it
+sits in the discovery flow, not the scripted expression path. **The remaining work is
+validation, not construction:** §4.8b says the shipped merge metric fixes all four
+over-merges and none of the four under-merges, and that the alias vocabulary covers
+almost nothing. Run the aggregator over a real multi-source batch from `markdowns/` and
+count surviving duplicates before trusting it.
 
 **Step 5 — Then the lifecycle plan** (L1 ThemeView first; everything else reads it).
 It is a reader's layer over work that must exist first, and it depends on harness Phase 3.
 
-Steps 1 and 2 are days. Steps 3 and 4 are the substantial work, and they are the two that
-change what the engine can actually do.
+Steps 1 and 4 have landed. **Step 3 (ingestion) is now the substantial work, and it is the
+one that changes what the engine can actually do** — it is still the only reason there is
+no automatic path from a document to a theme (Part 3.1).
 
 ---
 
